@@ -1,4 +1,5 @@
 using ArtaFin.Domain.Finance;
+using Xunit;
 
 namespace ArtaFin.UnitTests;
 
