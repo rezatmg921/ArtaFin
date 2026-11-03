@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <RootNamespace>ArtaFin.Api</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../ArtaFin.Application/ArtaFin.Application.csproj" />
+    <ProjectReference Include="../ArtaFin.Infrastructure/ArtaFin.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>
