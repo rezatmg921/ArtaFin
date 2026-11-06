@@ -59,5 +59,7 @@ public sealed class EntityTests
         public string Name { get; } = name;
     }
 
-    private sealed class OtherTestEntity(Guid id) : Entity(id);
+    private sealed class OtherTestEntity(Guid id) : Entity(id)
+    {
+    }
 }
