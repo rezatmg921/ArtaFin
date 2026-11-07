@@ -55,9 +55,13 @@ public sealed class JournalEntryPersistenceTests : IAsyncLifetime
         }
 
         await using var read = new ArtaFinDbContext(_options);
+        var actualBook = await read.FinancialBooks.AsNoTracking()
+            .SingleAsync(x => x.Id == bookId);
         var actual = await read.JournalEntries.AsNoTracking().Include(x => x.Lines)
             .SingleAsync(x => x.Id == entryId);
 
+        Assert.Equal("USD", actualBook.BaseCurrency.Code);
+        Assert.Equal(2, actualBook.BaseCurrency.MinorUnit);
         Assert.Equal(entryId, actual.Id);
         Assert.Equal(bookId, actual.FinancialBookId);
         Assert.Equal(postedAt, actual.PostedAt);
