@@ -57,23 +57,24 @@ public sealed class JournalEntryConfiguration : IEntityTypeConfiguration<Journal
                 .HasColumnType("tinyint")
                 .IsRequired();
 
-            lines.ComplexProperty(line => line.Amount, money =>
-            {
-                // Initial storage precision; currency-specific rounding policy remains a
-                // domain decision and must be finalized before production financial posting.
-                money.Property(value => value.Amount)
-                    .HasColumnName("Amount")
-                    .HasPrecision(19, 4)
-                    .IsRequired();
+            // Money remains a Domain value object. Its two private scalar fields are
+            // mapped separately so SQL can store and query amount and currency efficiently.
+            lines.Property<decimal>("_amount")
+                .HasField("_amount")
+                .UsePropertyAccessMode(PropertyAccessMode.Field)
+                .HasColumnName("Amount")
+                .HasPrecision(19, 4)
+                .IsRequired();
 
-                money.Property(value => value.Currency)
-                    .HasColumnName("Currency")
-                    .HasColumnType("char(3)")
-                    .HasMaxLength(3)
-                    .IsUnicode(false)
-                    .IsFixedLength()
-                    .IsRequired();
-            });
+            lines.Property<string>("_currency")
+                .HasField("_currency")
+                .UsePropertyAccessMode(PropertyAccessMode.Field)
+                .HasColumnName("Currency")
+                .HasColumnType("char(3)")
+                .HasMaxLength(3)
+                .IsUnicode(false)
+                .IsFixedLength()
+                .IsRequired(););
         });
     }
 }
