@@ -17,4 +17,17 @@ internal sealed class FinancialBookRepository(ArtaFinDbContext dbContext)
                 book => book.Id == financialBookId,
                 cancellationToken);
     }
+
+    public Task<FinancialBookMember?> GetMemberAsync(
+        Guid financialBookId,
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        return dbContext.FinancialBookMembers
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                member => member.FinancialBookId == financialBookId &&
+                          member.UserId == userId,
+                cancellationToken);
+    }
 }
