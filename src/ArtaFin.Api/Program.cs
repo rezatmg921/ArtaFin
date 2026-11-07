@@ -100,6 +100,7 @@ app.MapGet("/health", () => Results.Ok(new
 
 app.MapAuthenticationEndpoints();
 app.MapAccountEndpoints();
+app.MapFinancialBookMemberEndpoints();
 
 app.Run();
 
