@@ -14,9 +14,15 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        // Keep runtime entity registration order aligned with the migration snapshot.
+        modelBuilder.Entity<FinancialBook>();
+        modelBuilder.Entity<Account>();
+        modelBuilder.Entity<JournalEntry>();
+
         modelBuilder.ApplyConfiguration(new FinancialBookConfiguration());
         modelBuilder.ApplyConfiguration(new AccountConfiguration());
         modelBuilder.ApplyConfiguration(new JournalEntryConfiguration());
+
         base.OnModelCreating(modelBuilder);
     }
 }
