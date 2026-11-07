@@ -8,12 +8,21 @@ public enum PostingSide
     Credit = 2
 }
 
-/// <summary>A line in a balanced journal entry. Amount is always positive.</summary>
+/// <summary>
+/// A journal line supplied to the posting operation. The owning JournalEntry assigns
+/// its stable line number when the entry is posted.
+/// </summary>
 public sealed record JournalLine
 {
-    public Guid AccountId { get; }
-    public PostingSide Side { get; }
-    public Money Amount { get; }
+    // EF Core uses this constructor when materializing an owned line.
+    private JournalLine()
+    {
+    }
+
+    public int LineNumber { get; private set; }
+    public Guid AccountId { get; private set; }
+    public PostingSide Side { get; private set; }
+    public Money Amount { get; private set; }
 
     public JournalLine(Guid accountId, PostingSide side, Money amount)
     {
@@ -28,6 +37,18 @@ public sealed record JournalLine
         Side = side;
         Amount = amount;
     }
+
+    internal static JournalLine CreateNumbered(JournalLine source, int lineNumber)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        if (lineNumber <= 0)
+            throw new ArgumentOutOfRangeException(nameof(lineNumber));
+
+        return new JournalLine(source.AccountId, source.Side, source.Amount)
+        {
+            LineNumber = lineNumber
+        };
+    }
 }
 
 /// <summary>
@@ -36,24 +57,35 @@ public sealed record JournalLine
 /// </summary>
 public sealed class JournalEntry : AggregateRoot
 {
-    private readonly IReadOnlyList<JournalLine> _lines;
+    private readonly List<JournalLine> _lines = [];
 
     public Guid FinancialBookId { get; }
     public DateTimeOffset PostedAt { get; }
     public string Description { get; }
-    public IReadOnlyList<JournalLine> Lines => _lines;
 
-    private JournalEntry(Guid id, Guid financialBookId, DateTimeOffset postedAt,
-        string description, IReadOnlyList<JournalLine> lines) : base(id)
+    /// <summary>
+    /// Exposes a read-only view. EF Core populates the private backing field.
+    /// </summary>
+    public IReadOnlyList<JournalLine> Lines => _lines.AsReadOnly();
+
+    // EF Core binds the scalar constructor parameters and populates _lines separately.
+    private JournalEntry(
+        Guid id,
+        Guid financialBookId,
+        DateTimeOffset postedAt,
+        string description) : base(id)
     {
         FinancialBookId = financialBookId;
         PostedAt = postedAt;
         Description = description;
-        _lines = lines;
     }
 
-    public static JournalEntry Post(Guid id, Guid financialBookId, DateTimeOffset postedAt,
-        string description, IEnumerable<JournalLine> lines)
+    public static JournalEntry Post(
+        Guid id,
+        Guid financialBookId,
+        DateTimeOffset postedAt,
+        string description,
+        IEnumerable<JournalLine> lines)
     {
         if (financialBookId == Guid.Empty)
             throw new ArgumentException("Financial book id cannot be empty.", nameof(financialBookId));
@@ -68,12 +100,21 @@ public sealed class JournalEntry : AggregateRoot
         var currency = snapshot[0].Amount.Currency;
         if (snapshot.Any(line => !StringComparer.Ordinal.Equals(line.Amount.Currency, currency)))
             throw new DomainException("All journal lines must use the same currency.");
+
         var debits = snapshot.Where(x => x.Side == PostingSide.Debit).Sum(x => x.Amount.Amount);
         var credits = snapshot.Where(x => x.Side == PostingSide.Credit).Sum(x => x.Amount.Amount);
         if (debits != credits)
             throw new DomainException("Journal entry debits must equal credits.");
 
-        return new JournalEntry(id, financialBookId, postedAt, description.Trim(),
-            Array.AsReadOnly(snapshot));
+        var entry = new JournalEntry(
+            id,
+            financialBookId,
+            postedAt,
+            description.Trim());
+
+        for (var index = 0; index < snapshot.Length; index++)
+            entry._lines.Add(JournalLine.CreateNumbered(snapshot[index], index + 1));
+
+        return entry;
     }
 }
