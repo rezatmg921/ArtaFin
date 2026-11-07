@@ -43,8 +43,9 @@ public sealed class Pbkdf2PasswordHasher : IPasswordHasher
 
     public PasswordVerificationResult Verify(string password, string encodedHash)
     {
-        ArgumentException.ThrowIfNullOrEmpty(password);
-        ArgumentException.ThrowIfNullOrEmpty(encodedHash);
+        ArgumentNullException.ThrowIfNull(password);
+        if (string.IsNullOrEmpty(encodedHash))
+            return PasswordVerificationResult.Failed;
 
         if (!TryParse(encodedHash, out var iterations, out var expectedHash, out var salt))
             return PasswordVerificationResult.Failed;
