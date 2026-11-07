@@ -13,5 +13,6 @@
     <ProjectReference Include="../../src/ArtaFin.Domain/ArtaFin.Domain.csproj" />
     <ProjectReference Include="../../src/ArtaFin.Application/ArtaFin.Application.csproj" />
     <ProjectReference Include="../../src/ArtaFin.Api/ArtaFin.Api.csproj" />
+    <ProjectReference Include="../../src/ArtaFin.Infrastructure/ArtaFin.Infrastructure.csproj" />
   </ItemGroup>
 </Project>
