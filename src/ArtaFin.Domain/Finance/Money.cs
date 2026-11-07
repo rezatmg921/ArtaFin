@@ -16,7 +16,7 @@ public readonly record struct Money
     public Currency CurrencyInfo { get; }
 
     public Money(decimal amount, string currency)
-        : this(amount, Currency.FromCode(currency))
+        : this(amount, ArtaFin.Domain.Finance.Currency.FromCode(currency))
     {
     }
 
