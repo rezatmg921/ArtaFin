@@ -24,7 +24,18 @@ public sealed class JournalEntryPersistenceTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         await using var context = new ArtaFinDbContext(_options);
-        await context.Database.EnsureCreatedAsync();
+        await context.Database.MigrateAsync();
+    }
+
+    [Fact]
+    public async Task Database_MigrationsCreateTheExpectedSchema()
+    {
+        await using var context = new ArtaFinDbContext(_options);
+
+        var appliedMigrations = await context.Database.GetAppliedMigrationsAsync();
+
+        Assert.Contains("20261107170000_InitialCreate", appliedMigrations);
+        Assert.True(await context.Database.CanConnectAsync());
     }
 
     [Fact]

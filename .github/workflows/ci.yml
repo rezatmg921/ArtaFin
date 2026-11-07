@@ -33,9 +33,24 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
+      - name: Restore EF Core tools
+        run: dotnet tool restore
       - name: Restore
         run: dotnet restore ArtaFin.sln
       - name: Build
         run: dotnet build ArtaFin.sln --no-restore --configuration Release
+      - name: Check migration model snapshot
+        run: dotnet ef migrations has-pending-model-changes --project src/ArtaFin.Infrastructure/ArtaFin.Infrastructure.csproj --startup-project src/ArtaFin.Infrastructure/ArtaFin.Infrastructure.csproj --configuration Release
+      - name: Generate idempotent SQL migration script
+        run: |
+          mkdir -p artifacts
+          dotnet ef migrations script --idempotent --project src/ArtaFin.Infrastructure/ArtaFin.Infrastructure.csproj --startup-project src/ArtaFin.Infrastructure/ArtaFin.Infrastructure.csproj --configuration Release --output artifacts/ArtaFin.sql
       - name: Test
         run: dotnet test ArtaFin.sln --no-build --configuration Release --logger "trx;LogFileName=results.trx"
+      - name: Upload SQL migration script
+        uses: actions/upload-artifact@v4
+        with:
+          name: artafin-sqlserver-migrations
+          path: artifacts/ArtaFin.sql
+          if-no-files-found: error
+          retention-days: 30
