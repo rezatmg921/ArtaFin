@@ -157,13 +157,13 @@ public sealed class AccountOwnershipApiTests
             CancellationToken cancellationToken) =>
             Task.FromResult<FinancialBook?>(
                 book.Id == financialBookId ? book : null);
-    }
 
         public Task<FinancialBookMember?> GetMemberAsync(
             Guid financialBookId,
             Guid userId,
             CancellationToken cancellationToken) =>
             Task.FromResult<FinancialBookMember?>(null);
+    }
 
     private sealed class FakeAccountRepository : IAccountRepository
     {
