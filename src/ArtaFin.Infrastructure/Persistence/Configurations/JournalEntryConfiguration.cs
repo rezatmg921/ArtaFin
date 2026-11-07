@@ -23,6 +23,11 @@ public sealed class JournalEntryConfiguration : IEntityTypeConfiguration<Journal
             .HasMaxLength(500)
             .IsRequired();
 
+        builder.HasOne<FinancialBook>()
+            .WithMany()
+            .HasForeignKey(entry => entry.FinancialBookId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.Navigation(entry => entry.Lines)
             .HasField("_lines")
             .UsePropertyAccessMode(PropertyAccessMode.Field);
@@ -52,16 +57,18 @@ public sealed class JournalEntryConfiguration : IEntityTypeConfiguration<Journal
             lines.Property(line => line.AccountId)
                 .IsRequired();
 
+            lines.HasOne<Account>()
+                .WithMany()
+                .HasForeignKey(line => line.AccountId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             lines.Property(line => line.Side)
                 .HasConversion<byte>()
                 .HasColumnType("tinyint")
                 .IsRequired();
 
-            // The public Money value is reconstructed from its mapped scalar fields.
             lines.Ignore(line => line.Amount);
 
-            // Money remains a Domain value object. Its two private scalar fields are
-            // mapped separately so SQL can store and query amount and currency efficiently.
             lines.Property<decimal>("_amount")
                 .HasField("_amount")
                 .UsePropertyAccessMode(PropertyAccessMode.Field)

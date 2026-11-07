@@ -13,21 +13,12 @@ public sealed class JournalEntryPersistenceTests : IAsyncLifetime
 
     public JournalEntryPersistenceTests()
     {
-        var configuredConnectionString =
-            Environment.GetEnvironmentVariable("ARTAFIN_SQLSERVER")
-            ?? throw new InvalidOperationException(
-                "Set ARTAFIN_SQLSERVER to a SQL Server connection string for integration tests.");
-
-        var connectionStringBuilder = new DbConnectionStringBuilder
-        {
-            ConnectionString = configuredConnectionString
-        };
-        connectionStringBuilder["Initial Catalog"] = $"ArtaFin_Integration_{Guid.NewGuid():N}";
-        _connectionString = connectionStringBuilder.ConnectionString;
-
-        _options = new DbContextOptionsBuilder<ArtaFinDbContext>()
-            .UseSqlServer(_connectionString)
-            .Options;
+        var configuredConnectionString = Environment.GetEnvironmentVariable("ARTAFIN_SQLSERVER")
+            ?? throw new InvalidOperationException("Set ARTAFIN_SQLSERVER to a SQL Server connection string.");
+        var builder = new DbConnectionStringBuilder { ConnectionString = configuredConnectionString };
+        builder["Initial Catalog"] = $"ArtaFin_Integration_{Guid.NewGuid():N}";
+        _connectionString = builder.ConnectionString;
+        _options = new DbContextOptionsBuilder<ArtaFinDbContext>().UseSqlServer(_connectionString).Options;
     }
 
     public async Task InitializeAsync()
@@ -40,48 +31,57 @@ public sealed class JournalEntryPersistenceTests : IAsyncLifetime
     public async Task SaveAndReload_PreservesJournalEntryLinesAndMoney()
     {
         var entryId = Guid.NewGuid();
-        var financialBookId = Guid.NewGuid();
-        var cashAccountId = Guid.NewGuid();
-        var revenueAccountId = Guid.NewGuid();
+        var bookId = Guid.NewGuid();
+        var ownerId = Guid.NewGuid();
+        var cashId = Guid.NewGuid();
+        var incomeId = Guid.NewGuid();
         var postedAt = new DateTimeOffset(2026, 11, 7, 10, 0, 0, TimeSpan.Zero);
 
-        var entry = JournalEntry.Post(
-            entryId,
-            financialBookId,
-            postedAt,
-            "Initial cash receipt",
-            [
-                new JournalLine(cashAccountId, PostingSide.Debit, new Money(1250.7500m, "USD")),
-                new JournalLine(revenueAccountId, PostingSide.Credit, new Money(1250.7500m, "USD"))
-            ]);
+        var book = FinancialBook.Create(bookId, ownerId, "Personal finances", "USD", postedAt);
+        var cash = Account.Create(cashId, bookId, "1000", "Cash", AccountType.Asset, postedAt);
+        var income = Account.Create(incomeId, bookId, "4000", "Income", AccountType.Income, postedAt);
+        var entry = JournalEntry.Post(entryId, bookId, postedAt, "Initial cash receipt",
+        [
+            new JournalLine(cashId, PostingSide.Debit, new Money(1250.7500m, "USD")),
+            new JournalLine(incomeId, PostingSide.Credit, new Money(1250.7500m, "USD"))
+        ]);
 
-        await using (var writeContext = new ArtaFinDbContext(_options))
+        await using (var write = new ArtaFinDbContext(_options))
         {
-            writeContext.JournalEntries.Add(entry);
-            await writeContext.SaveChangesAsync();
+            write.FinancialBooks.Add(book);
+            write.Accounts.AddRange(cash, income);
+            write.JournalEntries.Add(entry);
+            await write.SaveChangesAsync();
         }
 
-        await using var readContext = new ArtaFinDbContext(_options);
-        var reloaded = await readContext.JournalEntries
-            .AsNoTracking()
-            .Include(x => x.Lines)
+        await using var read = new ArtaFinDbContext(_options);
+        var actual = await read.JournalEntries.AsNoTracking().Include(x => x.Lines)
             .SingleAsync(x => x.Id == entryId);
 
-        Assert.Equal(entryId, reloaded.Id);
-        Assert.Equal(financialBookId, reloaded.FinancialBookId);
-        Assert.Equal(postedAt, reloaded.PostedAt);
-        Assert.Equal("Initial cash receipt", reloaded.Description);
-        Assert.Equal(new[] { 1, 2 }, reloaded.Lines.Select(x => x.LineNumber).ToArray());
+        Assert.Equal(entryId, actual.Id);
+        Assert.Equal(bookId, actual.FinancialBookId);
+        Assert.Equal(postedAt, actual.PostedAt);
+        Assert.Equal("Initial cash receipt", actual.Description);
+        Assert.Equal(new[] { 1, 2 }, actual.Lines.Select(x => x.LineNumber).ToArray());
+        Assert.Equal(cashId, actual.Lines[0].AccountId);
+        Assert.Equal(PostingSide.Debit, actual.Lines[0].Side);
+        Assert.Equal(1250.7500m, actual.Lines[0].Amount.Amount);
+        Assert.Equal("USD", actual.Lines[0].Amount.Currency);
+        Assert.Equal(incomeId, actual.Lines[1].AccountId);
+        Assert.Equal(PostingSide.Credit, actual.Lines[1].Side);
+    }
 
-        Assert.Equal(cashAccountId, reloaded.Lines[0].AccountId);
-        Assert.Equal(PostingSide.Debit, reloaded.Lines[0].Side);
-        Assert.Equal(1250.7500m, reloaded.Lines[0].Amount.Amount);
-        Assert.Equal("USD", reloaded.Lines[0].Amount.Currency);
-
-        Assert.Equal(revenueAccountId, reloaded.Lines[1].AccountId);
-        Assert.Equal(PostingSide.Credit, reloaded.Lines[1].Side);
-        Assert.Equal(1250.7500m, reloaded.Lines[1].Amount.Amount);
-        Assert.Equal("USD", reloaded.Lines[1].Amount.Currency);
+    [Fact]
+    public async Task Accounts_RejectDuplicateCodesWithinTheSameFinancialBook()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var bookId = Guid.NewGuid();
+        await using var context = new ArtaFinDbContext(_options);
+        context.FinancialBooks.Add(FinancialBook.Create(bookId, Guid.NewGuid(), "Personal", "USD", now));
+        context.Accounts.AddRange(
+            Account.Create(Guid.NewGuid(), bookId, "1000", "Cash", AccountType.Asset, now),
+            Account.Create(Guid.NewGuid(), bookId, "1000", "Bank cash", AccountType.Asset, now));
+        await Assert.ThrowsAsync<DbUpdateException>(() => context.SaveChangesAsync());
     }
 
     public async Task DisposeAsync()
