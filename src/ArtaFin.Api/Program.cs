@@ -102,3 +102,5 @@ app.MapAuthenticationEndpoints();
 app.MapAccountEndpoints();
 
 app.Run();
+
+public partial class Program;
