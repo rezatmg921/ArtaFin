@@ -77,6 +77,71 @@ public sealed class AuthenticationServiceTests
         Assert.Equal(5, repository.SaveCount);
     }
 
+
+    [Fact]
+    public async Task RefreshAsync_ShouldRotateTokenAndRevokePreviousSession()
+    {
+        var repository = new FakeUserRepository();
+        var hasher = new FakePasswordHasher();
+        var service = CreateService(repository, hasher);
+        var registration = await service.RegisterAsync(
+            new RegisterCommand("person@example.com", "Valid-Password-42!"),
+            CancellationToken.None);
+
+        var oldToken = registration.Response!.RefreshToken;
+        var oldSession = Assert.Single(repository.Sessions);
+
+        var refreshed = await service.RefreshAsync(
+            new RefreshCommand(oldToken),
+            CancellationToken.None);
+
+        Assert.True(refreshed.Succeeded);
+        Assert.NotEqual(oldToken, refreshed.Response!.RefreshToken);
+        Assert.NotNull(oldSession.RevokedAt);
+        Assert.Equal(repository.Sessions[1].Id, oldSession.ReplacedBySessionId);
+        Assert.Equal(2, repository.Sessions.Count);
+    }
+
+    [Fact]
+    public async Task RefreshAsync_WhenOldTokenIsReused_ShouldRevokeAllUserSessions()
+    {
+        var repository = new FakeUserRepository();
+        var service = CreateService(repository, new FakePasswordHasher());
+        var registration = await service.RegisterAsync(
+            new RegisterCommand("person@example.com", "Valid-Password-42!"),
+            CancellationToken.None);
+        var originalToken = registration.Response!.RefreshToken;
+
+        var firstRefresh = await service.RefreshAsync(
+            new RefreshCommand(originalToken),
+            CancellationToken.None);
+        Assert.True(firstRefresh.Succeeded);
+
+        var replay = await service.RefreshAsync(
+            new RefreshCommand(originalToken),
+            CancellationToken.None);
+
+        Assert.Equal(AuthenticationFailure.InvalidRefreshToken, replay.Failure);
+        Assert.All(repository.Sessions, session => Assert.NotNull(session.RevokedAt));
+    }
+
+    [Fact]
+    public async Task LogoutAsync_ShouldRevokeMatchingSession()
+    {
+        var repository = new FakeUserRepository();
+        var service = CreateService(repository, new FakePasswordHasher());
+        var registration = await service.RegisterAsync(
+            new RegisterCommand("person@example.com", "Valid-Password-42!"),
+            CancellationToken.None);
+        var session = Assert.Single(repository.Sessions);
+
+        await service.LogoutAsync(
+            new LogoutCommand(registration.Response!.RefreshToken),
+            CancellationToken.None);
+
+        Assert.NotNull(session.RevokedAt);
+    }
+
     private static AuthenticationService CreateService(
         FakeUserRepository repository,
         FakePasswordHasher hasher) =>
