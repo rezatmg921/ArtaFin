@@ -34,7 +34,7 @@ public sealed record JournalLine
 /// Immutable posted accounting record. Initial policy: a journal entry has one currency;
 /// FX requires a dedicated balanced conversion policy rather than implicit arithmetic.
 /// </summary>
-public sealed class JournalEntry : Entity
+public sealed class JournalEntry : AggregateRoot
 {
     private readonly IReadOnlyList<JournalLine> _lines;
 
