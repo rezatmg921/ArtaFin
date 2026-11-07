@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using ArtaFin.Api.Security;
 using Microsoft.AspNetCore.Identity;
 
@@ -9,18 +10,28 @@ internal static class AuthenticationEndpoints
         this IEndpointRouteBuilder endpoints)
     {
         var group = endpoints.MapGroup("/api/auth")
-            .WithTags("Authentication")
-            .AllowAnonymous();
+            .WithTags("Authentication");
 
         group.MapPost("/register", RegisterAsync)
+            .AllowAnonymous()
             .WithName("Register")
             .Produces<TokenResponse>(StatusCodes.Status201Created)
             .ProducesValidationProblem();
 
         group.MapPost("/login", LoginAsync)
+            .AllowAnonymous()
             .WithName("Login")
             .Produces<TokenResponse>()
             .ProducesProblem(StatusCodes.Status401Unauthorized);
+
+        group.MapGet("/me", (ClaimsPrincipal principal) =>
+            Results.Ok(new
+            {
+                UserId = principal.FindFirst("sub")?.Value,
+                Email = principal.FindFirst("email")?.Value
+            }))
+            .RequireAuthorization()
+            .WithName("GetCurrentUser");
 
         return endpoints;
     }
