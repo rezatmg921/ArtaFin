@@ -1,5 +1,6 @@
 using ArtaFin.Application.Features.Accounts.CreateAccount;
 using ArtaFin.Application.Features.Authentication;
+using ArtaFin.Application.Features.FinancialBooks.InviteMember;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ArtaFin.Application;
