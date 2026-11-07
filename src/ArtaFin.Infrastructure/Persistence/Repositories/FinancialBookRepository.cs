@@ -30,4 +30,11 @@ internal sealed class FinancialBookRepository(ArtaFinDbContext dbContext)
                           member.UserId == userId,
                 cancellationToken);
     }
+
+    public async Task AddMemberAsync(
+        FinancialBookMember member,
+        CancellationToken cancellationToken)
+    {
+        await dbContext.FinancialBookMembers.AddAsync(member, cancellationToken);
+    }
 }
