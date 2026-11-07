@@ -24,6 +24,17 @@ internal static class AuthenticationEndpoints
             .Produces<AuthenticationResponse>()
             .ProducesProblem(StatusCodes.Status401Unauthorized);
 
+        group.MapPost("/refresh", RefreshAsync)
+            .AllowAnonymous()
+            .WithName("RefreshTokens")
+            .Produces<AuthenticationResponse>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
+
+        group.MapPost("/logout", LogoutAsync)
+            .AllowAnonymous()
+            .WithName("Logout")
+            .Produces(StatusCodes.Status204NoContent);
+
         group.MapGet("/me", (ClaimsPrincipal principal) =>
             Results.Ok(new
             {
@@ -34,6 +45,32 @@ internal static class AuthenticationEndpoints
             .WithName("GetCurrentUser");
 
         return endpoints;
+    }
+
+    private static async Task<IResult> RefreshAsync(
+        RefreshRequest request,
+        AuthenticationService authenticationService,
+        CancellationToken cancellationToken)
+    {
+        var result = await authenticationService.RefreshAsync(
+            new RefreshCommand(request.RefreshToken),
+            cancellationToken);
+
+        return result.Succeeded
+            ? Results.Ok(result.Response)
+            : Results.Unauthorized();
+    }
+
+    private static async Task<IResult> LogoutAsync(
+        LogoutRequest request,
+        AuthenticationService authenticationService,
+        CancellationToken cancellationToken)
+    {
+        await authenticationService.LogoutAsync(
+            new LogoutCommand(request.RefreshToken),
+            cancellationToken);
+
+        return Results.NoContent();
     }
 
     private static async Task<IResult> RegisterAsync(
@@ -80,3 +117,5 @@ internal static class AuthenticationEndpoints
 
 internal sealed record RegisterRequest(string? Email, string? Password);
 internal sealed record LoginRequest(string? Email, string? Password);
+internal sealed record RefreshRequest(string? RefreshToken);
+internal sealed record LogoutRequest(string? RefreshToken);
