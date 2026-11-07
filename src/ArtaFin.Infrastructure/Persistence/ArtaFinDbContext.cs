@@ -2,13 +2,15 @@ using ArtaFin.Application.Abstractions.Persistence;
 using ArtaFin.Application.Features.Accounts.CreateAccount;
 using ArtaFin.Domain.Finance;
 using ArtaFin.Infrastructure.Persistence.Configurations;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 namespace ArtaFin.Infrastructure.Persistence;
 
 public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
-    : DbContext(options), IUnitOfWork
+    : IdentityDbContext<IdentityUser<Guid>, IdentityRole<Guid>, Guid>(options), IUnitOfWork
 {
     private const string AccountCodeUniqueIndexName = "UX_Accounts_FinancialBookId_Code";
 
@@ -18,6 +20,8 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        base.OnModelCreating(modelBuilder);
+
         // Keep runtime entity registration order aligned with the migration snapshot.
         modelBuilder.Entity<FinancialBook>();
         modelBuilder.Entity<Account>();
@@ -26,14 +30,9 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
         modelBuilder.ApplyConfiguration(new FinancialBookConfiguration());
         modelBuilder.ApplyConfiguration(new AccountConfiguration());
         modelBuilder.ApplyConfiguration(new JournalEntryConfiguration());
-
-        base.OnModelCreating(modelBuilder);
     }
 
-    public override int SaveChanges()
-    {
-        return SaveChanges(acceptAllChangesOnSuccess: true);
-    }
+    public override int SaveChanges() => SaveChanges(acceptAllChangesOnSuccess: true);
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
@@ -47,10 +46,8 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
         }
     }
 
-    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-    {
-        return SaveChangesAsync(acceptAllChangesOnSuccess: true, cancellationToken: cancellationToken);
-    }
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) =>
+        SaveChangesAsync(acceptAllChangesOnSuccess: true, cancellationToken: cancellationToken);
 
     public override async Task<int> SaveChangesAsync(
         bool acceptAllChangesOnSuccess,
