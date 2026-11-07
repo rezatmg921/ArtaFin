@@ -1,6 +1,7 @@
 using ArtaFin.Application.Abstractions.Persistence;
 using ArtaFin.Infrastructure.Persistence;
 using ArtaFin.Infrastructure.Persistence.Repositories;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -22,6 +23,23 @@ public static class DependencyInjection
 
         services.AddDbContext<ArtaFinDbContext>(options =>
             options.UseSqlServer(connectionString));
+
+        services.AddIdentityCore<IdentityUser<Guid>>(options =>
+            {
+                options.User.RequireUniqueEmail = true;
+                options.Password.RequiredLength = 12;
+                options.Password.RequireDigit = true;
+                options.Password.RequireLowercase = true;
+                options.Password.RequireUppercase = true;
+                options.Password.RequireNonAlphanumeric = true;
+                options.Lockout.AllowedForNewUsers = true;
+                options.Lockout.MaxFailedAccessAttempts = 5;
+                options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+            })
+            .AddRoles<IdentityRole<Guid>>()
+            .AddEntityFrameworkStores<ArtaFinDbContext>()
+            .AddSignInManager()
+            .AddDefaultTokenProviders();
 
         services.AddScoped<IUnitOfWork>(provider =>
             provider.GetRequiredService<ArtaFinDbContext>());
