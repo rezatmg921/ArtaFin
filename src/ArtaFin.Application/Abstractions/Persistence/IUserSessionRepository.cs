@@ -10,4 +10,9 @@ public interface IUserSessionRepository
         CancellationToken cancellationToken);
 
     Task AddAsync(UserSession session, CancellationToken cancellationToken);
+
+    Task RevokeAllForUserAsync(
+        Guid userId,
+        DateTimeOffset revokedAt,
+        CancellationToken cancellationToken);
 }
