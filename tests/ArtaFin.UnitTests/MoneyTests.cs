@@ -33,12 +33,12 @@ public sealed class MoneyTests
     }
 
     [Fact]
-    public void Arithmetic_DoesNotSilentlyRound()
+    public void Addition_RejectsResultOutsidePersistenceRange()
     {
-        var amount = new Money(1.23m, "EUR");
-        var thirdFraction = new Money(0.001m, "CLF");
+        var maximum = new Money(999999999999999.99m, "EUR");
 
-        Assert.Throws<InvalidOperationException>(() => _ = amount + thirdFraction);
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            _ = maximum + new Money(0.01m, "EUR"));
     }
 
     [Fact]

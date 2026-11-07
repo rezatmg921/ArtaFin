@@ -9,10 +9,10 @@ public sealed class FinancialBook : AggregateRoot
 
     public Guid OwnerId { get; }
     public string Name { get; }
-    public string BaseCurrency { get; }
+    public Currency BaseCurrency { get; }
     public DateTimeOffset CreatedAt { get; }
 
-    private FinancialBook(Guid id, Guid ownerId, string name, string baseCurrency,
+    private FinancialBook(Guid id, Guid ownerId, string name, Currency baseCurrency,
         DateTimeOffset createdAt) : base(id)
     {
         OwnerId = ownerId;
@@ -34,7 +34,7 @@ public sealed class FinancialBook : AggregateRoot
             throw new ArgumentException($"Financial book name cannot exceed {MaxNameLength} characters.", nameof(name));
 
         var currency = Currency.FromCode(baseCurrency);
-        return new FinancialBook(id, ownerId, normalizedName, currency.Code, createdAt);
+        return new FinancialBook(id, ownerId, normalizedName, currency, createdAt);
     }
 
     public bool IsOwnedBy(Guid userId) => userId != Guid.Empty && OwnerId == userId;

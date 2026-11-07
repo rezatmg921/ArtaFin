@@ -13,7 +13,8 @@ public sealed class FinancialBookTests
 
         Assert.Equal(owner, book.OwnerId);
         Assert.Equal("Home", book.Name);
-        Assert.Equal("EUR", book.BaseCurrency);
+        Assert.Equal("EUR", book.BaseCurrency.Code);
+        Assert.Equal(2, book.BaseCurrency.MinorUnit);
         Assert.True(book.IsOwnedBy(owner));
         Assert.False(book.IsOwnedBy(Guid.NewGuid()));
     }
@@ -30,5 +31,12 @@ public sealed class FinancialBookTests
     {
         Assert.Throws<ArgumentException>(() => FinancialBook.Create(Guid.NewGuid(),
             Guid.NewGuid(), " ", "EUR", DateTimeOffset.UtcNow));
+    }
+
+    [Fact]
+    public void Create_RejectsUnsupportedBaseCurrency()
+    {
+        Assert.Throws<NotSupportedException>(() => FinancialBook.Create(Guid.NewGuid(),
+            Guid.NewGuid(), "Home", "ZZZ", DateTimeOffset.UtcNow));
     }
 }

@@ -16,10 +16,11 @@ public sealed class FinancialBookConfiguration : IEntityTypeConfiguration<Financ
             .IsRequired();
 
         builder.Property(book => book.Name)
-            .HasMaxLength(200)
+            .HasMaxLength(FinancialBook.MaxNameLength)
             .IsRequired();
 
         builder.Property(book => book.BaseCurrency)
+            .HasConversion(currency => currency.Code, code => Currency.FromCode(code))
             .HasColumnType("char(3)")
             .HasMaxLength(3)
             .IsUnicode(false)
