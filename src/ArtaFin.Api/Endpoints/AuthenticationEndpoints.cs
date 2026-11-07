@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using ArtaFin.Application.Features.Authentication;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace ArtaFin.Api.Endpoints;
 
@@ -13,6 +14,7 @@ internal static class AuthenticationEndpoints
 
         group.MapPost("/register", RegisterAsync)
             .AllowAnonymous()
+            .RequireRateLimiting("auth")
             .WithName("Register")
             .Produces<AuthenticationResponse>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
@@ -20,18 +22,21 @@ internal static class AuthenticationEndpoints
 
         group.MapPost("/login", LoginAsync)
             .AllowAnonymous()
+            .RequireRateLimiting("auth")
             .WithName("Login")
             .Produces<AuthenticationResponse>()
             .ProducesProblem(StatusCodes.Status401Unauthorized);
 
         group.MapPost("/refresh", RefreshAsync)
             .AllowAnonymous()
+            .RequireRateLimiting("auth")
             .WithName("RefreshTokens")
             .Produces<AuthenticationResponse>()
             .ProducesProblem(StatusCodes.Status401Unauthorized);
 
         group.MapPost("/logout", LogoutAsync)
             .AllowAnonymous()
+            .RequireRateLimiting("auth")
             .WithName("Logout")
             .Produces(StatusCodes.Status204NoContent);
 
