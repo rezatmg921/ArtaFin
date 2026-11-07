@@ -12,6 +12,7 @@ public static class DependencyInjection
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<CreateAccountCommandHandler>();
         services.AddScoped<AuthenticationService>();
+        services.AddScoped<InviteFinancialBookMemberCommandHandler>();
         return services;
     }
 }
