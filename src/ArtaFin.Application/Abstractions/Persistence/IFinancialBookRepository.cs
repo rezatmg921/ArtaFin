@@ -15,4 +15,8 @@ public interface IFinancialBookRepository
         Guid financialBookId,
         Guid userId,
         CancellationToken cancellationToken);
+
+    Task AddMemberAsync(
+        FinancialBookMember member,
+        CancellationToken cancellationToken);
 }
