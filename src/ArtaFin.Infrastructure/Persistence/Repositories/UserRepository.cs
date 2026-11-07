@@ -6,6 +6,9 @@ namespace ArtaFin.Infrastructure.Persistence.Repositories;
 
 internal sealed class UserRepository(ArtaFinDbContext dbContext) : IUserRepository
 {
+    public Task<AppUser?> GetByIdAsync(Guid userId, CancellationToken cancellationToken) =>
+        dbContext.Users.SingleOrDefaultAsync(user => user.Id == userId, cancellationToken);
+
     public Task<AppUser?> GetByNormalizedEmailAsync(
         string normalizedEmail,
         CancellationToken cancellationToken)
