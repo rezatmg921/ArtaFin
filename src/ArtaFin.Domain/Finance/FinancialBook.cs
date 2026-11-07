@@ -33,9 +33,8 @@ public sealed class FinancialBook : AggregateRoot
         if (normalizedName.Length > MaxNameLength)
             throw new ArgumentException($"Financial book name cannot exceed {MaxNameLength} characters.", nameof(name));
 
-        // Reuse Money's ISO-style currency code validation.
-        _ = new Money(0m, baseCurrency);
-        return new FinancialBook(id, ownerId, normalizedName, baseCurrency.ToUpperInvariant(), createdAt);
+        var currency = Currency.FromCode(baseCurrency);
+        return new FinancialBook(id, ownerId, normalizedName, currency.Code, createdAt);
     }
 
     public bool IsOwnedBy(Guid userId) => userId != Guid.Empty && OwnerId == userId;

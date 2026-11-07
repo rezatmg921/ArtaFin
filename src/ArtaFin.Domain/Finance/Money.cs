@@ -1,46 +1,65 @@
 namespace ArtaFin.Domain.Finance;
 
 /// <summary>
-/// Currency-aware monetary value. Current persistence contract is decimal(19,4):
-/// amounts are rejected (never silently rounded) when they exceed 15 integral digits
-/// or 4 fractional digits. This is a provisional technical bound, not a final
-/// currency-specific rounding policy.
+/// An exact monetary amount in a catalogued ISO 4217 currency.
+/// Amounts are never rounded implicitly. Values must fit the currency's minor-unit
+/// precision and the SQL Server decimal(19,4) persistence boundary.
 /// </summary>
 public readonly record struct Money
 {
+    // Persistence limit: decimal(19,4) permits 15 integral and 4 fractional digits.
     public const int MaxScale = 4;
     public const decimal MaxAbsoluteAmount = 999999999999999.9999m;
 
     public decimal Amount { get; }
     public string Currency { get; }
+    public Currency CurrencyInfo { get; }
 
     public Money(decimal amount, string currency)
+        : this(amount, Currency.FromCode(currency))
     {
-        if (string.IsNullOrWhiteSpace(currency) || currency.Length != 3 ||
-            currency.Any(c => !char.IsAsciiLetter(c)))
-            throw new ArgumentException("Currency must be a three-letter ISO-style code.", nameof(currency));
+    }
+
+    public Money(decimal amount, Currency currency)
+    {
+        currency.EnsureValid();
 
         if (decimal.Abs(amount) > MaxAbsoluteAmount)
-            throw new ArgumentOutOfRangeException(nameof(amount), "Amount exceeds the current decimal(19,4) persistence limit.");
+            throw new ArgumentOutOfRangeException(nameof(amount),
+                "Amount exceeds the decimal(19,4) persistence limit.");
 
-        var scale = (decimal.GetBits(amount)[3] >> 16) & 0x7F;
-        if (scale > MaxScale)
-            throw new ArgumentOutOfRangeException(nameof(amount), $"Amount cannot have more than {MaxScale} fractional digits.");
+        // Numeric comparison deliberately accepts insignificant trailing zeroes
+        // (for example 1.2300 EUR) while rejecting non-zero excess precision.
+        if (decimal.Round(amount, currency.MinorUnit, MidpointRounding.ToZero) != amount)
+            throw new ArgumentOutOfRangeException(nameof(amount),
+                $"Currency {currency.Code} supports at most {currency.MinorUnit} fractional digits.");
 
         Amount = amount;
-        Currency = currency.ToUpperInvariant();
+        Currency = currency.Code;
+        CurrencyInfo = currency;
+    }
+
+    /// <summary>
+    /// Explicitly rounds a raw amount to the currency's minor-unit precision.
+    /// Callers must choose a midpoint rule; construction and arithmetic never round.
+    /// </summary>
+    public static Money CreateRounded(decimal amount, Currency currency, MidpointRounding rounding)
+    {
+        currency.EnsureValid();
+        var roundedAmount = decimal.Round(amount, currency.MinorUnit, rounding);
+        return new Money(roundedAmount, currency);
     }
 
     public static Money operator +(Money left, Money right)
     {
         EnsureSameCurrency(left, right);
-        return new Money(left.Amount + right.Amount, left.Currency);
+        return new Money(left.Amount + right.Amount, left.CurrencyInfo);
     }
 
     public static Money operator -(Money left, Money right)
     {
         EnsureSameCurrency(left, right);
-        return new Money(left.Amount - right.Amount, left.Currency);
+        return new Money(left.Amount - right.Amount, left.CurrencyInfo);
     }
 
     private static void EnsureSameCurrency(Money left, Money right)
