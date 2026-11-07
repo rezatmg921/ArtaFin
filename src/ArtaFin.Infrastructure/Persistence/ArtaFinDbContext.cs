@@ -60,6 +60,11 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
         {
             throw new AccountCodeAlreadyExistsException();
         }
+        catch (DbUpdateConcurrencyException exception)
+        {
+            throw new PersistenceConcurrencyException(
+                "The record was changed by another operation. Reload it and retry.", exception);
+        }
     }
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) =>
@@ -76,6 +81,11 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
         catch (DbUpdateException exception) when (IsAccountCodeUniqueViolation(exception))
         {
             throw new AccountCodeAlreadyExistsException();
+        }
+        catch (DbUpdateConcurrencyException exception)
+        {
+            throw new PersistenceConcurrencyException(
+                "The record was changed by another operation. Reload it and retry.", exception);
         }
     }
 
