@@ -1,6 +1,7 @@
 using ArtaFin.Application.Abstractions.Persistence;
 using ArtaFin.Application.Features.Accounts.CreateAccount;
 using ArtaFin.Domain.Finance;
+using ArtaFin.Domain.Security;
 using ArtaFin.Infrastructure.Persistence.Configurations;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -17,6 +18,11 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
     public DbSet<FinancialBook> FinancialBooks => Set<FinancialBook>();
     public DbSet<Account> Accounts => Set<Account>();
     public DbSet<JournalEntry> JournalEntries => Set<JournalEntry>();
+    public DbSet<AppUser> Users => Set<AppUser>();
+    public DbSet<UserCredential> UserCredentials => Set<UserCredential>();
+    public DbSet<UserSession> UserSessions => Set<UserSession>();
+    public DbSet<AppRole> Roles => Set<AppRole>();
+    public DbSet<UserRole> UserRoles => Set<UserRole>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -26,10 +32,20 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
         modelBuilder.Entity<FinancialBook>();
         modelBuilder.Entity<Account>();
         modelBuilder.Entity<JournalEntry>();
+        modelBuilder.Entity<AppUser>();
+        modelBuilder.Entity<UserCredential>();
+        modelBuilder.Entity<UserSession>();
+        modelBuilder.Entity<AppRole>();
+        modelBuilder.Entity<UserRole>();
 
         modelBuilder.ApplyConfiguration(new FinancialBookConfiguration());
         modelBuilder.ApplyConfiguration(new AccountConfiguration());
         modelBuilder.ApplyConfiguration(new JournalEntryConfiguration());
+        modelBuilder.ApplyConfiguration(new AppUserConfiguration());
+        modelBuilder.ApplyConfiguration(new UserCredentialConfiguration());
+        modelBuilder.ApplyConfiguration(new UserSessionConfiguration());
+        modelBuilder.ApplyConfiguration(new AppRoleConfiguration());
+        modelBuilder.ApplyConfiguration(new UserRoleConfiguration());
     }
 
     public override int SaveChanges() => SaveChanges(acceptAllChangesOnSuccess: true);
