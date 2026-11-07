@@ -63,6 +63,6 @@ public sealed class InviteFinancialBookMemberCommandHandler(
     }
 }
 
-public sealed class FinancialBookManagementDeniedException : Exception;
-public sealed class InviteTargetUserNotFoundException : Exception;
-public sealed class FinancialBookMemberAlreadyExistsException : Exception;
+public sealed class FinancialBookManagementDeniedException : Exception { }
+public sealed class InviteTargetUserNotFoundException : Exception { }
+public sealed class FinancialBookMemberAlreadyExistsException : Exception { }
