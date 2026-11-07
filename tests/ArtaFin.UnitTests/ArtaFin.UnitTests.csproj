@@ -11,5 +11,6 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <ProjectReference Include="../../src/ArtaFin.Domain/ArtaFin.Domain.csproj" />
+    <ProjectReference Include="../../src/ArtaFin.Application/ArtaFin.Application.csproj" />
   </ItemGroup>
 </Project>
