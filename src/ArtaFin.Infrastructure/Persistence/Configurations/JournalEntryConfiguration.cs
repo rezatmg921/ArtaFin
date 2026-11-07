@@ -19,10 +19,6 @@ public sealed class JournalEntryConfiguration : IEntityTypeConfiguration<Journal
             .HasForeignKey(entry => entry.FinancialBookId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.Navigation(entry => entry.Lines)
-            .HasField("_lines")
-            .UsePropertyAccessMode(PropertyAccessMode.Field);
-
         builder.OwnsMany(entry => entry.Lines, lines =>
         {
             lines.ToTable("JournalLines", table =>
@@ -66,5 +62,11 @@ public sealed class JournalEntryConfiguration : IEntityTypeConfiguration<Journal
                 .IsFixedLength()
                 .IsRequired();
         });
+
+        // OwnsMany introduces the owned collection navigation; configure its backing
+        // field only after the ownership relationship has been registered.
+        builder.Navigation(entry => entry.Lines)
+            .HasField("_lines")
+            .UsePropertyAccessMode(PropertyAccessMode.Field);
     }
 }
