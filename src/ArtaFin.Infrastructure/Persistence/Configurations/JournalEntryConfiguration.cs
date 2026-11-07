@@ -74,7 +74,7 @@ public sealed class JournalEntryConfiguration : IEntityTypeConfiguration<Journal
                 .HasMaxLength(3)
                 .IsUnicode(false)
                 .IsFixedLength()
-                .IsRequired(););
+                .IsRequired();
         });
     }
 }
