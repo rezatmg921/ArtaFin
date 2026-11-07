@@ -10,52 +10,23 @@ public sealed class AccountConfiguration : IEntityTypeConfiguration<Account>
     {
         builder.ToTable("Accounts", table =>
         {
-            table.HasCheckConstraint(
-                "CK_Accounts_Type_Valid",
-                "[Type] IN (1, 2, 3, 4, 5)");
-            table.HasCheckConstraint(
-                "CK_Accounts_NormalBalance_Valid",
-                "[NormalBalance] IN (1, 2)");
-            table.HasCheckConstraint(
-                "CK_Accounts_Status_Valid",
-                "[Status] IN (1, 2)");
+            table.HasCheckConstraint("CK_Accounts_Type_Valid", "[Type] IN (1, 2, 3, 4, 5)");
+            table.HasCheckConstraint("CK_Accounts_NormalBalance_Valid", "[NormalBalance] IN (1, 2)");
+            table.HasCheckConstraint("CK_Accounts_Status_Valid", "[Status] IN (1, 2)");
         });
 
         builder.HasKey(account => account.Id);
+        builder.HasAlternateKey(account => new { account.FinancialBookId, account.Id })
+            .HasName("AK_Accounts_FinancialBookId_Id");
 
-        builder.Property(account => account.FinancialBookId)
-            .IsRequired();
-
-        builder.Property(account => account.Code)
-            .HasMaxLength(50)
-            .IsUnicode(false)
-            .IsRequired();
-
-        builder.Property(account => account.Name)
-            .HasMaxLength(200)
-            .IsRequired();
-
-        builder.Property(account => account.Type)
-            .HasConversion<byte>()
-            .HasColumnType("tinyint")
-            .IsRequired();
-
-        builder.Property(account => account.NormalBalance)
-            .HasConversion<byte>()
-            .HasColumnType("tinyint")
-            .IsRequired();
-
-        builder.Property(account => account.Status)
-            .HasConversion<byte>()
-            .HasColumnType("tinyint")
-            .IsRequired();
-
-        builder.Property(account => account.CreatedAt)
-            .HasColumnType("datetimeoffset(7)")
-            .IsRequired();
-
-        builder.Property(account => account.DeactivatedAt)
-            .HasColumnType("datetimeoffset(7)");
+        builder.Property(account => account.FinancialBookId).IsRequired();
+        builder.Property(account => account.Code).HasMaxLength(Account.MaxCodeLength).IsUnicode(false).IsRequired();
+        builder.Property(account => account.Name).HasMaxLength(Account.MaxNameLength).IsRequired();
+        builder.Property(account => account.Type).HasConversion<byte>().HasColumnType("tinyint").IsRequired();
+        builder.Property(account => account.NormalBalance).HasConversion<byte>().HasColumnType("tinyint").IsRequired();
+        builder.Property(account => account.Status).HasConversion<byte>().HasColumnType("tinyint").IsRequired();
+        builder.Property(account => account.CreatedAt).HasColumnType("datetimeoffset(7)").IsRequired();
+        builder.Property(account => account.DeactivatedAt).HasColumnType("datetimeoffset(7)");
 
         builder.HasOne<FinancialBook>()
             .WithMany()
