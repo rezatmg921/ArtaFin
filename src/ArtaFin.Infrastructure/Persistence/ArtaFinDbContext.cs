@@ -49,7 +49,7 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        return SaveChangesAsync(acceptAllChangesOnSuccess: true, cancellationToken);
+        return SaveChangesAsync(acceptAllChangesOnSuccess: true, cancellationToken: cancellationToken);
     }
 
     public override async Task<int> SaveChangesAsync(
