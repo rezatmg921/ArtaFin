@@ -9,19 +9,10 @@ public sealed class JournalEntryConfiguration : IEntityTypeConfiguration<Journal
     public void Configure(EntityTypeBuilder<JournalEntry> builder)
     {
         builder.ToTable("JournalEntries");
-
         builder.HasKey(entry => entry.Id);
-
-        builder.Property(entry => entry.FinancialBookId)
-            .IsRequired();
-
-        builder.Property(entry => entry.PostedAt)
-            .HasColumnType("datetimeoffset(7)")
-            .IsRequired();
-
-        builder.Property(entry => entry.Description)
-            .HasMaxLength(500)
-            .IsRequired();
+        builder.Property(entry => entry.FinancialBookId).IsRequired();
+        builder.Property(entry => entry.PostedAt).HasColumnType("datetimeoffset(7)").IsRequired();
+        builder.Property(entry => entry.Description).HasMaxLength(JournalEntry.MaxDescriptionLength).IsRequired();
 
         builder.HasOne<FinancialBook>()
             .WithMany()
@@ -36,37 +27,26 @@ public sealed class JournalEntryConfiguration : IEntityTypeConfiguration<Journal
         {
             lines.ToTable("JournalLines", table =>
             {
-                table.HasCheckConstraint(
-                    "CK_JournalLines_Amount_Positive",
-                    "[Amount] > 0");
-                table.HasCheckConstraint(
-                    "CK_JournalLines_Side_Valid",
-                    "[Side] IN (1, 2)");
+                table.HasCheckConstraint("CK_JournalLines_Amount_Positive", "[Amount] > 0");
+                table.HasCheckConstraint("CK_JournalLines_Side_Valid", "[Side] IN (1, 2)");
             });
 
-            lines.WithOwner()
-                .HasForeignKey("JournalEntryId");
-
+            lines.WithOwner().HasForeignKey("JournalEntryId");
             lines.Property<Guid>("JournalEntryId");
-
             lines.HasKey("JournalEntryId", nameof(JournalLine.LineNumber));
+            lines.Property(line => line.LineNumber).ValueGeneratedNever();
+            lines.Property(line => line.FinancialBookId).IsRequired();
+            lines.Property(line => line.AccountId).IsRequired();
 
-            lines.Property(line => line.LineNumber)
-                .ValueGeneratedNever();
-
-            lines.Property(line => line.AccountId)
-                .IsRequired();
-
+            // Composite FK prevents a journal line from referencing an account
+            // belonging to a different FinancialBook.
             lines.HasOne<Account>()
                 .WithMany()
-                .HasForeignKey(line => line.AccountId)
+                .HasPrincipalKey(account => new { account.FinancialBookId, account.Id })
+                .HasForeignKey(line => new { line.FinancialBookId, line.AccountId })
                 .OnDelete(DeleteBehavior.Restrict);
 
-            lines.Property(line => line.Side)
-                .HasConversion<byte>()
-                .HasColumnType("tinyint")
-                .IsRequired();
-
+            lines.Property(line => line.Side).HasConversion<byte>().HasColumnType("tinyint").IsRequired();
             lines.Ignore(line => line.Amount);
 
             lines.Property<decimal>("_amount")
