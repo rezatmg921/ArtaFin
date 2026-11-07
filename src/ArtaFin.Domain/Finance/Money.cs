@@ -24,7 +24,7 @@ public readonly record struct Money
     {
         currency.EnsureValid();
 
-        if (decimal.Abs(amount) > MaxAbsoluteAmount)
+        if (amount < -MaxAbsoluteAmount || amount > MaxAbsoluteAmount)
             throw new ArgumentOutOfRangeException(nameof(amount),
                 "Amount exceeds the decimal(19,4) persistence limit.");
 
