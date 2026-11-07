@@ -11,7 +11,7 @@ public sealed class AuthenticationRateLimitTests
     [Fact]
     public async Task Register_WhenMoreThanTenRequestsArriveWithinOneMinute_ShouldReturnTooManyRequests()
     {
-        await using var factory = new ArtaFinApiFactory();
+        using var factory = new ArtaFinApiFactory();
         using var client = factory.CreateClient();
 
         for (var requestNumber = 1; requestNumber <= 10; requestNumber++)
