@@ -158,7 +158,16 @@ public sealed class AuthenticationService(
         oldSession.Revoke(now, newSessionId);
         await sessionRepository.AddAsync(newSession, cancellationToken);
         var (accessToken, accessExpiresAt) = accessTokenGenerator.CreateToken(user.Id, user.Email);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        try
+        {
+            // SQL Server rowversion makes this update conditional on the version
+            // originally read. A concurrent refresh loses here and receives no new token.
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+        catch (PersistenceConcurrencyException)
+        {
+            return AuthenticationResult.Failed(AuthenticationFailure.InvalidRefreshToken);
+        }
 
         return AuthenticationResult.Success(new AuthenticationResponse(
             accessToken,
