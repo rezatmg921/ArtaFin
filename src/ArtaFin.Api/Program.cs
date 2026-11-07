@@ -31,6 +31,8 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, HttpCurrentUser>();
 builder.Services.AddSingleton(jwtOptions);
 builder.Services.AddSingleton<JwtTokenService>();
+builder.Services.AddSingleton<IAccessTokenGenerator>(provider =>
+    provider.GetRequiredService<JwtTokenService>());
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
