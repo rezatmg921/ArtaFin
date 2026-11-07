@@ -27,6 +27,7 @@ public static class DependencyInjection
             options.UseSqlServer(connectionString));
 
         services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
+        services.AddSingleton<IRefreshTokenService, RefreshTokenService>();
 
         services.AddIdentityCore<IdentityUser<Guid>>(options =>
             {
