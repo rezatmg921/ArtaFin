@@ -1,6 +1,5 @@
 using System.Security.Claims;
-using ArtaFin.Api.Security;
-using Microsoft.AspNetCore.Identity;
+using ArtaFin.Application.Features.Authentication;
 
 namespace ArtaFin.Api.Endpoints;
 
@@ -15,13 +14,14 @@ internal static class AuthenticationEndpoints
         group.MapPost("/register", RegisterAsync)
             .AllowAnonymous()
             .WithName("Register")
-            .Produces<TokenResponse>(StatusCodes.Status201Created)
-            .ProducesValidationProblem();
+            .Produces<AuthenticationResponse>(StatusCodes.Status201Created)
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status409Conflict);
 
         group.MapPost("/login", LoginAsync)
             .AllowAnonymous()
             .WithName("Login")
-            .Produces<TokenResponse>()
+            .Produces<AuthenticationResponse>()
             .ProducesProblem(StatusCodes.Status401Unauthorized);
 
         group.MapGet("/me", (ClaimsPrincipal principal) =>
@@ -38,71 +38,44 @@ internal static class AuthenticationEndpoints
 
     private static async Task<IResult> RegisterAsync(
         RegisterRequest request,
-        UserManager<IdentityUser<Guid>> userManager,
-        JwtTokenService tokenService)
+        AuthenticationService authenticationService,
+        CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.Email) ||
-            string.IsNullOrWhiteSpace(request.Password))
+        var result = await authenticationService.RegisterAsync(
+            new RegisterCommand(request.Email, request.Password),
+            cancellationToken);
+
+        if (result.Succeeded)
         {
-            return Results.ValidationProblem(new Dictionary<string, string[]>
+            return Results.Created(
+                "/api/auth/me",
+                result.Response);
+        }
+
+        if (result.Failure == AuthenticationFailure.EmailAlreadyRegistered)
+            return Results.Conflict(result.Errors);
+
+        return Results.ValidationProblem(
+            result.Errors ?? new Dictionary<string, string[]>
             {
-                ["credentials"] = ["Email and password are required."]
+                ["credentials"] = ["Registration details are invalid."]
             });
-        }
-
-        var email = request.Email.Trim();
-        var user = new IdentityUser<Guid>
-        {
-            Id = Guid.NewGuid(),
-            UserName = email,
-            Email = email
-        };
-
-        var result = await userManager.CreateAsync(user, request.Password);
-        if (!result.Succeeded)
-        {
-            var errors = result.Errors
-                .GroupBy(error => error.Code)
-                .ToDictionary(
-                    group => group.Key,
-                    group => group.Select(error => error.Description).ToArray());
-
-            return Results.ValidationProblem(errors);
-        }
-
-        var (token, expiresAtUtc) = tokenService.CreateToken(user.Id, email);
-        return Results.Created(
-            "/api/auth/me",
-            new TokenResponse(token, expiresAtUtc));
     }
 
     private static async Task<IResult> LoginAsync(
         LoginRequest request,
-        UserManager<IdentityUser<Guid>> userManager,
-        SignInManager<IdentityUser<Guid>> signInManager,
-        JwtTokenService tokenService)
+        AuthenticationService authenticationService,
+        CancellationToken cancellationToken)
     {
-        var user = await userManager.FindByEmailAsync(request.Email?.Trim() ?? string.Empty);
+        var result = await authenticationService.LoginAsync(
+            new LoginCommand(request.Email, request.Password),
+            cancellationToken);
 
-        if (user is null)
-            return Results.Unauthorized();
-
-        var result = await signInManager.CheckPasswordSignInAsync(
-            user,
-            request.Password ?? string.Empty,
-            lockoutOnFailure: true);
-
-        if (!result.Succeeded || user.Email is null)
-            return Results.Unauthorized();
-
-        var (token, expiresAtUtc) = tokenService.CreateToken(user.Id, user.Email);
-        return Results.Ok(new TokenResponse(token, expiresAtUtc));
+        return result.Succeeded
+            ? Results.Ok(result.Response)
+            : Results.Unauthorized();
     }
 }
 
 internal sealed record RegisterRequest(string? Email, string? Password);
 internal sealed record LoginRequest(string? Email, string? Password);
-internal sealed record TokenResponse(string AccessToken, DateTime ExpiresAtUtc)
-{
-    public string TokenType => "Bearer";
-}
