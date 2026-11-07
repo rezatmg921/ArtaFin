@@ -14,15 +14,21 @@ public enum PostingSide
 /// </summary>
 public sealed record JournalLine
 {
-    // EF Core uses this constructor when materializing an owned line.
+    // EF Core materializes the scalar backing fields through this constructor.
     private JournalLine()
     {
     }
 
+    private decimal _amount;
+    private string _currency = null!;
+
     public int LineNumber { get; private set; }
     public Guid AccountId { get; private set; }
     public PostingSide Side { get; private set; }
-    public Money Amount { get; private set; }
+
+    // Keep Money as the Domain-facing value object while persistence stores its
+    // amount and currency as separate scalar columns.
+    public Money Amount => new(_amount, _currency);
 
     public JournalLine(Guid accountId, PostingSide side, Money amount)
     {
@@ -35,7 +41,8 @@ public sealed record JournalLine
 
         AccountId = accountId;
         Side = side;
-        Amount = amount;
+        _amount = amount.Amount;
+        _currency = amount.Currency;
     }
 
     internal static JournalLine CreateNumbered(JournalLine source, int lineNumber)
