@@ -92,17 +92,20 @@ public sealed class JournalEntryPersistenceTests : IAsyncLifetime
         var entryBookId = Guid.NewGuid();
         var otherBookId = Guid.NewGuid();
         var accountId = Guid.NewGuid();
+        var validAccountId = Guid.NewGuid();
 
         await using var context = new ArtaFinDbContext(_options);
         context.FinancialBooks.AddRange(
             FinancialBook.Create(entryBookId, Guid.NewGuid(), "Book A", "USD", now),
             FinancialBook.Create(otherBookId, Guid.NewGuid(), "Book B", "USD", now));
-        context.Accounts.Add(Account.Create(accountId, otherBookId, "1000", "Cash", AccountType.Asset, now));
+        context.Accounts.AddRange(
+            Account.Create(accountId, otherBookId, "1000", "Cash", AccountType.Asset, now),
+            Account.Create(validAccountId, entryBookId, "2000", "Payable", AccountType.Liability, now));
 
         var entry = JournalEntry.Post(Guid.NewGuid(), entryBookId, now, "Cross-book reference",
         [
             new JournalLine(accountId, PostingSide.Debit, new Money(10m, "USD")),
-            new JournalLine(Guid.NewGuid(), PostingSide.Credit, new Money(10m, "USD"))
+            new JournalLine(validAccountId, PostingSide.Credit, new Money(10m, "USD"))
         ]);
         context.JournalEntries.Add(entry);
 
