@@ -24,6 +24,7 @@ public sealed class AuthenticationServiceTests
         Assert.NotNull(repository.Credential);
         Assert.Equal("fake-hash", repository.Credential.PasswordHash);
         Assert.Equal(1, repository.SaveCount);
+        Assert.Single(repository.Sessions);
     }
 
     [Fact]
@@ -82,15 +83,21 @@ public sealed class AuthenticationServiceTests
         new(
             repository,
             repository,
+            repository,
             hasher,
             new FakeAccessTokenGenerator(),
+            new FakeRefreshTokenService(),
             TimeProvider.System);
 
-    private sealed class FakeUserRepository : IUserRepository, IUnitOfWork
+    private sealed class FakeUserRepository : IUserRepository, IUserSessionRepository, IUnitOfWork
     {
         public AppUser? User { get; set; }
         public UserCredential? Credential { get; set; }
         public int SaveCount { get; private set; }
+        public List<UserSession> Sessions { get; } = [];
+
+        public Task<AppUser?> GetByIdAsync(Guid userId, CancellationToken cancellationToken) =>
+            Task.FromResult(User?.Id == userId ? User : null);
 
         public Task<AppUser?> GetByNormalizedEmailAsync(
             string normalizedEmail,
@@ -102,6 +109,22 @@ public sealed class AuthenticationServiceTests
             Guid userId,
             CancellationToken cancellationToken) =>
             Task.FromResult(Credential?.UserId == userId ? Credential : null);
+
+        public Task<UserSession?> GetByRefreshTokenHashAsync(string refreshTokenHash, CancellationToken cancellationToken) =>
+            Task.FromResult(Sessions.SingleOrDefault(session => session.RefreshTokenHash == refreshTokenHash));
+
+        public Task AddAsync(UserSession session, CancellationToken cancellationToken)
+        {
+            Sessions.Add(session);
+            return Task.CompletedTask;
+        }
+
+        public Task RevokeAllForUserAsync(Guid userId, DateTimeOffset revokedAt, CancellationToken cancellationToken)
+        {
+            foreach (var session in Sessions.Where(session => session.UserId == userId))
+                session.Revoke(revokedAt);
+            return Task.CompletedTask;
+        }
 
         public Task AddUserAsync(AppUser user, CancellationToken cancellationToken)
         {
@@ -133,6 +156,12 @@ public sealed class AuthenticationServiceTests
 
         public PasswordVerificationResult Verify(string password, string encodedHash) =>
             VerificationResult;
+    }
+
+    private sealed class FakeRefreshTokenService : IRefreshTokenService
+    {
+        public string GenerateToken() => Guid.NewGuid().ToString("N");
+        public string ComputeHash(string token) => "hash:" + token;
     }
 
     private sealed class FakeAccessTokenGenerator : IAccessTokenGenerator
