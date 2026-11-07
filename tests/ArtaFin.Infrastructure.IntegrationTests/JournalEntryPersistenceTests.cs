@@ -63,6 +63,7 @@ public sealed class JournalEntryPersistenceTests : IAsyncLifetime
         Assert.Equal(postedAt, actual.PostedAt);
         Assert.Equal("Initial cash receipt", actual.Description);
         Assert.Equal(new[] { 1, 2 }, actual.Lines.Select(x => x.LineNumber).ToArray());
+        Assert.Equal(bookId, actual.Lines[0].FinancialBookId);
         Assert.Equal(cashId, actual.Lines[0].AccountId);
         Assert.Equal(PostingSide.Debit, actual.Lines[0].Side);
         Assert.Equal(1250.7500m, actual.Lines[0].Amount.Amount);
@@ -81,6 +82,30 @@ public sealed class JournalEntryPersistenceTests : IAsyncLifetime
         context.Accounts.AddRange(
             Account.Create(Guid.NewGuid(), bookId, "1000", "Cash", AccountType.Asset, now),
             Account.Create(Guid.NewGuid(), bookId, "1000", "Bank cash", AccountType.Asset, now));
+        await Assert.ThrowsAsync<DbUpdateException>(() => context.SaveChangesAsync());
+    }
+
+    [Fact]
+    public async Task JournalLine_RejectsAccountFromAnotherFinancialBook()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var entryBookId = Guid.NewGuid();
+        var otherBookId = Guid.NewGuid();
+        var accountId = Guid.NewGuid();
+
+        await using var context = new ArtaFinDbContext(_options);
+        context.FinancialBooks.AddRange(
+            FinancialBook.Create(entryBookId, Guid.NewGuid(), "Book A", "USD", now),
+            FinancialBook.Create(otherBookId, Guid.NewGuid(), "Book B", "USD", now));
+        context.Accounts.Add(Account.Create(accountId, otherBookId, "1000", "Cash", AccountType.Asset, now));
+
+        var entry = JournalEntry.Post(Guid.NewGuid(), entryBookId, now, "Cross-book reference",
+        [
+            new JournalLine(accountId, PostingSide.Debit, new Money(10m, "USD")),
+            new JournalLine(Guid.NewGuid(), PostingSide.Credit, new Money(10m, "USD"))
+        ]);
+        context.JournalEntries.Add(entry);
+
         await Assert.ThrowsAsync<DbUpdateException>(() => context.SaveChangesAsync());
     }
 
