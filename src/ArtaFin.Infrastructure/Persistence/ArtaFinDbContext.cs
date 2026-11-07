@@ -14,6 +14,7 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
     private const string AccountCodeUniqueIndexName = "UX_Accounts_FinancialBookId_Code";
 
     public DbSet<FinancialBook> FinancialBooks => Set<FinancialBook>();
+    public DbSet<FinancialBookMember> FinancialBookMembers => Set<FinancialBookMember>();
     public DbSet<Account> Accounts => Set<Account>();
     public DbSet<JournalEntry> JournalEntries => Set<JournalEntry>();
     public DbSet<AppUser> Users => Set<AppUser>();
@@ -26,6 +27,7 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
     {
         // Keep runtime entity registration order aligned with the migration snapshot.
         modelBuilder.Entity<FinancialBook>();
+        modelBuilder.Entity<FinancialBookMember>();
         modelBuilder.Entity<Account>();
         modelBuilder.Entity<JournalEntry>();
         modelBuilder.Entity<AppUser>();
@@ -35,6 +37,7 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
         modelBuilder.Entity<UserRole>();
 
         modelBuilder.ApplyConfiguration(new FinancialBookConfiguration());
+        modelBuilder.ApplyConfiguration(new FinancialBookMemberConfiguration());
         modelBuilder.ApplyConfiguration(new AccountConfiguration());
         modelBuilder.ApplyConfiguration(new JournalEntryConfiguration());
         modelBuilder.ApplyConfiguration(new AppUserConfiguration());
