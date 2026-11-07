@@ -1,4 +1,5 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using ArtaFin.Api.CurrentUser;
 using ArtaFin.Api.Endpoints;
 using ArtaFin.Api.Errors;
@@ -7,6 +8,7 @@ using ArtaFin.Application;
 using ArtaFin.Application.Abstractions.Security;
 using ArtaFin.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -23,6 +25,21 @@ if (string.IsNullOrWhiteSpace(jwtOptions.Issuer) ||
     throw new InvalidOperationException(
         "Authentication:Jwt must define Issuer, Audience, a SigningKey of at least 32 UTF-8 bytes, and AccessTokenMinutes between 5 and 60.");
 }
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("auth", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+});
 
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
@@ -69,6 +86,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
