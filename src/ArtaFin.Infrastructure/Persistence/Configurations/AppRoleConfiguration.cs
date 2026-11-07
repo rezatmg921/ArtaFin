@@ -18,7 +18,6 @@ public sealed class AppRoleConfiguration : IEntityTypeConfiguration<AppRole>
 
         builder.Property(role => role.NormalizedName)
             .HasMaxLength(AppRole.MaxNameLength)
-            .IsUnicode(false)
             .IsRequired();
 
         builder.Property(role => role.Description)
