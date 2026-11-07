@@ -1,4 +1,5 @@
 using ArtaFin.Application.Features.Accounts.CreateAccount;
+using ArtaFin.Application.Features.FinancialBooks.InviteMember;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 
