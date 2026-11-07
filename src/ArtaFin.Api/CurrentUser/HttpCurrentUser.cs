@@ -11,10 +11,15 @@ internal sealed class HttpCurrentUser(IHttpContextAccessor httpContextAccessor)
         get
         {
             var user = httpContextAccessor.HttpContext?.User;
-            var value = user?.FindFirst(ClaimTypes.NameIdentifier)?.Value
-                        ?? user?.FindFirst("sub")?.Value;
+            if (user?.Identity?.IsAuthenticated != true)
+                return Guid.Empty;
 
-            return Guid.TryParse(value, out var userId) ? userId : Guid.Empty;
+            var value = user.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                        ?? user.FindFirst("sub")?.Value;
+
+            return Guid.TryParse(value, out var userId) && userId != Guid.Empty
+                ? userId
+                : Guid.Empty;
         }
     }
 }
