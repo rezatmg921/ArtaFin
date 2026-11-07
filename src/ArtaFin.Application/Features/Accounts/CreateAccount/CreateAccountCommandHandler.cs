@@ -28,8 +28,23 @@ public sealed class CreateAccountCommandHandler(
             command.FinancialBookId,
             cancellationToken);
 
-        if (financialBook is null || !financialBook.IsOwnedBy(currentUser.UserId))
+        if (financialBook is null)
             throw new FinancialBookAccessDeniedException();
+
+        var userId = currentUser.UserId;
+        if (!financialBook.IsOwnedBy(userId))
+        {
+            var membership = await financialBookRepository.GetMemberAsync(
+                financialBook.Id,
+                userId,
+                cancellationToken);
+
+            if (membership is null ||
+                !membership.CanCreateAccountsAt(timeProvider.GetUtcNow()))
+            {
+                throw new FinancialBookAccessDeniedException();
+            }
+        }
 
         var normalizedCode = command.Code?.Trim().ToUpperInvariant()
             ?? throw new ArgumentNullException(nameof(command.Code));
