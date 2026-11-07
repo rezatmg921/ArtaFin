@@ -5,4 +5,6 @@ namespace ArtaFin.Domain.Common;
 /// External domain objects should reference an aggregate root by identity,
 /// rather than holding references to its internal entities.
 /// </summary>
-public abstract class AggregateRoot(Guid id) : Entity(id);
+public abstract class AggregateRoot(Guid id) : Entity(id)
+{
+}
