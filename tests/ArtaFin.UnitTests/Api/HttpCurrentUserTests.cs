@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using ArtaFin.Api.CurrentUser;
 using Microsoft.AspNetCore.Http;
+using Xunit;
 
 namespace ArtaFin.UnitTests.Api;
 
