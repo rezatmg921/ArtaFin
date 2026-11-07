@@ -1,0 +1,103 @@
+using System.Data.Common;
+using ArtaFin.Application.Abstractions.Persistence;
+using ArtaFin.Application.Features.Accounts.CreateAccount;
+using ArtaFin.Domain.Finance;
+using ArtaFin.Infrastructure;
+using ArtaFin.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Xunit;
+
+namespace ArtaFin.Infrastructure.IntegrationTests;
+
+public sealed class AccountRepositoryTests : IAsyncLifetime
+{
+    private readonly string _connectionString;
+    private readonly DbContextOptions<ArtaFinDbContext> _options;
+
+    public AccountRepositoryTests()
+    {
+        var configuredConnectionString = Environment.GetEnvironmentVariable("ARTAFIN_SQLSERVER")
+            ?? throw new InvalidOperationException("Set ARTAFIN_SQLSERVER to a SQL Server connection string.");
+        var builder = new DbConnectionStringBuilder { ConnectionString = configuredConnectionString };
+        builder["Initial Catalog"] = $"ArtaFin_AccountRepository_{Guid.NewGuid():N}";
+        _connectionString = builder.ConnectionString;
+        _options = new DbContextOptionsBuilder<ArtaFinDbContext>().UseSqlServer(_connectionString).Options;
+    }
+
+    public async Task InitializeAsync()
+    {
+        await using var context = new ArtaFinDbContext(_options);
+        await context.Database.MigrateAsync();
+    }
+
+    [Fact]
+    public async Task Repository_ScopesReadsToFinancialBook_AndCommitsAddedAccounts()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var bookAId = Guid.NewGuid();
+        var bookBId = Guid.NewGuid();
+        var accountAId = Guid.NewGuid();
+
+        await using (var setup = new ArtaFinDbContext(_options))
+        {
+            setup.FinancialBooks.AddRange(
+                FinancialBook.Create(bookAId, Guid.NewGuid(), "Book A", "USD", now),
+                FinancialBook.Create(bookBId, Guid.NewGuid(), "Book B", "USD", now));
+            setup.Accounts.Add(Account.Create(
+                accountAId, bookAId, "1000", "Cash", AccountType.Asset, now));
+            await setup.SaveChangesAsync();
+        }
+
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:ArtaFin"] = _connectionString
+            })
+            .Build();
+
+        var services = new ServiceCollection();
+        services.AddInfrastructure(configuration);
+
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var repository = scope.ServiceProvider.GetRequiredService<IAccountRepository>();
+        var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+        var account = await repository.GetByIdAsync(bookAId, accountAId, CancellationToken.None);
+        var crossBookLookup = await repository.GetByIdAsync(bookBId, accountAId, CancellationToken.None);
+
+        Assert.NotNull(account);
+        Assert.Equal("1000", account.Code);
+        Assert.Null(crossBookLookup);
+        Assert.True(await repository.ExistsByCodeAsync(bookAId, "1000", CancellationToken.None));
+        Assert.False(await repository.ExistsByCodeAsync(bookBId, "1000", CancellationToken.None));
+
+        var addedAccount = Account.Create(
+            Guid.NewGuid(), bookBId, "2000", "Bank", AccountType.Asset, now);
+        await repository.AddAsync(addedAccount, CancellationToken.None);
+        await unitOfWork.SaveChangesAsync(CancellationToken.None);
+
+        var persisted = await repository.GetByIdAsync(
+            bookBId, addedAccount.Id, CancellationToken.None);
+        Assert.NotNull(persisted);
+        Assert.Equal("2000", persisted.Code);
+
+        // The pre-check can be bypassed by concurrent requests. The SQL Server
+        // unique index must still reject the duplicate and expose an application error.
+        var duplicateAccount = Account.Create(
+            Guid.NewGuid(), bookAId, "1000", "Duplicate Cash", AccountType.Asset, now);
+        await repository.AddAsync(duplicateAccount, CancellationToken.None);
+
+        await Assert.ThrowsAsync<AccountCodeAlreadyExistsException>(() =>
+            unitOfWork.SaveChangesAsync(CancellationToken.None));
+    }
+
+    public async Task DisposeAsync()
+    {
+        await using var context = new ArtaFinDbContext(_options);
+        await context.Database.EnsureDeletedAsync();
+    }
+}
