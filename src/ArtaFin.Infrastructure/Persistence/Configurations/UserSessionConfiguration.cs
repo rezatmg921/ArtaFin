@@ -33,6 +33,10 @@ public sealed class UserSessionConfiguration : IEntityTypeConfiguration<UserSess
         builder.Property(session => session.RevokedAt)
             .HasColumnType("datetimeoffset(7)");
 
+        builder.Property(session => session.RowVersion)
+            .IsRowVersion()
+            .IsConcurrencyToken();
+
         builder.HasIndex(session => session.RefreshTokenHash)
             .IsUnique()
             .HasDatabaseName("UX_UserSessions_RefreshTokenHash");
