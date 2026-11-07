@@ -29,6 +29,9 @@ public enum AccountStatus
 /// </summary>
 public sealed class Account : AggregateRoot
 {
+    public const int MaxCodeLength = 50;
+    public const int MaxNameLength = 200;
+
     public Guid FinancialBookId { get; }
     public string Code { get; }
     public string Name { get; private set; }
@@ -70,11 +73,16 @@ public sealed class Account : AggregateRoot
             throw new ArgumentException("Account code is required.", nameof(code));
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Account name is required.", nameof(name));
-        if (!Enum.IsDefined(type))
-            throw new ArgumentOutOfRangeException(nameof(type));
 
         var normalizedCode = code.Trim().ToUpperInvariant();
         var normalizedName = name.Trim();
+        if (normalizedCode.Length > MaxCodeLength)
+            throw new ArgumentException($"Account code cannot exceed {MaxCodeLength} characters.", nameof(code));
+        if (normalizedName.Length > MaxNameLength)
+            throw new ArgumentException($"Account name cannot exceed {MaxNameLength} characters.", nameof(name));
+        if (!Enum.IsDefined(type))
+            throw new ArgumentOutOfRangeException(nameof(type));
+
         var normalBalance = type switch
         {
             AccountType.Asset or AccountType.Expense => AccountNormalBalance.Debit,
@@ -91,7 +99,11 @@ public sealed class Account : AggregateRoot
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Account name is required.", nameof(name));
 
-        Name = name.Trim();
+        var normalizedName = name.Trim();
+        if (normalizedName.Length > MaxNameLength)
+            throw new ArgumentException($"Account name cannot exceed {MaxNameLength} characters.", nameof(name));
+
+        Name = normalizedName;
     }
 
     public void Deactivate(DateTimeOffset deactivatedAt)
