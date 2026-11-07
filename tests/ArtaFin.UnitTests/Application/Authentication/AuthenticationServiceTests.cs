@@ -103,6 +103,24 @@ public sealed class AuthenticationServiceTests
     }
 
     [Fact]
+    public async Task RefreshAsync_WhenConcurrencyConflictOccurs_ShouldRejectRefresh()
+    {
+        var repository = new FakeUserRepository();
+        var service = CreateService(repository, new FakePasswordHasher());
+        var registration = await service.RegisterAsync(
+            new RegisterCommand("person@example.com", "Valid-Password-42!"),
+            CancellationToken.None);
+        repository.ThrowConcurrencyOnNextSave = true;
+
+        var result = await service.RefreshAsync(
+            new RefreshCommand(registration.Response!.RefreshToken),
+            CancellationToken.None);
+
+        Assert.Equal(AuthenticationFailure.InvalidRefreshToken, result.Failure);
+        Assert.Null(result.Response);
+    }
+
+    [Fact]
     public async Task RefreshAsync_WhenOldTokenIsReused_ShouldRevokeAllUserSessions()
     {
         var repository = new FakeUserRepository();
@@ -159,6 +177,7 @@ public sealed class AuthenticationServiceTests
         public AppUser? User { get; set; }
         public UserCredential? Credential { get; set; }
         public int SaveCount { get; private set; }
+        public bool ThrowConcurrencyOnNextSave { get; set; }
         public List<UserSession> Sessions { get; } = [];
 
         public Task<AppUser?> GetByIdAsync(Guid userId, CancellationToken cancellationToken) =>
@@ -208,6 +227,14 @@ public sealed class AuthenticationServiceTests
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken)
         {
             SaveCount++;
+            if (ThrowConcurrencyOnNextSave)
+            {
+                ThrowConcurrencyOnNextSave = false;
+                throw new PersistenceConcurrencyException(
+                    "Simulated concurrent update.",
+                    new InvalidOperationException("Concurrency conflict."));
+            }
+
             return Task.FromResult(1);
         }
     }
