@@ -92,6 +92,32 @@ public sealed class CreateAccountOwnershipTests
         Assert.Equal(1, unitOfWork.SaveChangesCalls);
     }
 
+    [Fact]
+    public async Task HandleAsync_WhenAccountantMembershipStartsInFuture_RejectsAccountCreation()
+    {
+        var ownerId = Guid.NewGuid();
+        var memberId = Guid.NewGuid();
+        var book = CreateBook(ownerId);
+        var membership = FinancialBookMember.Grant(
+            Guid.NewGuid(),
+            book.Id,
+            memberId,
+            FinancialBookRole.Accountant,
+            DateTimeOffset.UtcNow.AddHours(1));
+        var books = new FakeFinancialBookRepository(book, membership);
+        var accounts = new FakeAccountRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = CreateHandler(memberId, books, accounts, unitOfWork);
+
+        await Assert.ThrowsAsync<FinancialBookAccessDeniedException>(() =>
+            handler.HandleAsync(
+                new CreateAccountCommand(book.Id, "2003", "Equipment", AccountType.Asset),
+                CancellationToken.None));
+
+        Assert.Null(accounts.AddedAccount);
+        Assert.Equal(0, unitOfWork.SaveChangesCalls);
+    }
+
     [Theory]
     [InlineData(FinancialBookRole.Auditor)]
     [InlineData(FinancialBookRole.Viewer)]
