@@ -13,7 +13,9 @@ internal static class AccountEndpoints
                 CreateAsync)
             .WithName("CreateAccount")
             .WithTags("Accounts")
+            .RequireAuthorization()
             .Produces(StatusCodes.Status201Created)
+            .Produces(StatusCodes.Status401Unauthorized)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
@@ -55,16 +57,11 @@ internal static class AccountEndpoints
             accountType);
 
         var accountId = await handler.HandleAsync(command, cancellationToken);
-
         var location = $"/api/financial-books/{financialBookId}/accounts/{accountId}";
 
         return Results.Created(location, new CreateAccountResponse(accountId));
     }
 }
 
-internal sealed record CreateAccountRequest(
-    string? Code,
-    string? Name,
-    string? Type);
-
+internal sealed record CreateAccountRequest(string? Code, string? Name, string? Type);
 internal sealed record CreateAccountResponse(Guid Id);
