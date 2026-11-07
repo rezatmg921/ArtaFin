@@ -39,22 +39,6 @@ jobs:
         run: dotnet restore ArtaFin.sln
       - name: Build
         run: dotnet build ArtaFin.sln --no-restore --configuration Release
-      - name: Capture EF-generated model snapshot
-        run: |
-          mkdir -p artifacts/ef-diagnostic
-          dotnet ef migrations add __ModelSnapshotDiagnostic --project src/ArtaFin.Infrastructure/ArtaFin.Infrastructure.csproj --startup-project src/ArtaFin.Infrastructure/ArtaFin.Infrastructure.csproj --configuration Release
-          cp src/ArtaFin.Infrastructure/Persistence/Migrations/ArtaFinDbContextModelSnapshot.cs artifacts/ef-diagnostic/
-          cp src/ArtaFin.Infrastructure/Persistence/Migrations/*__ModelSnapshotDiagnostic* artifacts/ef-diagnostic/
-          git checkout -- src/ArtaFin.Infrastructure/Persistence/Migrations/ArtaFinDbContextModelSnapshot.cs
-          find src/ArtaFin.Infrastructure/Persistence/Migrations -maxdepth 1 -type f -name '*__ModelSnapshotDiagnostic*' -delete
-      - name: Upload EF model diagnostic
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ef-model-diagnostic
-          path: artifacts/ef-diagnostic/
-          if-no-files-found: error
-          retention-days: 7
       - name: Check migration model snapshot
         run: dotnet ef migrations has-pending-model-changes --project src/ArtaFin.Infrastructure/ArtaFin.Infrastructure.csproj --startup-project src/ArtaFin.Infrastructure/ArtaFin.Infrastructure.csproj --configuration Release
       - name: Generate idempotent SQL migration script
