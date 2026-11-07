@@ -24,10 +24,20 @@ internal sealed class ApiExceptionHandler(
                     "Account code already exists",
                     "An account with this code already exists in the financial book."),
 
-            FinancialBookAccessDeniedException =>
+            FinancialBookAccessDeniedException or FinancialBookManagementDeniedException =>
                 (StatusCodes.Status404NotFound,
                     "Financial book not found",
                     "The financial book was not found or is not accessible."),
+
+            InviteTargetUserNotFoundException =>
+                (StatusCodes.Status404NotFound,
+                    "User not found",
+                    "The specified user was not found or is not active."),
+
+            FinancialBookMemberAlreadyExistsException =>
+                (StatusCodes.Status409Conflict,
+                    "Membership already exists",
+                    "The user is already the owner or a member of this financial book."),
 
             _ => (0, string.Empty, string.Empty)
         };
