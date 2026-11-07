@@ -57,6 +57,9 @@ public sealed class JournalEntryConfiguration : IEntityTypeConfiguration<Journal
                 .HasColumnType("tinyint")
                 .IsRequired();
 
+            // The public Money value is reconstructed from its mapped scalar fields.
+            lines.Ignore(line => line.Amount);
+
             // Money remains a Domain value object. Its two private scalar fields are
             // mapped separately so SQL can store and query amount and currency efficiently.
             lines.Property<decimal>("_amount")
