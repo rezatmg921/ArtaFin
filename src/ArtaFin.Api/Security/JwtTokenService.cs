@@ -1,11 +1,12 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using ArtaFin.Application.Abstractions.Security;
 using Microsoft.IdentityModel.Tokens;
 
 namespace ArtaFin.Api.Security;
 
-internal sealed class JwtTokenService(JwtOptions options)
+internal sealed class JwtTokenService(JwtOptions options) : IAccessTokenGenerator
 {
     public (string Token, DateTime ExpiresAtUtc) CreateToken(
         Guid userId,
