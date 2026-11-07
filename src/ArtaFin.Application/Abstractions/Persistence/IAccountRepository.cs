@@ -8,7 +8,12 @@ namespace ArtaFin.Application.Abstractions.Persistence;
 /// </summary>
 public interface IAccountRepository
 {
+    /// <summary>
+    /// Loads an account within its owning book boundary, preventing unscoped
+    /// account lookups from leaking data across financial books.
+    /// </summary>
     Task<Account?> GetByIdAsync(
+        Guid financialBookId,
         Guid accountId,
         CancellationToken cancellationToken);
 
