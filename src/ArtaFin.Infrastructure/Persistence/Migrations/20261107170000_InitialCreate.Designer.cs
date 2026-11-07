@@ -1,3 +1,4 @@
+using ArtaFin.Domain.Finance;
 using ArtaFin.Infrastructure.Persistence.Configurations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -11,6 +12,11 @@ public sealed partial class InitialCreate
         modelBuilder
             .HasAnnotation("ProductVersion", "10.0.14")
             .HasAnnotation("Relational:MaxIdentifierLength", 128);
+
+        // Register entity types first so navigation discovery matches the runtime DbContext.
+        modelBuilder.Entity<FinancialBook>();
+        modelBuilder.Entity<Account>();
+        modelBuilder.Entity<JournalEntry>();
 
         modelBuilder.ApplyConfiguration(new FinancialBookConfiguration());
         modelBuilder.ApplyConfiguration(new AccountConfiguration());
