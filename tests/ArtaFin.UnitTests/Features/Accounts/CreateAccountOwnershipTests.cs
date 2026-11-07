@@ -69,6 +69,78 @@ public sealed class CreateAccountOwnershipTests
         Assert.Equal(0, unitOfWork.SaveChangesCalls);
     }
 
+    [Fact]
+    public async Task HandleAsync_WhenAccountantIsActive_CreatesAccount()
+    {
+        var ownerId = Guid.NewGuid();
+        var accountantId = Guid.NewGuid();
+        var book = CreateBook(ownerId);
+        var now = DateTimeOffset.UtcNow;
+        var membership = FinancialBookMember.Grant(
+            Guid.NewGuid(), book.Id, accountantId, FinancialBookRole.Accountant, now.AddMinutes(-1));
+        var books = new FakeFinancialBookRepository(book, membership);
+        var accounts = new FakeAccountRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = CreateHandler(accountantId, books, accounts, unitOfWork);
+
+        var accountId = await handler.HandleAsync(
+            new CreateAccountCommand(book.Id, "2000", "Bank", AccountType.Asset),
+            CancellationToken.None);
+
+        Assert.NotEqual(Guid.Empty, accountId);
+        Assert.NotNull(accounts.AddedAccount);
+        Assert.Equal(1, unitOfWork.SaveChangesCalls);
+    }
+
+    [Theory]
+    [InlineData(FinancialBookRole.Auditor)]
+    [InlineData(FinancialBookRole.Viewer)]
+    public async Task HandleAsync_WhenMemberHasReadOnlyRole_RejectsAccountCreation(
+        FinancialBookRole role)
+    {
+        var ownerId = Guid.NewGuid();
+        var memberId = Guid.NewGuid();
+        var book = CreateBook(ownerId);
+        var membership = FinancialBookMember.Grant(
+            Guid.NewGuid(), book.Id, memberId, role, DateTimeOffset.UtcNow.AddMinutes(-1));
+        var books = new FakeFinancialBookRepository(book, membership);
+        var accounts = new FakeAccountRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = CreateHandler(memberId, books, accounts, unitOfWork);
+
+        await Assert.ThrowsAsync<FinancialBookAccessDeniedException>(() =>
+            handler.HandleAsync(
+                new CreateAccountCommand(book.Id, "2001", "Receivable", AccountType.Asset),
+                CancellationToken.None));
+
+        Assert.Null(accounts.AddedAccount);
+        Assert.Equal(0, unitOfWork.SaveChangesCalls);
+    }
+
+    [Fact]
+    public async Task HandleAsync_WhenAccountantMembershipWasRevoked_RejectsAccountCreation()
+    {
+        var ownerId = Guid.NewGuid();
+        var memberId = Guid.NewGuid();
+        var book = CreateBook(ownerId);
+        var grantedAt = DateTimeOffset.UtcNow.AddHours(-1);
+        var membership = FinancialBookMember.Grant(
+            Guid.NewGuid(), book.Id, memberId, FinancialBookRole.Accountant, grantedAt);
+        membership.Revoke(DateTimeOffset.UtcNow.AddMinutes(-1));
+        var books = new FakeFinancialBookRepository(book, membership);
+        var accounts = new FakeAccountRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = CreateHandler(memberId, books, accounts, unitOfWork);
+
+        await Assert.ThrowsAsync<FinancialBookAccessDeniedException>(() =>
+            handler.HandleAsync(
+                new CreateAccountCommand(book.Id, "2002", "Inventory", AccountType.Asset),
+                CancellationToken.None));
+
+        Assert.Null(accounts.AddedAccount);
+        Assert.Equal(0, unitOfWork.SaveChangesCalls);
+    }
+
     private static FinancialBook CreateBook(Guid ownerId) =>
         FinancialBook.Create(
             Guid.NewGuid(),
@@ -94,8 +166,9 @@ public sealed class CreateAccountOwnershipTests
         public Guid UserId { get; } = userId;
     }
 
-    private sealed class FakeFinancialBookRepository(FinancialBook? book)
-        : IFinancialBookRepository
+    private sealed class FakeFinancialBookRepository(
+        FinancialBook? book,
+        FinancialBookMember? member = null) : IFinancialBookRepository
     {
         public Task<FinancialBook?> GetByIdAsync(
             Guid financialBookId,
@@ -107,7 +180,10 @@ public sealed class CreateAccountOwnershipTests
             Guid financialBookId,
             Guid userId,
             CancellationToken cancellationToken) =>
-            Task.FromResult<FinancialBookMember?>(null);
+            Task.FromResult(
+                member?.FinancialBookId == financialBookId && member.UserId == userId
+                    ? member
+                    : null);
 
     private sealed class FakeAccountRepository : IAccountRepository
     {
