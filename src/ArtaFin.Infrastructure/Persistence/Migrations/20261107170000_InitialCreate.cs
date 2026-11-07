@@ -6,7 +6,7 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations;
 
 [DbContext(typeof(ArtaFinDbContext))]
 [Migration("20261107170000_InitialCreate")]
-public sealed class InitialCreate : Migration
+public sealed partial class InitialCreate : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
     {
