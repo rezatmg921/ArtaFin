@@ -45,7 +45,7 @@ public sealed class FinancialBookMember : Entity
     }
 
     public bool IsActiveAt(DateTimeOffset at) =>
-        RevokedAt is null || RevokedAt > at;
+        GrantedAt <= at && (RevokedAt is null || RevokedAt > at);
 
     public bool CanCreateAccountsAt(DateTimeOffset at) =>
         IsActiveAt(at) && Role == FinancialBookRole.Accountant;
