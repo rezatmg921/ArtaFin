@@ -3,7 +3,7 @@ using ArtaFin.Domain.Common;
 namespace ArtaFin.Domain.Finance;
 
 /// <summary>A personal or shared ledger boundary with an explicit owner.</summary>
-public sealed class FinancialBook : Entity
+public sealed class FinancialBook : AggregateRoot
 {
     public Guid OwnerId { get; }
     public string Name { get; }
