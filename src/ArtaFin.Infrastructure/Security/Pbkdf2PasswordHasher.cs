@@ -11,6 +11,7 @@ namespace ArtaFin.Infrastructure.Security;
 public sealed class Pbkdf2PasswordHasher : IPasswordHasher
 {
     private const string FormatMarker = "artafin";
+    public const string AlgorithmId = "pbkdf2-sha256-v1";
     private const string AlgorithmMarker = "pbkdf2-sha256";
     private const int FormatVersion = 1;
     private const int CurrentIterations = 600_000;
@@ -44,7 +45,7 @@ public sealed class Pbkdf2PasswordHasher : IPasswordHasher
     public PasswordVerificationResult Verify(string password, string encodedHash)
     {
         ArgumentNullException.ThrowIfNull(password);
-        if (string.IsNullOrEmpty(encodedHash))
+        if (string.IsNullOrEmpty(encodedHash) || encodedHash.Length > 256)
             return PasswordVerificationResult.Failed;
 
         if (!TryParse(encodedHash, out var iterations, out var expectedHash, out var salt))
