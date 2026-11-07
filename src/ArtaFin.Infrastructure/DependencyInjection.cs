@@ -1,6 +1,8 @@
 using ArtaFin.Application.Abstractions.Persistence;
 using ArtaFin.Infrastructure.Persistence;
 using ArtaFin.Infrastructure.Persistence.Repositories;
+using ArtaFin.Infrastructure.Security;
+using ArtaFin.Application.Abstractions.Security;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -23,6 +25,8 @@ public static class DependencyInjection
 
         services.AddDbContext<ArtaFinDbContext>(options =>
             options.UseSqlServer(connectionString));
+
+        services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
 
         services.AddIdentityCore<IdentityUser<Guid>>(options =>
             {
