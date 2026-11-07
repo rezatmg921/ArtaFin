@@ -15,6 +15,12 @@ public sealed class UserSession : Entity
     public DateTimeOffset? RevokedAt { get; private set; }
     public Guid? ReplacedBySessionId { get; private set; }
 
+    /// <summary>
+    /// SQL Server-generated concurrency token. EF Core includes this value
+    /// in UPDATE predicates so only one concurrent refresh can revoke a session.
+    /// </summary>
+    public byte[] RowVersion { get; private set; } = [];
+
     private UserSession(
         Guid id,
         Guid userId,
