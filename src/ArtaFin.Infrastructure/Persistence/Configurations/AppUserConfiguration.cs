@@ -20,7 +20,6 @@ public sealed class AppUserConfiguration : IEntityTypeConfiguration<AppUser>
 
         builder.Property(user => user.NormalizedEmail)
             .HasMaxLength(AppUser.MaxEmailLength)
-            .IsUnicode(false)
             .IsRequired();
 
         builder.Property(user => user.IsActive)
