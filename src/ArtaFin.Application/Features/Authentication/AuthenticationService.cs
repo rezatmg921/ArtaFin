@@ -31,7 +31,9 @@ public sealed class AuthenticationService(
         if (errors.Count > 0)
             return AuthenticationResult.Failed(AuthenticationFailure.Validation, errors);
 
-        var normalizedEmail = email!.ToUpperInvariant();
+        var validEmail = email!;
+        var validPassword = password!;
+        var normalizedEmail = validEmail.ToUpperInvariant();
         if (await userRepository.GetByNormalizedEmailAsync(normalizedEmail, cancellationToken) is not null)
         {
             return AuthenticationResult.Failed(
@@ -43,8 +45,8 @@ public sealed class AuthenticationService(
         }
 
         var now = timeProvider.GetUtcNow();
-        var user = AppUser.Register(Guid.NewGuid(), email, now);
-        var passwordHash = passwordHasher.Hash(password!);
+        var user = AppUser.Register(Guid.NewGuid(), validEmail, now);
+        var passwordHash = passwordHasher.Hash(validPassword);
         var credential = UserCredential.Create(
             Guid.NewGuid(),
             user.Id,
