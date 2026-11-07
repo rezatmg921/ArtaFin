@@ -1,5 +1,6 @@
 using System.Data.Common;
 using ArtaFin.Application.Abstractions.Persistence;
+using ArtaFin.Application.Features.Accounts.CreateAccount;
 using ArtaFin.Domain.Finance;
 using ArtaFin.Infrastructure;
 using ArtaFin.Infrastructure.Persistence;
@@ -83,6 +84,15 @@ public sealed class AccountRepositoryTests : IAsyncLifetime
             bookBId, addedAccount.Id, CancellationToken.None);
         Assert.NotNull(persisted);
         Assert.Equal("2000", persisted.Code);
+
+        // The pre-check can be bypassed by concurrent requests. The SQL Server
+        // unique index must still reject the duplicate and expose an application error.
+        var duplicateAccount = Account.Create(
+            Guid.NewGuid(), bookAId, "1000", "Duplicate Cash", AccountType.Asset, now);
+        await repository.AddAsync(duplicateAccount, CancellationToken.None);
+
+        await Assert.ThrowsAsync<AccountCodeAlreadyExistsException>(() =>
+            unitOfWork.SaveChangesAsync(CancellationToken.None));
     }
 
     public async Task DisposeAsync()
