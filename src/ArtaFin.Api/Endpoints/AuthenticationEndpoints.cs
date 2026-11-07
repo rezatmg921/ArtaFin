@@ -56,7 +56,8 @@ internal static class AuthenticationEndpoints
             return Results.Conflict(result.Errors);
 
         return Results.ValidationProblem(
-            result.Errors ?? new Dictionary<string, string[]>
+            result.Errors?.ToDictionary(pair => pair.Key, pair => pair.Value)
+            ?? new Dictionary<string, string[]>
             {
                 ["credentials"] = ["Registration details are invalid."]
             });
