@@ -1,4 +1,5 @@
 using ArtaFin.Api.CurrentUser;
+using ArtaFin.Api.Endpoints;
 using ArtaFin.Api.Errors;
 using ArtaFin.Application;
 using ArtaFin.Application.Abstractions.Security;
@@ -31,5 +32,7 @@ app.MapGet("/health", () => Results.Ok(new
     service = "ArtaFin.Api"
 }))
 .WithName("Health");
+
+app.MapAccountEndpoints();
 
 app.Run();
