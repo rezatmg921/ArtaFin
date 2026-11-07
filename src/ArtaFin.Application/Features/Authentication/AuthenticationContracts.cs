@@ -1,10 +1,15 @@
 namespace ArtaFin.Application.Features.Authentication;
 
 public sealed record RegisterCommand(string? Email, string? Password);
-
 public sealed record LoginCommand(string? Email, string? Password);
+public sealed record RefreshCommand(string? RefreshToken);
+public sealed record LogoutCommand(string? RefreshToken);
 
-public sealed record AuthenticationResponse(string AccessToken, DateTime ExpiresAtUtc)
+public sealed record AuthenticationResponse(
+    string AccessToken,
+    DateTime ExpiresAtUtc,
+    string RefreshToken,
+    DateTimeOffset RefreshTokenExpiresAtUtc)
 {
     public string TokenType => "Bearer";
 }
@@ -16,7 +21,8 @@ public enum AuthenticationFailure
     InvalidCredentials = 2,
     AccountDisabled = 3,
     AccountLocked = 4,
-    EmailAlreadyRegistered = 5
+    EmailAlreadyRegistered = 5,
+    InvalidRefreshToken = 6
 }
 
 public sealed record AuthenticationResult(
