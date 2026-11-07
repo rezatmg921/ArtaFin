@@ -25,4 +25,17 @@ internal sealed class UserSessionRepository(ArtaFinDbContext dbContext)
         ArgumentNullException.ThrowIfNull(session);
         await dbContext.UserSessions.AddAsync(session, cancellationToken);
     }
+
+    public async Task RevokeAllForUserAsync(
+        Guid userId,
+        DateTimeOffset revokedAt,
+        CancellationToken cancellationToken)
+    {
+        var sessions = await dbContext.UserSessions
+            .Where(session => session.UserId == userId && session.RevokedAt == null)
+            .ToListAsync(cancellationToken);
+
+        foreach (var session in sessions)
+            session.Revoke(revokedAt);
+    }
 }
