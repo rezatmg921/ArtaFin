@@ -1,4 +1,5 @@
 using ArtaFin.Application.Features.FinancialBooks.InviteMember;
+using ArtaFin.Application.Features.FinancialBooks.ListMembers;
 using ArtaFin.Domain.Finance;
 
 namespace ArtaFin.Api.Endpoints;
@@ -8,6 +9,16 @@ internal static class FinancialBookMemberEndpoints
     public static IEndpointRouteBuilder MapFinancialBookMemberEndpoints(
         this IEndpointRouteBuilder endpoints)
     {
+        endpoints.MapGet(
+                "/api/financial-books/{financialBookId:guid}/members",
+                ListAsync)
+            .WithName("ListFinancialBookMembers")
+            .WithTags("FinancialBookMembers")
+            .RequireAuthorization()
+            .Produces<IReadOnlyList<FinancialBookMemberResponse>>()
+            .Produces(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
         endpoints.MapPost(
                 "/api/financial-books/{financialBookId:guid}/members",
                 InviteAsync)
@@ -21,6 +32,27 @@ internal static class FinancialBookMemberEndpoints
             .ProducesProblem(StatusCodes.Status409Conflict);
 
         return endpoints;
+    }
+
+    private static async Task<IResult> ListAsync(
+        Guid financialBookId,
+        ListFinancialBookMembersQueryHandler handler,
+        CancellationToken cancellationToken)
+    {
+        var members = await handler.HandleAsync(
+            new ListFinancialBookMembersQuery(financialBookId),
+            cancellationToken);
+
+        var response = members
+            .Select(member => new FinancialBookMemberResponse(
+                member.MembershipId,
+                member.UserId,
+                member.Email,
+                member.Role.ToString(),
+                member.GrantedAt))
+            .ToArray();
+
+        return Results.Ok(response);
     }
 
     private static async Task<IResult> InviteAsync(
@@ -53,6 +85,13 @@ internal static class FinancialBookMemberEndpoints
             new InviteFinancialBookMemberResponse(memberId));
     }
 }
+
+internal sealed record FinancialBookMemberResponse(
+    Guid MembershipId,
+    Guid UserId,
+    string Email,
+    string Role,
+    DateTimeOffset GrantedAt);
 
 internal sealed record InviteFinancialBookMemberRequest(string? Email, string? Role);
 internal sealed record InviteFinancialBookMemberResponse(Guid Id);

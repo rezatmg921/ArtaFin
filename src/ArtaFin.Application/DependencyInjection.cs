@@ -1,6 +1,7 @@
 using ArtaFin.Application.Features.Accounts.CreateAccount;
 using ArtaFin.Application.Features.Authentication;
 using ArtaFin.Application.Features.FinancialBooks.InviteMember;
+using ArtaFin.Application.Features.FinancialBooks.ListMembers;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ArtaFin.Application;
@@ -13,6 +14,7 @@ public static class DependencyInjection
         services.AddScoped<CreateAccountCommandHandler>();
         services.AddScoped<AuthenticationService>();
         services.AddScoped<InviteFinancialBookMemberCommandHandler>();
+        services.AddScoped<ListFinancialBookMembersQueryHandler>();
         return services;
     }
 }

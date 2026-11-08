@@ -31,6 +31,26 @@ internal sealed class FinancialBookRepository(ArtaFinDbContext dbContext)
                 cancellationToken);
     }
 
+    public async Task<IReadOnlyList<FinancialBookMemberSummary>> GetActiveMembersAsync(
+        Guid financialBookId,
+        CancellationToken cancellationToken)
+    {
+        return await (
+            from member in dbContext.FinancialBookMembers.AsNoTracking()
+            join user in dbContext.Users.AsNoTracking()
+                on member.UserId equals user.Id
+            where member.FinancialBookId == financialBookId &&
+                  member.RevokedAt == null
+            orderby member.GrantedAt, user.NormalizedEmail
+            select new FinancialBookMemberSummary(
+                member.Id,
+                user.Id,
+                user.Email,
+                member.Role,
+                member.GrantedAt))
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task AddMemberAsync(
         FinancialBookMember member,
         CancellationToken cancellationToken)
