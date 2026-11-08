@@ -15,7 +15,7 @@ public sealed class ArtaFinDesignTimeDbContextFactory
         var connectionString =
             Environment.GetEnvironmentVariable("ARTAFIN_SQLSERVER")
             ?? Environment.GetEnvironmentVariable("ConnectionStrings__ArtaFin")
-            ?? "Server=IT-PC1\\MSSQLIT1;Database=ArtaFin_DesignTime;Trusted_Connection=True;TrustServerCertificate=True;";
+            ?? "Server=localhost;Database=ArtaFin_DesignTime;Trusted_Connection=True;TrustServerCertificate=True;";
 
         var options = new DbContextOptionsBuilder<ArtaFinDbContext>()
             .UseSqlServer(connectionString)

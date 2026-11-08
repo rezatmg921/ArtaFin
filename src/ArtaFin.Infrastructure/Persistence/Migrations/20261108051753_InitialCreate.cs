@@ -3,10 +3,10 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace ArtaFin.Infrastructure.Migrations
+namespace ArtaFin.Infrastructure.Persistence.Migrations
 {
     /// <inheritdoc />
-    public partial class _init : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
