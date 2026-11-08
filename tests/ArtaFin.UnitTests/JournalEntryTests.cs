@@ -79,4 +79,46 @@ public sealed class JournalEntryTests
         Assert.Equal(0, second.LineNumber);
         Assert.Equal([1, 2], entry.Lines.Select(line => line.LineNumber));
     }
+    [Fact]
+    public void Reverse_CreatesANewEntryWithOppositeSidesAndReferenceToOriginal()
+    {
+        var originalId = Guid.NewGuid();
+        var original = JournalEntry.Post(
+            originalId, BookId, DateTimeOffset.UtcNow, "Original entry",
+            [
+                new JournalLine(ExpenseAccount, PostingSide.Debit, new Money(12m, "EUR")),
+                new JournalLine(CashAccount, PostingSide.Credit, new Money(12m, "EUR"))
+            ]);
+
+        var reversal = JournalEntry.Reverse(
+            Guid.NewGuid(), original, DateTimeOffset.UtcNow, "Reverse original entry");
+
+        Assert.Equal(originalId, reversal.ReversesJournalEntryId);
+        Assert.Equal(original.FinancialBookId, reversal.FinancialBookId);
+        Assert.Equal(2, reversal.Lines.Count);
+        Assert.Equal(ExpenseAccount, reversal.Lines[0].AccountId);
+        Assert.Equal(PostingSide.Credit, reversal.Lines[0].Side);
+        Assert.Equal(12m, reversal.Lines[0].Amount.Amount);
+        Assert.Equal(CashAccount, reversal.Lines[1].AccountId);
+        Assert.Equal(PostingSide.Debit, reversal.Lines[1].Side);
+        Assert.Equal(12m, reversal.Lines[1].Amount.Amount);
+    }
+
+    [Fact]
+    public void Reverse_RejectsAnEntryThatIsAlreadyAReversal()
+    {
+        var original = JournalEntry.Post(
+            Guid.NewGuid(), BookId, DateTimeOffset.UtcNow, "Original entry",
+            [
+                new JournalLine(ExpenseAccount, PostingSide.Debit, new Money(12m, "EUR")),
+                new JournalLine(CashAccount, PostingSide.Credit, new Money(12m, "EUR"))
+            ]);
+        var reversal = JournalEntry.Reverse(
+            Guid.NewGuid(), original, DateTimeOffset.UtcNow, "Reversal");
+
+        Assert.Throws<DomainException>(() =>
+            JournalEntry.Reverse(
+                Guid.NewGuid(), reversal, DateTimeOffset.UtcNow, "Reverse the reversal"));
+    }
+
 }
