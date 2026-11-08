@@ -152,6 +152,13 @@ public sealed class AccountOwnershipApiTests
     private sealed class FakeFinancialBookRepository(FinancialBook book)
         : IFinancialBookRepository
     {
+        public Task<IReadOnlyList<FinancialBookMemberSummary>> GetActiveMembersAsync(
+    Guid financialBookId,
+    CancellationToken cancellationToken)
+        {
+            return Task.FromResult<IReadOnlyList<FinancialBookMemberSummary>>(
+                Array.Empty<FinancialBookMemberSummary>());
+        }
         public Task AddMemberAsync(FinancialBookMember member, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();

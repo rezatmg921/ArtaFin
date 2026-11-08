@@ -196,6 +196,13 @@ public sealed class CreateAccountOwnershipTests
         FinancialBook? book,
         FinancialBookMember? member = null) : IFinancialBookRepository
     {
+        public Task<IReadOnlyList<FinancialBookMemberSummary>> GetActiveMembersAsync(
+    Guid financialBookId,
+    CancellationToken cancellationToken)
+        {
+            return Task.FromResult<IReadOnlyList<FinancialBookMemberSummary>>(
+                Array.Empty<FinancialBookMemberSummary>());
+        }
         public Task AddMemberAsync(FinancialBookMember member, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
