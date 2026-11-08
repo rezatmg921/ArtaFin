@@ -1,4 +1,5 @@
 using System.Data.Common;
+using ArtaFin.Application.Features.Accounts.CreateAccount;
 using ArtaFin.Domain.Finance;
 using ArtaFin.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -13,10 +14,26 @@ public sealed class JournalEntryPersistenceTests : IAsyncLifetime
 
     public JournalEntryPersistenceTests()
     {
-        var configuredConnectionString = Environment.GetEnvironmentVariable("ARTAFIN_SQLSERVER")
-            ?? throw new InvalidOperationException("Set ARTAFIN_SQLSERVER to a SQL Server connection string.");
+        var configuration = new ConfigurationBuilder()
+            .SetBasePath(AppContext.BaseDirectory)
+            .AddJsonFile("appsettings.Local.json", optional: true)
+            .AddEnvironmentVariables()
+            .Build();
+
+        var configuredConnectionString =
+            configuration.GetConnectionString("ArtaFin")
+            ?? Environment.GetEnvironmentVariable("ARTAFIN_SQLSERVER");
+
+        if (string.IsNullOrWhiteSpace(configuredConnectionString))
+        {
+            throw new InvalidOperationException(
+                "SQL Server connection string was not found. Add ConnectionStrings:ArtaFin " +
+                "to tests/ArtaFin.Infrastructure.IntegrationTests/appsettings.Local.json, " +
+                "or set the ConnectionStrings__ArtaFin environment variable.");
+        }
+
         var builder = new DbConnectionStringBuilder { ConnectionString = configuredConnectionString };
-        builder["Initial Catalog"] = $"ArtaFin_Integration_{Guid.NewGuid():N}";
+        builder["Initial Catalog"] = $"ArtaFin_JournalEntry_{Guid.NewGuid():N}";
         _connectionString = builder.ConnectionString;
         _options = new DbContextOptionsBuilder<ArtaFinDbContext>().UseSqlServer(_connectionString).Options;
     }
@@ -34,7 +51,7 @@ public sealed class JournalEntryPersistenceTests : IAsyncLifetime
 
         var appliedMigrations = await context.Database.GetAppliedMigrationsAsync();
 
-        Assert.Contains("20261107170000_InitialCreate", appliedMigrations);
+        Assert.Contains("20261108051753_InitialCreate", appliedMigrations);
         Assert.True(await context.Database.CanConnectAsync());
     }
 
@@ -97,7 +114,7 @@ public sealed class JournalEntryPersistenceTests : IAsyncLifetime
         context.Accounts.AddRange(
             Account.Create(Guid.NewGuid(), bookId, "1000", "Cash", AccountType.Asset, now),
             Account.Create(Guid.NewGuid(), bookId, "1000", "Bank cash", AccountType.Asset, now));
-        await Assert.ThrowsAsync<DbUpdateException>(() => context.SaveChangesAsync());
+        await Assert.ThrowsAsync<AccountCodeAlreadyExistsException>(() => context.SaveChangesAsync());
     }
 
     [Fact]
