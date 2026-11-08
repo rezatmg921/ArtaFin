@@ -13,6 +13,21 @@ public sealed class JournalEntryConfiguration : IEntityTypeConfiguration<Journal
         builder.Property(entry => entry.FinancialBookId).IsRequired();
         builder.Property(entry => entry.PostedAt).HasColumnType("datetimeoffset(7)").IsRequired();
         builder.Property(entry => entry.Description).HasMaxLength(JournalEntry.MaxDescriptionLength).IsRequired();
+        builder.Property(entry => entry.ReversesJournalEntryId);
+
+        // A journal entry can be reversed at most once. The filtered unique index
+        // allows any number of original entries because NULL values are excluded.
+        builder.HasIndex(entry => entry.ReversesJournalEntryId)
+            .IsUnique()
+            .HasFilter("[ReversesJournalEntryId] IS NOT NULL")
+            .HasDatabaseName("UX_JournalEntries_ReversesJournalEntryId");
+
+        // Self-referencing FK keeps reversal references valid and prevents deleting
+        // an original entry while its reversal exists.
+        builder.HasOne<JournalEntry>()
+            .WithMany()
+            .HasForeignKey(entry => entry.ReversesJournalEntryId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne<FinancialBook>()
             .WithMany()
