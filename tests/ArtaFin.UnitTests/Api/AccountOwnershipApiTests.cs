@@ -1,10 +1,8 @@
-using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using System.Security.Claims;
-using System.Text;
 using ArtaFin.Application.Abstractions.Persistence;
+using ArtaFin.Application.Abstractions.Security;
 using ArtaFin.Domain.Finance;
 using ArtaFin.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Hosting;
@@ -13,7 +11,6 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.IdentityModel.Tokens;
 using Xunit;
 
 namespace ArtaFin.UnitTests.Api;
@@ -48,7 +45,7 @@ public sealed class AccountOwnershipApiTests
         using var client = factory.CreateClient();
 
         client.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue("Bearer", CreateAccessToken(ownerId));
+            new AuthenticationHeaderValue("Bearer", CreateAccessToken(factory, ownerId));
 
         using var response = await client.PostAsJsonAsync(
             $"/api/financial-books/{book.Id}/accounts",
@@ -69,7 +66,7 @@ public sealed class AccountOwnershipApiTests
         using var client = factory.CreateClient();
 
         client.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue("Bearer", CreateAccessToken(attackerId));
+            new AuthenticationHeaderValue("Bearer", CreateAccessToken(factory, attackerId));
 
         using var response = await client.PostAsJsonAsync(
             $"/api/financial-books/{book.Id}/accounts",
@@ -94,21 +91,16 @@ public sealed class AccountOwnershipApiTests
             "USD",
             DateTimeOffset.UtcNow);
 
-    private static string CreateAccessToken(Guid userId)
+    private static string CreateAccessToken(
+        OwnershipApiFactory factory,
+        Guid userId)
     {
-        var credentials = new SigningCredentials(
-            new SymmetricSecurityKey(Encoding.UTF8.GetBytes(SigningKey)),
-            SecurityAlgorithms.HmacSha256);
+        var tokenGenerator = factory.Services
+            .GetRequiredService<IAccessTokenGenerator>();
 
-        var token = new JwtSecurityToken(
-            issuer: Issuer,
-            audience: Audience,
-            claims: [new Claim("sub", userId.ToString())],
-            notBefore: DateTime.UtcNow.AddMinutes(-1),
-            expires: DateTime.UtcNow.AddMinutes(10),
-            signingCredentials: credentials);
-
-        return new JwtSecurityTokenHandler().WriteToken(token);
+        return tokenGenerator
+            .CreateToken(userId, "ownership-test@artafin.local")
+            .Token;
     }
 
     private sealed class OwnershipApiFactory : WebApplicationFactory<Program>
