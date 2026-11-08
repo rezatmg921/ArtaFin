@@ -120,10 +120,11 @@ public sealed class CreateAccountCommandHandlerTests
             CancellationToken cancellationToken) =>
             Task.FromResult(book?.Id == financialBookId ? book : null);
 
-        public Task<FinancialBookMember?> GetMemberAsync(Guid financialBookId, Guid userId, CancellationToken cancellationToken)
-        {
-            throw new NotImplementedException();
-        }
+        public Task<FinancialBookMember?> GetMemberAsync(
+            Guid financialBookId,
+            Guid userId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<FinancialBookMember?>(null);
     }
 
     private sealed class FakeAccountRepository : IAccountRepository
