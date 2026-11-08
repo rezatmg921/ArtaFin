@@ -175,6 +175,12 @@ public sealed class AccountOwnershipApiTests
             Guid userId,
             CancellationToken cancellationToken) =>
             Task.FromResult<FinancialBookMember?>(null);
+
+        public Task<IReadOnlyList<FinancialBookMemberSummary>> GetActiveMembersAsync(
+            Guid financialBookId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<FinancialBookMemberSummary>>(
+                Array.Empty<FinancialBookMemberSummary>());
     }
 
     private sealed class FakeAccountRepository : IAccountRepository
