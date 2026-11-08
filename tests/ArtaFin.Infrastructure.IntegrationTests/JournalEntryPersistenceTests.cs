@@ -3,6 +3,7 @@ using ArtaFin.Application.Features.Accounts.CreateAccount;
 using ArtaFin.Domain.Finance;
 using ArtaFin.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Xunit;
 
 namespace ArtaFin.Infrastructure.IntegrationTests;
