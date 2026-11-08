@@ -106,6 +106,52 @@ public sealed class JournalEntryPersistenceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task PostedJournalEntry_RejectsDescriptionChanges()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var bookId = Guid.NewGuid();
+        var cashId = Guid.NewGuid();
+        var incomeId = Guid.NewGuid();
+        var entryId = Guid.NewGuid();
+
+        await using (var write = new ArtaFinDbContext(_options))
+        {
+            write.FinancialBooks.Add(FinancialBook.Create(
+                bookId, Guid.NewGuid(), "Immutability test", "USD", now));
+            write.Accounts.AddRange(
+                Account.Create(cashId, bookId, "1000", "Cash", AccountType.Asset, now),
+                Account.Create(incomeId, bookId, "4000", "Income", AccountType.Income, now));
+            write.JournalEntries.Add(JournalEntry.Post(
+                entryId, bookId, now, "Original description",
+                [
+                    new JournalLine(cashId, PostingSide.Debit, new Money(25m, "USD")),
+                    new JournalLine(incomeId, PostingSide.Credit, new Money(25m, "USD"))
+                ]));
+            await write.SaveChangesAsync();
+        }
+
+        await using (var update = new ArtaFinDbContext(_options))
+        {
+            var entry = await update.JournalEntries
+                .SingleAsync(x => x.Id == entryId);
+
+            update.Entry(entry)
+                .Property(x => x.Description)
+                .CurrentValue = "Changed description";
+
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                () => update.SaveChangesAsync());
+        }
+
+        await using var verify = new ArtaFinDbContext(_options);
+        var persisted = await verify.JournalEntries
+            .AsNoTracking()
+            .SingleAsync(x => x.Id == entryId);
+
+        Assert.Equal("Original description", persisted.Description);
+    }
+
+    [Fact]
     public async Task Accounts_RejectDuplicateCodesWithinTheSameFinancialBook()
     {
         var now = DateTimeOffset.UtcNow;
