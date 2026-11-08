@@ -191,6 +191,54 @@ public sealed class JournalEntryPersistenceTests : IAsyncLifetime
         await Assert.ThrowsAsync<DbUpdateException>(() => context.SaveChangesAsync());
     }
 
+    [Fact]
+    public async Task JournalEntry_RejectsMoreThanOneReversalForOriginal()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var bookId = Guid.NewGuid();
+        var cashId = Guid.NewGuid();
+        var incomeId = Guid.NewGuid();
+        var originalId = Guid.NewGuid();
+
+        await using (var setup = new ArtaFinDbContext(_options))
+        {
+            setup.FinancialBooks.Add(FinancialBook.Create(
+                bookId, Guid.NewGuid(), "Reversal uniqueness test", "USD", now));
+            setup.Accounts.AddRange(
+                Account.Create(cashId, bookId, "1000", "Cash", AccountType.Asset, now),
+                Account.Create(incomeId, bookId, "4000", "Income", AccountType.Income, now));
+            setup.JournalEntries.Add(JournalEntry.Post(
+                originalId, bookId, now, "Original entry",
+                [
+                    new JournalLine(cashId, PostingSide.Debit, new Money(30m, "USD")),
+                    new JournalLine(incomeId, PostingSide.Credit, new Money(30m, "USD"))
+                ]));
+            await setup.SaveChangesAsync();
+        }
+
+        await using (var firstReversalContext = new ArtaFinDbContext(_options))
+        {
+            var original = await firstReversalContext.JournalEntries
+                .Include(entry => entry.Lines)
+                .SingleAsync(entry => entry.Id == originalId);
+            firstReversalContext.JournalEntries.Add(JournalEntry.Reverse(
+                Guid.NewGuid(), original, now.AddMinutes(1), "First reversal"));
+            await firstReversalContext.SaveChangesAsync();
+        }
+
+        await using (var secondReversalContext = new ArtaFinDbContext(_options))
+        {
+            var original = await secondReversalContext.JournalEntries
+                .Include(entry => entry.Lines)
+                .SingleAsync(entry => entry.Id == originalId);
+            secondReversalContext.JournalEntries.Add(JournalEntry.Reverse(
+                Guid.NewGuid(), original, now.AddMinutes(2), "Second reversal"));
+
+            await Assert.ThrowsAsync<DbUpdateException>(
+                () => secondReversalContext.SaveChangesAsync());
+        }
+    }
+
     public async Task DisposeAsync()
     {
         await using var context = new ArtaFinDbContext(_options);
