@@ -6,6 +6,52 @@ public enum PostingSide
 {
     Debit = 1,
     Credit = 2
+    /// <summary>
+    /// Creates a new posted entry that reverses the accounting effect of an original entry.
+    /// The original entry remains unchanged.
+    /// </summary>
+    public static JournalEntry Reverse(
+        Guid id,
+        JournalEntry original,
+        DateTimeOffset postedAt,
+        string description)
+    {
+        ArgumentNullException.ThrowIfNull(original);
+
+        if (id == Guid.Empty)
+            throw new ArgumentException("Journal entry id cannot be empty.", nameof(id));
+        if (id == original.Id)
+            throw new DomainException("A journal entry cannot reverse itself.");
+        if (original.ReversesJournalEntryId.HasValue)
+            throw new DomainException("A reversal entry cannot be reversed.");
+
+        var reversal = new JournalEntry(
+            id,
+            original.FinancialBookId,
+            postedAt,
+            description,
+            original.Id);
+
+        foreach (var line in original.Lines)
+        {
+            var oppositeSide = line.Side == PostingSide.Debit
+                ? PostingSide.Credit
+                : PostingSide.Debit;
+
+            reversal._lines.Add(JournalLine.CreateNumbered(
+                new JournalLine(line.AccountId, oppositeSide, line.Amount),
+                line.LineNumber,
+                original.FinancialBookId));
+        }
+
+        // Reuse Post's validation rules for description, balance, currency and line count.
+        _ = Post(Guid.NewGuid(), original.FinancialBookId, postedAt, description,
+            reversal._lines.Select(line =>
+                new JournalLine(line.AccountId, line.Side, line.Amount)));
+
+        return reversal;
+    }
+
 }
 
 /// <summary>
@@ -69,6 +115,7 @@ public sealed class JournalEntry : AggregateRoot
     private readonly List<JournalLine> _lines = [];
 
     public Guid FinancialBookId { get; }
+    public Guid? ReversesJournalEntryId { get; }
     public DateTimeOffset PostedAt { get; }
     public string Description { get; }
     public IReadOnlyList<JournalLine> Lines => _lines.AsReadOnly();
@@ -77,9 +124,11 @@ public sealed class JournalEntry : AggregateRoot
         Guid id,
         Guid financialBookId,
         DateTimeOffset postedAt,
-        string description) : base(id)
+        string description,
+        Guid? reversesJournalEntryId = null) : base(id)
     {
         FinancialBookId = financialBookId;
+        ReversesJournalEntryId = reversesJournalEntryId;
         PostedAt = postedAt;
         Description = description;
     }
