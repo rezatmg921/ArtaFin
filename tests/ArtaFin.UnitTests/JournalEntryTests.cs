@@ -121,4 +121,41 @@ public sealed class JournalEntryTests
                 Guid.NewGuid(), reversal, DateTimeOffset.UtcNow, "Reverse the reversal"));
     }
 
+    [Fact]
+    public void Reverse_RejectsSelfReversal()
+    {
+        var originalId = Guid.NewGuid();
+        var original = JournalEntry.Post(
+            originalId, BookId, DateTimeOffset.UtcNow, "Original entry",
+            [
+                new JournalLine(ExpenseAccount, PostingSide.Debit, new Money(12m, "EUR")),
+                new JournalLine(CashAccount, PostingSide.Credit, new Money(12m, "EUR"))
+            ]);
+
+        Assert.Throws<DomainException>(() =>
+            JournalEntry.Reverse(
+                originalId, original, DateTimeOffset.UtcNow, "Self reversal"));
+    }
+
+    [Fact]
+    public void Reverse_DoesNotMutateOriginalEntry()
+    {
+        var original = JournalEntry.Post(
+            Guid.NewGuid(), BookId, DateTimeOffset.UtcNow, "Original entry",
+            [
+                new JournalLine(ExpenseAccount, PostingSide.Debit, new Money(12m, "EUR")),
+                new JournalLine(CashAccount, PostingSide.Credit, new Money(12m, "EUR"))
+            ]);
+
+        var originalDebitSide = original.Lines[0].Side;
+        var originalCreditSide = original.Lines[1].Side;
+
+        _ = JournalEntry.Reverse(
+            Guid.NewGuid(), original, DateTimeOffset.UtcNow, "Reversal");
+
+        Assert.Equal(originalDebitSide, original.Lines[0].Side);
+        Assert.Equal(originalCreditSide, original.Lines[1].Side);
+        Assert.Null(original.ReversesJournalEntryId);
+    }
+
 }
