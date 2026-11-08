@@ -103,10 +103,20 @@ public sealed class CreateAccountCommandHandlerTests
     private sealed class FakeFinancialBookRepository(FinancialBook? book)
         : IFinancialBookRepository
     {
+        public Task AddMemberAsync(FinancialBookMember member, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
         public Task<FinancialBook?> GetByIdAsync(
             Guid financialBookId,
             CancellationToken cancellationToken) =>
             Task.FromResult(book?.Id == financialBookId ? book : null);
+
+        public Task<FinancialBookMember?> GetMemberAsync(Guid financialBookId, Guid userId, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
     }
 
     private sealed class FakeAccountRepository : IAccountRepository

@@ -2,6 +2,7 @@ using ArtaFin.Application.Abstractions.Persistence;
 using ArtaFin.Application.Abstractions.Security;
 using ArtaFin.Application.Features.Authentication;
 using ArtaFin.Domain.Security;
+using Xunit;
 
 namespace ArtaFin.UnitTests.Application.Authentication;
 

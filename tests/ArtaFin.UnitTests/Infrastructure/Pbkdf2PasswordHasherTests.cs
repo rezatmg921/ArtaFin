@@ -1,5 +1,6 @@
 using ArtaFin.Application.Abstractions.Security;
 using ArtaFin.Infrastructure.Security;
+using Xunit;
 
 namespace ArtaFin.UnitTests.Infrastructure;
 

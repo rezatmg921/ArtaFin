@@ -1,4 +1,5 @@
 using ArtaFin.Infrastructure.Security;
+using Xunit;
 
 namespace ArtaFin.UnitTests.Infrastructure;
 

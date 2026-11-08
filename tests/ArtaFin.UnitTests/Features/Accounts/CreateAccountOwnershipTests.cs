@@ -196,6 +196,11 @@ public sealed class CreateAccountOwnershipTests
         FinancialBook? book,
         FinancialBookMember? member = null) : IFinancialBookRepository
     {
+        public Task AddMemberAsync(FinancialBookMember member, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
         public Task<FinancialBook?> GetByIdAsync(
             Guid financialBookId,
             CancellationToken cancellationToken) =>
