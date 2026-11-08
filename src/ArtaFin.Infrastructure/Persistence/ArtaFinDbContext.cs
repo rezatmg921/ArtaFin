@@ -51,6 +51,8 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
+        EnsurePostedJournalEntriesAreImmutable();
+
         try
         {
             return base.SaveChanges(acceptAllChangesOnSuccess);
@@ -73,6 +75,8 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
         bool acceptAllChangesOnSuccess,
         CancellationToken cancellationToken = default)
     {
+        EnsurePostedJournalEntriesAreImmutable();
+
         try
         {
             return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
@@ -85,6 +89,23 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
         {
             throw new PersistenceConcurrencyException(
                 "The record was changed by another operation. Reload it and retry.", exception);
+        }
+    }
+
+    private void EnsurePostedJournalEntriesAreImmutable()
+    {
+        ChangeTracker.DetectChanges();
+
+        var hasModifiedOrDeletedEntry = ChangeTracker.Entries<JournalEntry>()
+            .Any(entry => entry.State is EntityState.Modified or EntityState.Deleted);
+
+        var hasModifiedOrDeletedLine = ChangeTracker.Entries<JournalLine>()
+            .Any(line => line.State is EntityState.Modified or EntityState.Deleted);
+
+        if (hasModifiedOrDeletedEntry || hasModifiedOrDeletedLine)
+        {
+            throw new InvalidOperationException(
+                "Posted journal entries and their lines cannot be modified or deleted.");
         }
     }
 
