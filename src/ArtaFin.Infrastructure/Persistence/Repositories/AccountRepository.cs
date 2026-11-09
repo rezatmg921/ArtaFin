@@ -18,6 +18,20 @@ internal sealed class AccountRepository(ArtaFinDbContext dbContext)
             cancellationToken);
     }
 
+    public Task<AccountReadSnapshot?> GetReadSnapshotByIdAsync(
+        Guid financialBookId,
+        Guid accountId,
+        CancellationToken cancellationToken)
+    {
+        return dbContext.Accounts
+            .Where(account => account.FinancialBookId == financialBookId &&
+                              account.Id == accountId)
+            .Select(account => new AccountReadSnapshot(
+                account,
+                EF.Property<byte[]>(account, "RowVersion")))
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
     public Task<bool> ExistsByCodeAsync(
         Guid financialBookId,
         string normalizedCode,
