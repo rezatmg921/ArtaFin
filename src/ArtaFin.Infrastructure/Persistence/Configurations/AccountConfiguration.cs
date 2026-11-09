@@ -28,6 +28,12 @@ public sealed class AccountConfiguration : IEntityTypeConfiguration<Account>
         builder.Property(account => account.CreatedAt).HasColumnType("datetimeoffset(7)").IsRequired();
         builder.Property(account => account.DeactivatedAt).HasColumnType("datetimeoffset(7)");
 
+        // SQL Server updates this value whenever the account row changes.
+        // EF Core uses it as an optimistic concurrency token.
+        builder.Property<byte[]>("RowVersion")
+            .IsRowVersion()
+            .HasColumnName("RowVersion");
+
         builder.HasOne<FinancialBook>()
             .WithMany()
             .HasForeignKey(account => account.FinancialBookId)
