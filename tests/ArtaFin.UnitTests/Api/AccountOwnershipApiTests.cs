@@ -42,7 +42,9 @@ public sealed class AccountOwnershipApiTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.NotNull(response.Headers.ETag);
-        Assert.Equal($"\\\"{Convert.ToBase64String(rowVersion)}\\\"", response.Headers.ETag!.Tag);
+        Assert.Equal(
+            string.Concat((char)34, Convert.ToBase64String(rowVersion), (char)34),
+            response.Headers.ETag!.Tag);
     }
 
     [Fact]
