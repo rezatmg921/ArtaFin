@@ -22,6 +22,30 @@ public sealed class AccountOwnershipApiTests
     private const string SigningKey = "integration-test-signing-key-at-least-32-bytes";
 
     [Fact]
+    public async Task GetAccount_WhenTokenBelongsToOwner_ReturnsAccountAndETag()
+    {
+        var ownerId = Guid.NewGuid();
+        var book = CreateBook(ownerId);
+        var account = Account.Create(
+            Guid.NewGuid(), book.Id, "1000", "Cash", AccountType.Asset, DateTimeOffset.UtcNow);
+        var rowVersion = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 };
+        using var factory = new OwnershipApiFactory(book);
+        factory.Accounts.AccountToReturn = account;
+        factory.Accounts.RowVersion = rowVersion;
+        using var client = factory.CreateClient();
+
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateAccessToken(factory, ownerId));
+
+        using var response = await client.GetAsync(
+            $"/api/financial-books/{book.Id}/accounts/{account.Id}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(response.Headers.ETag);
+        Assert.Equal($"\\\"{Convert.ToBase64String(rowVersion)}\\\"", response.Headers.ETag!.Tag);
+    }
+
+    [Fact]
     public async Task CreateAccount_WithoutAccessToken_ReturnsUnauthorized()
     {
         var ownerId = Guid.NewGuid();
