@@ -1,6 +1,7 @@
 using ArtaFin.Application.Features.Accounts.CreateAccount;
 using ArtaFin.Application.Features.FinancialBooks.InviteMember;
 using ArtaFin.Application.Features.JournalEntries.CreateJournalEntry;
+using ArtaFin.Domain.Common;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 
@@ -31,6 +32,11 @@ internal sealed class ApiExceptionHandler(
                 (StatusCodes.Status404NotFound,
                     "Financial book not found",
                     "The financial book was not found or is not accessible."),
+
+            DomainException =>
+                (StatusCodes.Status400BadRequest,
+                    "Invalid journal entry",
+                    exception.Message),
 
             JournalEntryAccountUnavailableException =>
                 (StatusCodes.Status400BadRequest,
