@@ -1,0 +1,209 @@
+using System.Net;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using ArtaFin.Application.Abstractions.Persistence;
+using ArtaFin.Application.Abstractions.Security;
+using ArtaFin.Domain.Finance;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Xunit;
+
+namespace ArtaFin.UnitTests.Api;
+
+public sealed class JournalEntryApiTests
+{
+    private const string Issuer = "ArtaFin.IntegrationTests";
+    private const string Audience = "ArtaFin.IntegrationTests.Client";
+    private const string SigningKey = "integration-test-signing-key-at-least-32-bytes";
+
+    [Fact]
+    public async Task CreateJournalEntry_WithoutAccessToken_ReturnsUnauthorized()
+    {
+        var ownerId = Guid.NewGuid();
+        var book = CreateBook(ownerId);
+        using var factory = new JournalEntryApiFactory(book);
+        using var client = factory.CreateClient();
+
+        using var response = await client.PostAsJsonAsync(
+            $"/api/financial-books/{book.Id}/journal-entries",
+            CreateValidRequest(factory));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Null(factory.JournalEntries.AddedEntry);
+    }
+
+    [Fact]
+    public async Task CreateJournalEntry_WhenTokenBelongsToOwner_ReturnsCreated()
+    {
+        var ownerId = Guid.NewGuid();
+        var book = CreateBook(ownerId);
+        using var factory = new JournalEntryApiFactory(book);
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateAccessToken(factory, ownerId));
+
+        using var response = await client.PostAsJsonAsync(
+            $"/api/financial-books/{book.Id}/journal-entries",
+            CreateValidRequest(factory));
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.NotNull(factory.JournalEntries.AddedEntry);
+        Assert.Equal(book.Id, factory.JournalEntries.AddedEntry!.FinancialBookId);
+        Assert.Equal(1, factory.UnitOfWork.SaveChangesCalls);
+    }
+
+    [Fact]
+    public async Task CreateJournalEntry_WithUnbalancedLines_ReturnsBadRequest()
+    {
+        var ownerId = Guid.NewGuid();
+        var book = CreateBook(ownerId);
+        using var factory = new JournalEntryApiFactory(book);
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateAccessToken(factory, ownerId));
+
+        var request = new
+        {
+            description = "Unbalanced entry",
+            lines = new[]
+            {
+                new { accountId = factory.DebitAccount.Id, side = "Debit", amount = 25m, currency = "EUR" },
+                new { accountId = factory.CreditAccount.Id, side = "Credit", amount = 20m, currency = "EUR" }
+            }
+        };
+
+        using var response = await client.PostAsJsonAsync(
+            $"/api/financial-books/{book.Id}/journal-entries", request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Null(factory.JournalEntries.AddedEntry);
+        Assert.Equal(0, factory.UnitOfWork.SaveChangesCalls);
+    }
+
+    [Fact]
+    public async Task CreateJournalEntry_WithInvalidRequest_ReturnsValidationProblem()
+    {
+        var ownerId = Guid.NewGuid();
+        var book = CreateBook(ownerId);
+        using var factory = new JournalEntryApiFactory(book);
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateAccessToken(factory, ownerId));
+
+        using var response = await client.PostAsJsonAsync(
+            $"/api/financial-books/{book.Id}/journal-entries",
+            new { description = "", lines = Array.Empty<object>() });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Null(factory.JournalEntries.AddedEntry);
+    }
+
+    private static object CreateValidRequest(JournalEntryApiFactory factory) => new
+    {
+        description = "Office supplies",
+        lines = new[]
+        {
+            new { accountId = factory.DebitAccount.Id, side = "Debit", amount = 25m, currency = "EUR" },
+            new { accountId = factory.CreditAccount.Id, side = "Credit", amount = 25m, currency = "EUR" }
+        }
+    };
+
+    private static FinancialBook CreateBook(Guid ownerId) =>
+        FinancialBook.Create(Guid.NewGuid(), ownerId, "Journal API test", "EUR", DateTimeOffset.UtcNow);
+
+    private static string CreateAccessToken(JournalEntryApiFactory factory, Guid userId) =>
+        factory.Services.GetRequiredService<IAccessTokenGenerator>()
+            .CreateToken(userId, "journal-api-test@artafin.local").Token;
+
+    private sealed class JournalEntryApiFactory : WebApplicationFactory<Program>
+    {
+        private readonly FinancialBook _book;
+        public Account DebitAccount { get; }
+        public Account CreditAccount { get; }
+        public FakeJournalEntryRepository JournalEntries { get; } = new();
+        public FakeUnitOfWork UnitOfWork { get; } = new();
+
+        public JournalEntryApiFactory(FinancialBook book)
+        {
+            _book = book;
+            var now = DateTimeOffset.UtcNow;
+            DebitAccount = Account.Create(Guid.NewGuid(), book.Id, "1000", "Cash", AccountType.Asset, now);
+            CreditAccount = Account.Create(Guid.NewGuid(), book.Id, "3000", "Capital", AccountType.Equity, now);
+        }
+
+        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        {
+            builder.ConfigureAppConfiguration((_, configuration) =>
+            {
+                configuration.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["Authentication:Jwt:Issuer"] = Issuer,
+                    ["Authentication:Jwt:Audience"] = Audience,
+                    ["Authentication:Jwt:SigningKey"] = SigningKey,
+                    ["Authentication:Jwt:AccessTokenMinutes"] = "15",
+                    ["ConnectionStrings:ArtaFin"] =
+                        "Server=localhost;Database=ArtaFin_JournalApiTests;User ID=sa;Password=NotUsed_OnlyForHostStartup!;TrustServerCertificate=True"
+                });
+            });
+
+            builder.ConfigureTestServices(services =>
+            {
+                services.RemoveAll<IFinancialBookRepository>();
+                services.RemoveAll<IAccountRepository>();
+                services.RemoveAll<IJournalEntryRepository>();
+                services.RemoveAll<IUnitOfWork>();
+
+                services.AddSingleton<IFinancialBookRepository>(new FakeFinancialBookRepository(_book));
+                services.AddSingleton<IAccountRepository>(new FakeAccountRepository(DebitAccount, CreditAccount));
+                services.AddSingleton<IJournalEntryRepository>(JournalEntries);
+                services.AddSingleton<IUnitOfWork>(UnitOfWork);
+            });
+        }
+    }
+
+    private sealed class FakeFinancialBookRepository(FinancialBook book) : IFinancialBookRepository
+    {
+        public Task<FinancialBook?> GetByIdAsync(Guid financialBookId, CancellationToken cancellationToken) =>
+            Task.FromResult<FinancialBook?>(book.Id == financialBookId ? book : null);
+        public Task<FinancialBookMember?> GetMemberAsync(Guid financialBookId, Guid userId, CancellationToken cancellationToken) =>
+            Task.FromResult<FinancialBookMember?>(null);
+        public Task<IReadOnlyList<FinancialBookMemberSummary>> GetActiveMembersAsync(Guid financialBookId, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<FinancialBookMemberSummary>>(Array.Empty<FinancialBookMemberSummary>());
+        public Task AddMemberAsync(FinancialBookMember member, CancellationToken cancellationToken) =>
+            throw new NotImplementedException();
+    }
+
+    private sealed class FakeAccountRepository(params Account[] accounts) : IAccountRepository
+    {
+        public Task<Account?> GetByIdAsync(Guid financialBookId, Guid accountId, CancellationToken cancellationToken) =>
+            Task.FromResult(accounts.SingleOrDefault(x => x.FinancialBookId == financialBookId && x.Id == accountId));
+        public Task<bool> ExistsByCodeAsync(Guid financialBookId, string normalizedCode, CancellationToken cancellationToken) =>
+            Task.FromResult(false);
+        public Task AddAsync(Account account, CancellationToken cancellationToken) =>
+            throw new NotImplementedException();
+    }
+
+    private sealed class FakeJournalEntryRepository : IJournalEntryRepository
+    {
+        public JournalEntry? AddedEntry { get; private set; }
+        public Task AddAsync(JournalEntry entry, CancellationToken cancellationToken)
+        {
+            AddedEntry = entry;
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FakeUnitOfWork : IUnitOfWork
+    {
+        public int SaveChangesCalls { get; private set; }
+        public Task<int> SaveChangesAsync(CancellationToken cancellationToken)
+        {
+            SaveChangesCalls++;
+            return Task.FromResult(1);
+        }
+    }
+}
