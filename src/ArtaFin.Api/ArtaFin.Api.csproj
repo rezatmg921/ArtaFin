@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <RootNamespace>ArtaFin.Api</RootNamespace>
+    <UserSecretsId>40130772-e35c-4731-a6d4-b1a0f76c9dff</UserSecretsId>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.14" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.14">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
+    <ProjectReference Include="../ArtaFin.Application/ArtaFin.Application.csproj" />
+    <ProjectReference Include="../ArtaFin.Infrastructure/ArtaFin.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "feat/**"]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: Y
+          MSSQL_PID: Developer
+          MSSQL_SA_PASSWORD: "ArtaFin_CI_Strong!2026"
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "bash -c '</dev/tcp/localhost/1433'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      ARTAFIN_SQLSERVER: "Server=localhost,1433;Initial Catalog=master;User ID=sa;Password=ArtaFin_CI_Strong!2026;Encrypt=True;TrustServerCertificate=True;Connect Timeout=30;"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Restore EF Core tools
+        run: dotnet tool restore
+      - name: Restore
+        run: dotnet restore ArtaFin.sln
+      - name: Build
+        run: dotnet build ArtaFin.sln --no-restore --configuration Release
+      - name: Check migration model snapshot
+        run: dotnet ef migrations has-pending-model-changes --project src/ArtaFin.Infrastructure/ArtaFin.Infrastructure.csproj --startup-project src/ArtaFin.Infrastructure/ArtaFin.Infrastructure.csproj --configuration Release
+      - name: Generate idempotent SQL migration script
+        run: |
+          mkdir -p artifacts
+          dotnet ef migrations script --idempotent --project src/ArtaFin.Infrastructure/ArtaFin.Infrastructure.csproj --startup-project src/ArtaFin.Infrastructure/ArtaFin.Infrastructure.csproj --configuration Release --output artifacts/ArtaFin.sql
+      - name: Test
+        run: dotnet test ArtaFin.sln --no-build --configuration Release --logger "trx;LogFileName=results.trx"
+      - name: Upload SQL migration script
+        uses: actions/upload-artifact@v4
+        with:
+          name: artafin-sqlserver-migrations
+          path: artifacts/ArtaFin.sql
+          if-no-files-found: error
+          retention-days: 30
