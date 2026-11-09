@@ -1,6 +1,7 @@
 using ArtaFin.Application.Abstractions.Persistence;
 using ArtaFin.Application.Abstractions.Security;
 using ArtaFin.Domain.Finance;
+using MediatR;
 
 namespace ArtaFin.Application.Features.JournalEntries.CreateJournalEntry;
 
@@ -14,8 +15,15 @@ public sealed class CreateJournalEntryCommandHandler(
     IAccountRepository accountRepository,
     IJournalEntryRepository journalEntryRepository,
     IUnitOfWork unitOfWork,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider) : IRequestHandler<CreateJournalEntryCommand, Guid>
 {
+    public Task<Guid> Handle(
+        CreateJournalEntryCommand request,
+        CancellationToken cancellationToken) =>
+        HandleAsync(request, cancellationToken);
+
+    // Kept as a named method for existing direct unit tests and callers while
+    // the API now dispatches the command through MediatR.
     public async Task<Guid> HandleAsync(
         CreateJournalEntryCommand command,
         CancellationToken cancellationToken)

@@ -1,5 +1,7 @@
 using ArtaFin.Application.Features.JournalEntries.CreateJournalEntry;
+using ArtaFin.Application.Features.JournalEntries.GetJournalEntry;
 using ArtaFin.Domain.Finance;
+using MediatR;
 
 namespace ArtaFin.Api.Endpoints;
 
@@ -10,6 +12,16 @@ internal static class JournalEntryEndpoints
     public static IEndpointRouteBuilder MapJournalEntryEndpoints(
         this IEndpointRouteBuilder endpoints)
     {
+        endpoints.MapGet(
+                "/api/financial-books/{financialBookId:guid}/journal-entries/{journalEntryId:guid}",
+                GetByIdAsync)
+            .WithName("GetJournalEntry")
+            .WithTags("JournalEntries")
+            .RequireAuthorization()
+            .Produces<JournalEntryResponse>()
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status404NotFound);
+
         endpoints.MapPost(
                 "/api/financial-books/{financialBookId:guid}/journal-entries",
                 CreateAsync)
@@ -25,10 +37,39 @@ internal static class JournalEntryEndpoints
         return endpoints;
     }
 
+    private static async Task<IResult> GetByIdAsync(
+        Guid financialBookId,
+        Guid journalEntryId,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var entry = await sender.Send(
+            new GetJournalEntryQuery(financialBookId, journalEntryId),
+            cancellationToken);
+
+        if (entry is null)
+            return Results.NotFound();
+
+        var response = new JournalEntryResponse(
+            entry.Id,
+            entry.FinancialBookId,
+            entry.PostedAt,
+            entry.Description,
+            entry.ReversesJournalEntryId,
+            entry.Lines.Select(line => new JournalEntryLineResponse(
+                line.LineNumber,
+                line.AccountId,
+                line.Side.ToString(),
+                line.Amount.Amount,
+                line.Amount.Currency)).ToArray());
+
+        return Results.Ok(response);
+    }
+
     private static async Task<IResult> CreateAsync(
         Guid financialBookId,
         CreateJournalEntryRequest request,
-        CreateJournalEntryCommandHandler handler,
+        ISender sender,
         CancellationToken cancellationToken)
     {
         var errors = new Dictionary<string, string[]>();
@@ -103,7 +144,7 @@ internal static class JournalEntryEndpoints
         if (errors.Count > 0)
             return Results.ValidationProblem(errors);
 
-        var entryId = await handler.HandleAsync(
+        var entryId = await sender.Send(
             new CreateJournalEntryCommand(financialBookId, request.Description!, lines),
             cancellationToken);
 
@@ -123,3 +164,18 @@ internal sealed record CreateJournalEntryLineRequest(
     string? Currency);
 
 internal sealed record CreateJournalEntryResponse(Guid Id);
+
+internal sealed record JournalEntryResponse(
+    Guid Id,
+    Guid FinancialBookId,
+    DateTimeOffset PostedAt,
+    string Description,
+    Guid? ReversesJournalEntryId,
+    IReadOnlyList<JournalEntryLineResponse> Lines);
+
+internal sealed record JournalEntryLineResponse(
+    int LineNumber,
+    Guid AccountId,
+    string Side,
+    decimal Amount,
+    string Currency);

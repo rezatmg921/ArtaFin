@@ -1,4 +1,5 @@
 using ArtaFin.Domain.Finance;
+using MediatR;
 
 namespace ArtaFin.Application.Features.JournalEntries.CreateJournalEntry;
 
@@ -15,4 +16,4 @@ public sealed record JournalEntryLineCommand(
 public sealed record CreateJournalEntryCommand(
     Guid FinancialBookId,
     string Description,
-    IReadOnlyCollection<JournalEntryLineCommand> Lines);
+    IReadOnlyCollection<JournalEntryLineCommand> Lines) : IRequest<Guid>;

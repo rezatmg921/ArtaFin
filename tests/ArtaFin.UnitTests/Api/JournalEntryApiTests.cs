@@ -173,6 +173,36 @@ public sealed class JournalEntryApiTests
         Assert.Null(factory.JournalEntries.AddedEntry);
     }
 
+    [Fact]
+    public async Task GetJournalEntry_WhenTokenBelongsToOwner_ReturnsEntryAndLines()
+    {
+        var ownerId = Guid.NewGuid();
+        var book = CreateBook(ownerId);
+        using var factory = new JournalEntryApiFactory(book);
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateAccessToken(factory, ownerId));
+
+        using var createResponse = await client.PostAsJsonAsync(
+            $"/api/financial-books/{book.Id}/journal-entries",
+            CreateValidRequest(factory));
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+
+        var entry = Assert.IsType<JournalEntry>(factory.JournalEntries.AddedEntry);
+        using var response = await client.GetAsync(
+            $"/api/financial-books/{book.Id}/journal-entries/{entry.Id}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<JournalEntryReadResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(entry.Id, payload.Id);
+        Assert.Equal("Office supplies", payload.Description);
+        Assert.Equal(2, payload.Lines.Count);
+        Assert.Equal("Debit", payload.Lines[0].Side);
+        Assert.Equal(25m, payload.Lines[0].Amount);
+        Assert.Equal("EUR", payload.Lines[0].Currency);
+    }
+
     private static object CreateValidRequest(JournalEntryApiFactory factory) => new
     {
         description = "Office supplies",
@@ -265,12 +295,39 @@ public sealed class JournalEntryApiTests
     private sealed class FakeJournalEntryRepository : IJournalEntryRepository
     {
         public JournalEntry? AddedEntry { get; private set; }
+
+        public Task<JournalEntry?> GetByIdAsync(
+            Guid financialBookId,
+            Guid journalEntryId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(
+                AddedEntry is not null &&
+                AddedEntry.FinancialBookId == financialBookId &&
+                AddedEntry.Id == journalEntryId
+                    ? AddedEntry
+                    : null);
+
         public Task AddAsync(JournalEntry entry, CancellationToken cancellationToken)
         {
             AddedEntry = entry;
             return Task.CompletedTask;
         }
     }
+
+    private sealed record JournalEntryReadResponse(
+        Guid Id,
+        Guid FinancialBookId,
+        DateTimeOffset PostedAt,
+        string Description,
+        Guid? ReversesJournalEntryId,
+        IReadOnlyList<JournalEntryLineReadResponse> Lines);
+
+    private sealed record JournalEntryLineReadResponse(
+        int LineNumber,
+        Guid AccountId,
+        string Side,
+        decimal Amount,
+        string Currency);
 
     private sealed class FakeUnitOfWork : IUnitOfWork
     {

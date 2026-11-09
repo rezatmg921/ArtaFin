@@ -1,11 +1,25 @@
 using ArtaFin.Application.Abstractions.Persistence;
 using ArtaFin.Domain.Finance;
+using Microsoft.EntityFrameworkCore;
 
 namespace ArtaFin.Infrastructure.Persistence.Repositories;
 
 internal sealed class JournalEntryRepository(ArtaFinDbContext dbContext)
     : IJournalEntryRepository
 {
+    public Task<JournalEntry?> GetByIdAsync(
+        Guid financialBookId,
+        Guid journalEntryId,
+        CancellationToken cancellationToken)
+    {
+        return dbContext.JournalEntries
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                entry => entry.FinancialBookId == financialBookId &&
+                         entry.Id == journalEntryId,
+                cancellationToken);
+    }
+
     public async Task AddAsync(JournalEntry entry, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(entry);
