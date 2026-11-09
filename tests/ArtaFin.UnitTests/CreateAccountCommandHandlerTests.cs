@@ -138,6 +138,12 @@ public sealed class CreateAccountCommandHandlerTests
             CancellationToken cancellationToken) =>
             Task.FromResult<Account?>(null);
 
+        public Task<AccountReadSnapshot?> GetReadSnapshotByIdAsync(
+            Guid financialBookId,
+            Guid accountId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<AccountReadSnapshot?>(null);
+
         public Task<bool> ExistsByCodeAsync(
             Guid financialBookId,
             string normalizedCode,
