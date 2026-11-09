@@ -17,6 +17,12 @@ public interface IAccountRepository
         Guid accountId,
         CancellationToken cancellationToken);
 
+    /// <summary>Loads an account and its database-generated concurrency version.</summary>
+    Task<AccountReadSnapshot?> GetReadSnapshotByIdAsync(
+        Guid financialBookId,
+        Guid accountId,
+        CancellationToken cancellationToken);
+
     /// <summary>
     /// Performs an application-level uniqueness pre-check.
     /// A database unique constraint on (FinancialBookId, normalized Code)
