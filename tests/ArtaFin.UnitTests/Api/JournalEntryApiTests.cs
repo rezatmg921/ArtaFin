@@ -57,6 +57,77 @@ public sealed class JournalEntryApiTests
     }
 
     [Fact]
+    public async Task CreateJournalEntry_WhenTokenBelongsToActiveAccountant_ReturnsCreated()
+    {
+        var userId = Guid.NewGuid();
+        var book = CreateBook(Guid.NewGuid());
+        var member = FinancialBookMember.Grant(
+            Guid.NewGuid(), book.Id, userId, FinancialBookRole.Accountant,
+            DateTimeOffset.UtcNow.AddMinutes(-5));
+        using var factory = new JournalEntryApiFactory(book, member);
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateAccessToken(factory, userId));
+
+        using var response = await client.PostAsJsonAsync(
+            $"/api/financial-books/{book.Id}/journal-entries",
+            CreateValidRequest(factory));
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.NotNull(factory.JournalEntries.AddedEntry);
+        Assert.Equal(1, factory.UnitOfWork.SaveChangesCalls);
+    }
+
+    [Theory]
+    [InlineData(FinancialBookRole.Auditor)]
+    [InlineData(FinancialBookRole.Viewer)]
+    public async Task CreateJournalEntry_WhenMemberRoleCannotPost_ReturnsNotFound(
+        FinancialBookRole role)
+    {
+        var userId = Guid.NewGuid();
+        var book = CreateBook(Guid.NewGuid());
+        var member = FinancialBookMember.Grant(
+            Guid.NewGuid(), book.Id, userId, role, DateTimeOffset.UtcNow.AddMinutes(-5));
+        using var factory = new JournalEntryApiFactory(book, member);
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateAccessToken(factory, userId));
+
+        using var response = await client.PostAsJsonAsync(
+            $"/api/financial-books/{book.Id}/journal-entries",
+            CreateValidRequest(factory));
+
+        // The API deliberately hides inaccessible financial books with 404.
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Null(factory.JournalEntries.AddedEntry);
+        Assert.Equal(0, factory.UnitOfWork.SaveChangesCalls);
+    }
+
+    [Fact]
+    public async Task CreateJournalEntry_WhenAccountantMembershipIsRevoked_ReturnsNotFound()
+    {
+        var userId = Guid.NewGuid();
+        var book = CreateBook(Guid.NewGuid());
+        var grantedAt = DateTimeOffset.UtcNow.AddMinutes(-10);
+        var member = FinancialBookMember.Grant(
+            Guid.NewGuid(), book.Id, userId, FinancialBookRole.Accountant, grantedAt);
+        member.Revoke(DateTimeOffset.UtcNow.AddMinutes(-1));
+
+        using var factory = new JournalEntryApiFactory(book, member);
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateAccessToken(factory, userId));
+
+        using var response = await client.PostAsJsonAsync(
+            $"/api/financial-books/{book.Id}/journal-entries",
+            CreateValidRequest(factory));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Null(factory.JournalEntries.AddedEntry);
+        Assert.Equal(0, factory.UnitOfWork.SaveChangesCalls);
+    }
+
+    [Fact]
     public async Task CreateJournalEntry_WithUnbalancedLines_ReturnsBadRequest()
     {
         var ownerId = Guid.NewGuid();
@@ -122,14 +193,16 @@ public sealed class JournalEntryApiTests
     private sealed class JournalEntryApiFactory : WebApplicationFactory<Program>
     {
         private readonly FinancialBook _book;
+        private readonly FinancialBookMember? _member;
         public Account DebitAccount { get; }
         public Account CreditAccount { get; }
         public FakeJournalEntryRepository JournalEntries { get; } = new();
         public FakeUnitOfWork UnitOfWork { get; } = new();
 
-        public JournalEntryApiFactory(FinancialBook book)
+        public JournalEntryApiFactory(FinancialBook book, FinancialBookMember? member = null)
         {
             _book = book;
+            _member = member;
             var now = DateTimeOffset.UtcNow;
             DebitAccount = Account.Create(Guid.NewGuid(), book.Id, "1000", "Cash", AccountType.Asset, now);
             CreditAccount = Account.Create(Guid.NewGuid(), book.Id, "3000", "Capital", AccountType.Equity, now);
@@ -157,7 +230,7 @@ public sealed class JournalEntryApiTests
                 services.RemoveAll<IJournalEntryRepository>();
                 services.RemoveAll<IUnitOfWork>();
 
-                services.AddSingleton<IFinancialBookRepository>(new FakeFinancialBookRepository(_book));
+                services.AddSingleton<IFinancialBookRepository>(new FakeFinancialBookRepository(_book, _member));
                 services.AddSingleton<IAccountRepository>(new FakeAccountRepository(DebitAccount, CreditAccount));
                 services.AddSingleton<IJournalEntryRepository>(JournalEntries);
                 services.AddSingleton<IUnitOfWork>(UnitOfWork);
@@ -165,12 +238,14 @@ public sealed class JournalEntryApiTests
         }
     }
 
-    private sealed class FakeFinancialBookRepository(FinancialBook book) : IFinancialBookRepository
+    private sealed class FakeFinancialBookRepository(
+        FinancialBook book, FinancialBookMember? member) : IFinancialBookRepository
     {
         public Task<FinancialBook?> GetByIdAsync(Guid financialBookId, CancellationToken cancellationToken) =>
             Task.FromResult<FinancialBook?>(book.Id == financialBookId ? book : null);
         public Task<FinancialBookMember?> GetMemberAsync(Guid financialBookId, Guid userId, CancellationToken cancellationToken) =>
-            Task.FromResult<FinancialBookMember?>(null);
+            Task.FromResult<FinancialBookMember?>(
+                member?.FinancialBookId == financialBookId && member.UserId == userId ? member : null);
         public Task<IReadOnlyList<FinancialBookMemberSummary>> GetActiveMembersAsync(Guid financialBookId, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<FinancialBookMemberSummary>>(Array.Empty<FinancialBookMemberSummary>());
         public Task AddMemberAsync(FinancialBookMember member, CancellationToken cancellationToken) =>
