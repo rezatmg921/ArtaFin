@@ -1,3 +1,4 @@
+using ArtaFin.Application.Abstractions.Persistence;
 using ArtaFin.Application.Features.Accounts.CreateAccount;
 using ArtaFin.Application.Features.FinancialBooks.InviteMember;
 using ArtaFin.Application.Features.JournalEntries.CreateJournalEntry;
@@ -23,6 +24,11 @@ internal sealed class ApiExceptionHandler(
     {
         var (status, title, detail) = exception switch
         {
+            PersistenceConcurrencyException =>
+                (StatusCodes.Status409Conflict,
+                    "Concurrency conflict",
+                    "The resource was modified by another operation. Please reload and try again."),
+
             AccountCodeAlreadyExistsException =>
                 (StatusCodes.Status409Conflict,
                     "Account code already exists",
