@@ -161,9 +161,17 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("PostedAt")
                         .HasColumnType("datetimeoffset(7)");
 
+                    b.Property<Guid?>("ReversesJournalEntryId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.HasKey("Id");
 
                     b.HasIndex("FinancialBookId");
+
+                    b.HasIndex("ReversesJournalEntryId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_JournalEntries_ReversesJournalEntryId")
+                        .HasFilter("[ReversesJournalEntryId] IS NOT NULL");
 
                     b.ToTable("JournalEntries", (string)null);
                 });
@@ -391,6 +399,11 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                         .HasForeignKey("FinancialBookId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("ArtaFin.Domain.Finance.JournalEntry", null)
+                        .WithMany()
+                        .HasForeignKey("ReversesJournalEntryId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.OwnsMany("ArtaFin.Domain.Finance.JournalLine", "Lines", b1 =>
                         {
