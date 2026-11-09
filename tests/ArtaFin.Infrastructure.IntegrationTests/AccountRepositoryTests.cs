@@ -111,6 +111,47 @@ public sealed class AccountRepositoryTests : IAsyncLifetime
             unitOfWork.SaveChangesAsync(CancellationToken.None));
     }
 
+    [Fact]
+    public async Task ConcurrentUpdates_RejectStaleAccountVersion()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var bookId = Guid.NewGuid();
+        var accountId = Guid.NewGuid();
+
+        await using (var setup = new ArtaFinDbContext(_options))
+        {
+            setup.FinancialBooks.Add(FinancialBook.Create(
+                bookId, Guid.NewGuid(), "Concurrency Test Book", "USD", now));
+            setup.Accounts.Add(Account.Create(
+                accountId, bookId, "1000", "Original Cash", AccountType.Asset, now));
+            await setup.SaveChangesAsync();
+        }
+
+        // Two independent contexts read the same original RowVersion.
+        await using var contextA = new ArtaFinDbContext(_options);
+        await using var contextB = new ArtaFinDbContext(_options);
+
+        var accountA = await contextA.Accounts.SingleAsync(x => x.Id == accountId);
+        var accountB = await contextB.Accounts.SingleAsync(x => x.Id == accountId);
+
+        accountA.Rename("Cash - Updated By A");
+        accountB.Rename("Cash - Updated By B");
+
+        // The first update succeeds and advances the database RowVersion.
+        await contextA.SaveChangesAsync();
+
+        // The second update uses the stale RowVersion and must be rejected.
+        await Assert.ThrowsAsync<PersistenceConcurrencyException>(
+            () => contextB.SaveChangesAsync());
+
+        await using var verification = new ArtaFinDbContext(_options);
+        var persistedAccount = await verification.Accounts
+            .AsNoTracking()
+            .SingleAsync(x => x.Id == accountId);
+
+        Assert.Equal("Cash - Updated By A", persistedAccount.Name);
+    }
+
     public async Task DisposeAsync()
     {
         await using var context = new ArtaFinDbContext(_options);
