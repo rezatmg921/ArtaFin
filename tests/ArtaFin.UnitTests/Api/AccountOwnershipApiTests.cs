@@ -202,12 +202,27 @@ public sealed class AccountOwnershipApiTests
     private sealed class FakeAccountRepository : IAccountRepository
     {
         public Account? AddedAccount { get; private set; }
+        public Account? AccountToReturn { get; set; }
+        public byte[] RowVersion { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
 
         public Task<Account?> GetByIdAsync(
             Guid financialBookId,
             Guid accountId,
             CancellationToken cancellationToken) =>
             Task.FromResult<Account?>(null);
+
+        public Task<AccountReadSnapshot?> GetReadSnapshotByIdAsync(
+            Guid financialBookId,
+            Guid accountId,
+            CancellationToken cancellationToken)
+        {
+            var snapshot = AccountToReturn is not null &&
+                           AccountToReturn.FinancialBookId == financialBookId &&
+                           AccountToReturn.Id == accountId
+                ? new AccountReadSnapshot(AccountToReturn, RowVersion)
+                : null;
+            return Task.FromResult(snapshot);
+        }
 
         public Task<bool> ExistsByCodeAsync(
             Guid financialBookId,
