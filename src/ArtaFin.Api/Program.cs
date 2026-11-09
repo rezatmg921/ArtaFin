@@ -136,12 +136,13 @@ app.UseAuthorization();
 app.MapGet("/health", () => Results.Ok(new
 {
     status = "Healthy",
-    service = "ArtaFin.Api"
+    service = "ArtaFin API"
 }))
 .WithName("Health")
 .AllowAnonymous();
 
 app.MapAuthenticationEndpoints();
+app.MapFinancialBookEndpoints();
 app.MapAccountEndpoints();
 app.MapFinancialBookMemberEndpoints();
 app.MapJournalEntryEndpoints();

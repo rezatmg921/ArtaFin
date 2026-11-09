@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 namespace ArtaFin.Infrastructure.Persistence.Repositories;
 
 internal sealed class FinancialBookRepository(ArtaFinDbContext dbContext)
-    : IFinancialBookRepository
+    : IFinancialBookRepository, IFinancialBookWriter
 {
     public Task<FinancialBook?> GetByIdAsync(
         Guid financialBookId,
@@ -56,5 +56,13 @@ internal sealed class FinancialBookRepository(ArtaFinDbContext dbContext)
         CancellationToken cancellationToken)
     {
         await dbContext.FinancialBookMembers.AddAsync(member, cancellationToken);
+    }
+
+    public async Task AddAsync(
+        FinancialBook financialBook,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(financialBook);
+        await dbContext.FinancialBooks.AddAsync(financialBook, cancellationToken);
     }
 }
