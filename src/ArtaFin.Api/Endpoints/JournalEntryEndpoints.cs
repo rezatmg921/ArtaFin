@@ -1,5 +1,6 @@
 using ArtaFin.Application.Features.JournalEntries.CreateJournalEntry;
 using ArtaFin.Application.Features.JournalEntries.GetJournalEntry;
+using ArtaFin.Application.Features.JournalEntries.ReverseJournalEntry;
 using ArtaFin.Domain.Finance;
 using MediatR;
 
@@ -33,6 +34,19 @@ internal static class JournalEntryEndpoints
             .Produces(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound);
+
+        endpoints.MapPost(
+                "/api/financial-books/{financialBookId:guid}/journal-entries/{journalEntryId:guid}/reversal",
+                ReverseAsync)
+            .WithName("ReverseJournalEntry")
+            .WithTags("JournalEntries")
+            .RequireAuthorization()
+            .Produces<ReverseJournalEntryResponse>(StatusCodes.Status201Created)
+            .ProducesValidationProblem()
+            .Produces(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
 
         return endpoints;
     }
@@ -151,6 +165,40 @@ internal static class JournalEntryEndpoints
         var location = $"/api/financial-books/{financialBookId}/journal-entries/{entryId}";
         return Results.Created(location, new CreateJournalEntryResponse(entryId));
     }
+
+    private static async Task<IResult> ReverseAsync(
+        Guid financialBookId,
+        Guid journalEntryId,
+        ReverseJournalEntryRequest request,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Description))
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["description"] = ["Description is required."]
+            });
+        }
+
+        if (request.Description.Trim().Length > JournalEntry.MaxDescriptionLength)
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["description"] = [$"Description cannot exceed {JournalEntry.MaxDescriptionLength} characters."]
+            });
+        }
+
+        var reversalId = await sender.Send(
+            new ReverseJournalEntryCommand(
+                financialBookId,
+                journalEntryId,
+                request.Description),
+            cancellationToken);
+
+        var location = $"/api/financial-books/{financialBookId}/journal-entries/{reversalId}";
+        return Results.Created(location, new ReverseJournalEntryResponse(reversalId));
+    }
 }
 
 internal sealed record CreateJournalEntryRequest(
@@ -164,6 +212,10 @@ internal sealed record CreateJournalEntryLineRequest(
     string? Currency);
 
 internal sealed record CreateJournalEntryResponse(Guid Id);
+
+internal sealed record ReverseJournalEntryRequest(string? Description);
+
+internal sealed record ReverseJournalEntryResponse(Guid Id);
 
 internal sealed record JournalEntryResponse(
     Guid Id,
