@@ -1,5 +1,7 @@
 using ArtaFin.Application.Features.Accounts.CreateAccount;
+using ArtaFin.Application.Features.Accounts.GetAccount;
 using ArtaFin.Domain.Finance;
+using MediatR;
 
 namespace ArtaFin.Api.Endpoints;
 
@@ -8,6 +10,16 @@ internal static class AccountEndpoints
     public static IEndpointRouteBuilder MapAccountEndpoints(
         this IEndpointRouteBuilder endpoints)
     {
+        endpoints.MapGet(
+                "/api/financial-books/{financialBookId:guid}/accounts/{accountId:guid}",
+                GetByIdAsync)
+            .WithName("GetAccount")
+            .WithTags("Accounts")
+            .RequireAuthorization()
+            .Produces<AccountResponse>()
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status404NotFound);
+
         endpoints.MapPost(
                 "/api/financial-books/{financialBookId:guid}/accounts",
                 CreateAsync)
@@ -21,6 +33,36 @@ internal static class AccountEndpoints
             .ProducesProblem(StatusCodes.Status409Conflict);
 
         return endpoints;
+    }
+
+    private static async Task<IResult> GetByIdAsync(
+        Guid financialBookId,
+        Guid accountId,
+        ISender sender,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        var snapshot = await sender.Send(
+            new GetAccountQuery(financialBookId, accountId),
+            cancellationToken);
+
+        if (snapshot is null)
+            return Results.NotFound();
+
+        httpContext.Response.Headers["ETag"] =
+            $"\\"{Convert.ToBase64String(snapshot.RowVersion)}\\"";
+
+        var account = snapshot.Account;
+        return Results.Ok(new AccountResponse(
+            account.Id,
+            account.FinancialBookId,
+            account.Code,
+            account.Name,
+            account.Type.ToString(),
+            account.NormalBalance.ToString(),
+            account.Status.ToString(),
+            account.CreatedAt,
+            account.DeactivatedAt));
     }
 
     private static async Task<IResult> CreateAsync(
@@ -65,3 +107,14 @@ internal static class AccountEndpoints
 
 internal sealed record CreateAccountRequest(string? Code, string? Name, string? Type);
 internal sealed record CreateAccountResponse(Guid Id);
+
+internal sealed record AccountResponse(
+    Guid Id,
+    Guid FinancialBookId,
+    string Code,
+    string Name,
+    string Type,
+    string NormalBalance,
+    string Status,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? DeactivatedAt);
