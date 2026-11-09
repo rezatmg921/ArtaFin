@@ -20,6 +20,19 @@ internal sealed class JournalEntryRepository(ArtaFinDbContext dbContext)
                 cancellationToken);
     }
 
+    public Task<bool> HasReversalAsync(
+        Guid financialBookId,
+        Guid originalJournalEntryId,
+        CancellationToken cancellationToken)
+    {
+        return dbContext.JournalEntries
+            .AsNoTracking()
+            .AnyAsync(
+                entry => entry.FinancialBookId == financialBookId &&
+                         entry.ReversesJournalEntryId == originalJournalEntryId,
+                cancellationToken);
+    }
+
     public async Task AddAsync(JournalEntry entry, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(entry);
