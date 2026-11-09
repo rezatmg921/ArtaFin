@@ -50,6 +50,9 @@ public sealed class FinancialBookMember : Entity
     public bool CanCreateAccountsAt(DateTimeOffset at) =>
         IsActiveAt(at) && Role == FinancialBookRole.Accountant;
 
+    public bool CanPostJournalEntriesAt(DateTimeOffset at) =>
+        IsActiveAt(at) && Role == FinancialBookRole.Accountant;
+
     public void ChangeRole(FinancialBookRole role)
     {
         if (RevokedAt is not null)
