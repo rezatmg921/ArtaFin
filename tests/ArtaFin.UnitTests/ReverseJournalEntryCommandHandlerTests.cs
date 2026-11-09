@@ -96,8 +96,8 @@ public sealed class ReverseJournalEntryCommandHandlerTests
             Now.AddHours(-1),
             "Original entry",
             [
-                new JournalLine(DebitAccountId, PostingSide.Debit, new ArtaFin.Domain.Common.Money(50m, "EUR")),
-                new JournalLine(CreditAccountId, PostingSide.Credit, new ArtaFin.Domain.Common.Money(50m, "EUR"))
+                new JournalLine(DebitAccountId, PostingSide.Debit, new Money(50m, "EUR")),
+                new JournalLine(CreditAccountId, PostingSide.Credit, new Money(50m, "EUR"))
             ]);
 
     private static ReverseJournalEntryCommandHandler CreateHandler(
