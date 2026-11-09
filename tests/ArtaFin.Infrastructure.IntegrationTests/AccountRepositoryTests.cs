@@ -92,7 +92,7 @@ public sealed class AccountRepositoryTests : IAsyncLifetime
         var accountSnapshot = await repository.GetReadSnapshotByIdAsync(
             bookAId, accountAId, CancellationToken.None);
         Assert.NotNull(accountSnapshot);
-        Assert.Equal(accountId, accountSnapshot.Account.Id);
+        Assert.Equal(accountAId, accountSnapshot.Account.Id);
         Assert.Equal(8, accountSnapshot.RowVersion.Length);
         Assert.True(await repository.ExistsByCodeAsync(bookAId, "1000", CancellationToken.None));
         Assert.False(await repository.ExistsByCodeAsync(bookBId, "1000", CancellationToken.None));
