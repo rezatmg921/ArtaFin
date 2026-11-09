@@ -1,6 +1,7 @@
 using ArtaFin.Application.Features.Accounts.CreateAccount;
 using ArtaFin.Application.Features.FinancialBooks.InviteMember;
 using ArtaFin.Application.Features.JournalEntries.CreateJournalEntry;
+using ArtaFin.Application.Features.JournalEntries.ReverseJournalEntry;
 using ArtaFin.Domain.Common;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
@@ -32,6 +33,11 @@ internal sealed class ApiExceptionHandler(
                 (StatusCodes.Status404NotFound,
                     "Financial book not found",
                     "The financial book was not found or is not accessible."),
+
+            JournalEntryAlreadyReversedException =>
+                (StatusCodes.Status409Conflict,
+                    "Journal entry already reversed",
+                    "This journal entry already has a reversal entry."),
 
             DomainException =>
                 (StatusCodes.Status400BadRequest,
