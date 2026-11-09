@@ -10,5 +10,10 @@ public interface IJournalEntryRepository
         Guid journalEntryId,
         CancellationToken cancellationToken);
 
+    Task<bool> HasReversalAsync(
+        Guid financialBookId,
+        Guid originalJournalEntryId,
+        CancellationToken cancellationToken);
+
     Task AddAsync(JournalEntry entry, CancellationToken cancellationToken);
 }
