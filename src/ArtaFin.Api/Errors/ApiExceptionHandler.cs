@@ -1,5 +1,6 @@
 using ArtaFin.Application.Features.Accounts.CreateAccount;
 using ArtaFin.Application.Features.FinancialBooks.InviteMember;
+using ArtaFin.Application.Features.JournalEntries.CreateJournalEntry;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 
@@ -24,10 +25,17 @@ internal sealed class ApiExceptionHandler(
                     "Account code already exists",
                     "An account with this code already exists in the financial book."),
 
-            FinancialBookAccessDeniedException or FinancialBookManagementDeniedException =>
+            FinancialBookAccessDeniedException or
+            FinancialBookManagementDeniedException or
+            JournalEntryAccessDeniedException =>
                 (StatusCodes.Status404NotFound,
                     "Financial book not found",
                     "The financial book was not found or is not accessible."),
+
+            JournalEntryAccountUnavailableException =>
+                (StatusCodes.Status400BadRequest,
+                    "Journal entry account unavailable",
+                    "One or more accounts are unavailable in this financial book."),
 
             InviteTargetUserNotFoundException =>
                 (StatusCodes.Status404NotFound,
