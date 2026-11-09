@@ -49,8 +49,10 @@ internal static class AccountEndpoints
         if (snapshot is null)
             return Results.NotFound();
 
-        httpContext.Response.Headers["ETag"] =
-            $"\\"{Convert.ToBase64String(snapshot.RowVersion)}\\"";
+        httpContext.Response.Headers["ETag"] = string.Concat(
+            (char)34,
+            Convert.ToBase64String(snapshot.RowVersion),
+            (char)34);
 
         var account = snapshot.Account;
         return Results.Ok(new AccountResponse(
