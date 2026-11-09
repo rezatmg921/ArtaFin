@@ -168,7 +168,22 @@ public sealed class CreateJournalEntryCommandHandlerTests
     private sealed class FakeJournalEntryRepository : IJournalEntryRepository
     {
         public JournalEntry? AddedEntry { get; private set; }
-        public Task<bool> HasReversalAsync(Guid financialBookId, Guid originalJournalEntryId, CancellationToken cancellationToken) =>
+
+        public Task<JournalEntry?> GetByIdAsync(
+            Guid financialBookId,
+            Guid journalEntryId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(
+                AddedEntry is not null &&
+                AddedEntry.FinancialBookId == financialBookId &&
+                AddedEntry.Id == journalEntryId
+                    ? AddedEntry
+                    : null);
+
+        public Task<bool> HasReversalAsync(
+            Guid financialBookId,
+            Guid originalJournalEntryId,
+            CancellationToken cancellationToken) =>
             Task.FromResult(false);
 
         public Task AddAsync(JournalEntry entry, CancellationToken cancellationToken)
