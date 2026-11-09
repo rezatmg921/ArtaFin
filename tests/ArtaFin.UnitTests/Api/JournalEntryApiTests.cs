@@ -37,6 +37,29 @@ public sealed class JournalEntryApiTests
     }
 
     [Fact]
+    public async Task CreateJournalEntry_WhenPersistenceConcurrencyOccurs_ReturnsConflict()
+    {
+        var ownerId = Guid.NewGuid();
+        var book = CreateBook(ownerId);
+        using var factory = new JournalEntryApiFactory(book);
+        factory.UnitOfWork.ThrowConcurrencyException = true;
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateAccessToken(factory, ownerId));
+
+        using var response = await client.PostAsJsonAsync(
+            $"/api/financial-books/{book.Id}/journal-entries",
+            CreateValidRequest(factory));
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<ProblemDetailsResponse>();
+        Assert.NotNull(problem);
+        Assert.Equal(409, problem.Status);
+        Assert.Equal("Concurrency conflict", problem.Title);
+        Assert.Contains("reload and try again", problem.Detail);
+    }
+
+    [Fact]
     public async Task CreateJournalEntry_WhenTokenBelongsToOwner_ReturnsCreated()
     {
         var ownerId = Guid.NewGuid();
@@ -365,10 +388,21 @@ public sealed class JournalEntryApiTests
     private sealed class FakeUnitOfWork : IUnitOfWork
     {
         public int SaveChangesCalls { get; private set; }
+        public bool ThrowConcurrencyException { get; set; }
+
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken)
         {
             SaveChangesCalls++;
+            if (ThrowConcurrencyException)
+            {
+                throw new PersistenceConcurrencyException(
+                    "The resource was modified by another operation.",
+                    new InvalidOperationException("Simulated concurrency conflict."));
+            }
+
             return Task.FromResult(1);
         }
     }
+
+    private sealed record ProblemDetailsResponse(int? Status, string? Title, string? Detail);
 }
