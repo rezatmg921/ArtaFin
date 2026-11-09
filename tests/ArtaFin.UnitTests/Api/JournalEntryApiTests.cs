@@ -174,6 +174,33 @@ public sealed class JournalEntryApiTests
     }
 
     [Fact]
+    public async Task ReverseJournalEntry_WhenTokenBelongsToOwner_ReturnsCreatedAndStoresReversal()
+    {
+        var ownerId = Guid.NewGuid();
+        var book = CreateBook(ownerId);
+        using var factory = new JournalEntryApiFactory(book);
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateAccessToken(factory, ownerId));
+
+        using var createResponse = await client.PostAsJsonAsync(
+            $"/api/financial-books/{book.Id}/journal-entries",
+            CreateValidRequest(factory));
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+
+        var original = Assert.IsType<JournalEntry>(factory.JournalEntries.AddedEntry);
+        using var reversalResponse = await client.PostAsJsonAsync(
+            $"/api/financial-books/{book.Id}/journal-entries/{original.Id}/reversal",
+            new { description = "Reverse office supplies" });
+
+        Assert.Equal(HttpStatusCode.Created, reversalResponse.StatusCode);
+        Assert.NotNull(factory.JournalEntries.AddedEntry);
+        Assert.Equal(original.Id, factory.JournalEntries.AddedEntry!.ReversesJournalEntryId);
+        Assert.Equal(2, factory.JournalEntries.AddedEntry.Lines.Count);
+        Assert.Equal(2, factory.UnitOfWork.SaveChangesCalls);
+    }
+
+    [Fact]
     public async Task GetJournalEntry_WhenTokenBelongsToOwner_ReturnsEntryAndLines()
     {
         var ownerId = Guid.NewGuid();
@@ -306,6 +333,12 @@ public sealed class JournalEntryApiTests
                 AddedEntry.Id == journalEntryId
                     ? AddedEntry
                     : null);
+
+        public Task<bool> HasReversalAsync(
+            Guid financialBookId,
+            Guid originalJournalEntryId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(false);
 
         public Task AddAsync(JournalEntry entry, CancellationToken cancellationToken)
         {
