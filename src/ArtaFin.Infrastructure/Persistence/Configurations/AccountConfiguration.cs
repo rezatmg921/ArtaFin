@@ -32,6 +32,7 @@ public sealed class AccountConfiguration : IEntityTypeConfiguration<Account>
         // EF Core uses it as an optimistic concurrency token.
         builder.Property<byte[]>("RowVersion")
             .IsRowVersion()
+            .IsRequired()
             .HasColumnName("RowVersion");
 
         builder.HasOne<FinancialBook>()
