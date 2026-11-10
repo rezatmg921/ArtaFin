@@ -1,6 +1,7 @@
 using System.Data.Common;
 using ArtaFin.Application.Abstractions.Persistence;
 using ArtaFin.Application.Features.Accounts.CreateAccount;
+using ArtaFin.Application.Features.Accounts.DeleteAccount;
 using ArtaFin.Domain.Finance;
 using ArtaFin.Infrastructure;
 using ArtaFin.Infrastructure.Persistence;
