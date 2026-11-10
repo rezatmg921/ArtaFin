@@ -160,6 +160,12 @@ public sealed class CreateJournalEntryCommandHandlerTests
     {
         public Task<Account?> GetByIdAsync(Guid financialBookId, Guid accountId, CancellationToken cancellationToken) =>
             Task.FromResult(accounts.SingleOrDefault(x => x.FinancialBookId == financialBookId && x.Id == accountId));
+
+        public Task<AccountReadSnapshot?> GetReadSnapshotByIdAsync(
+            Guid financialBookId,
+            Guid accountId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<AccountReadSnapshot?>(null);
         public Task<bool> ExistsByCodeAsync(Guid financialBookId, string normalizedCode, CancellationToken cancellationToken) =>
             Task.FromResult(false);
         public Task AddAsync(Account account, CancellationToken cancellationToken) => throw new NotImplementedException();
