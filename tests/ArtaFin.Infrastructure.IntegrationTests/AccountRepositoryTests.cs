@@ -118,6 +118,62 @@ public sealed class AccountRepositoryTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task DeleteIfUnused_RejectsAccountsWithJournalHistory_AndDeletesUnusedAccounts()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var bookId = Guid.NewGuid();
+        var usedAccountId = Guid.NewGuid();
+        var offsetAccountId = Guid.NewGuid();
+        var unusedAccountId = Guid.NewGuid();
+
+        await using (var setup = new ArtaFinDbContext(_options))
+        {
+            setup.FinancialBooks.Add(FinancialBook.Create(
+                bookId, Guid.NewGuid(), "Account deletion test", "USD", now));
+            setup.Accounts.AddRange(
+                Account.Create(usedAccountId, bookId, "1000", "Cash", AccountType.Asset, now),
+                Account.Create(offsetAccountId, bookId, "4000", "Income", AccountType.Income, now),
+                Account.Create(unusedAccountId, bookId, "1100", "Unused", AccountType.Asset, now));
+            setup.JournalEntries.Add(JournalEntry.Post(
+                Guid.NewGuid(), bookId, now, "Cash receipt",
+                [
+                    new JournalLine(usedAccountId, PostingSide.Debit, new Money(50m, "USD")),
+                    new JournalLine(offsetAccountId, PostingSide.Credit, new Money(50m, "USD"))
+                ]));
+            await setup.SaveChangesAsync();
+        }
+
+        var servicesConfiguration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:ArtaFin"] = _connectionString
+            })
+            .Build();
+        var services = new ServiceCollection();
+        services.AddInfrastructure(servicesConfiguration);
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var repository = scope.ServiceProvider.GetRequiredService<IAccountRepository>();
+        var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+        var usedAccount = await repository.GetByIdAsync(bookId, usedAccountId, CancellationToken.None);
+        Assert.NotNull(usedAccount);
+        var deletedUsedAccount = await repository.DeleteIfUnusedAsync(usedAccount, CancellationToken.None);
+        Assert.False(deletedUsedAccount);
+
+        var unusedAccount = await repository.GetByIdAsync(bookId, unusedAccountId, CancellationToken.None);
+        Assert.NotNull(unusedAccount);
+        var deletedUnusedAccount = await repository.DeleteIfUnusedAsync(unusedAccount, CancellationToken.None);
+        Assert.True(deletedUnusedAccount);
+        await unitOfWork.SaveChangesAsync(CancellationToken.None);
+
+        await using var verification = new ArtaFinDbContext(_options);
+        Assert.NotNull(await verification.Accounts.SingleOrDefaultAsync(x => x.Id == usedAccountId));
+        Assert.Null(await verification.Accounts.SingleOrDefaultAsync(x => x.Id == unusedAccountId));
+    }
+
+    [Fact]
     public async Task ConcurrentUpdates_RejectStaleAccountVersion()
     {
         var now = DateTimeOffset.UtcNow;
