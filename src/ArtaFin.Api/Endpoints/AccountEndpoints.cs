@@ -1,7 +1,9 @@
 using ArtaFin.Application.Features.Accounts.CreateAccount;
 using ArtaFin.Application.Features.Accounts.GetAccount;
+using ArtaFin.Application.Features.Accounts.UpdateAccount;
 using ArtaFin.Domain.Finance;
 using MediatR;
+using Microsoft.Net.Http.Headers;
 
 namespace ArtaFin.Api.Endpoints;
 
@@ -32,6 +34,20 @@ internal static class AccountEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
 
+        endpoints.MapPut(
+                "/api/financial-books/{financialBookId:guid}/accounts/{accountId:guid}",
+                UpdateAsync)
+            .WithName("UpdateAccount")
+            .WithTags("Accounts")
+            .RequireAuthorization()
+            .Produces<AccountResponse>()
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status404NotFound)
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status412PreconditionFailed)
+            .ProducesProblem(StatusCodes.Status428PreconditionRequired);
+
         return endpoints;
     }
 
@@ -49,22 +65,10 @@ internal static class AccountEndpoints
         if (snapshot is null)
             return Results.NotFound();
 
-        httpContext.Response.Headers["ETag"] = string.Concat(
-            (char)34,
-            Convert.ToBase64String(snapshot.RowVersion),
-            (char)34);
+        SetEtag(httpContext, snapshot.RowVersion);
 
         var account = snapshot.Account;
-        return Results.Ok(new AccountResponse(
-            account.Id,
-            account.FinancialBookId,
-            account.Code,
-            account.Name,
-            account.Type.ToString(),
-            account.NormalBalance.ToString(),
-            account.Status.ToString(),
-            account.CreatedAt,
-            account.DeactivatedAt));
+        return Results.Ok(ToResponse(account));
     }
 
     private static async Task<IResult> CreateAsync(
@@ -105,9 +109,104 @@ internal static class AccountEndpoints
 
         return Results.Created(location, new CreateAccountResponse(accountId));
     }
+
+    private static async Task<IResult> UpdateAsync(
+        Guid financialBookId,
+        Guid accountId,
+        UpdateAccountRequest request,
+        ISender sender,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        var rawIfMatch = httpContext.Request.Headers.IfMatch;
+        if (rawIfMatch.Count == 0)
+            return Results.Problem(
+                statusCode: StatusCodes.Status428PreconditionRequired,
+                title: "If-Match header required",
+                detail: "Supply the account ETag returned by GET, or use If-Match: *.");
+
+        if (!EntityTagHeaderValue.TryParseList(rawIfMatch.ToArray(), out var entityTags) ||
+            entityTags is null ||
+            entityTags.Count == 0)
+        {
+            return Results.BadRequest(new
+            {
+                title = "Malformed If-Match header",
+                detail = "The If-Match header must contain valid entity tags."
+            });
+        }
+
+        var matchAny = entityTags.Any(tag => tag.Tag.Value == "*");
+        if (matchAny && entityTags.Count != 1)
+        {
+            return Results.BadRequest(new
+            {
+                title = "Malformed If-Match header",
+                detail = "The wildcard entity tag cannot be combined with other tags."
+            });
+        }
+
+        var expectedVersions = entityTags
+            .Where(tag => !tag.IsWeak && tag.Tag.Value != "*")
+            .Select(tag =>
+            {
+                var tagValue = tag.Tag.Value;
+                var encoded = tagValue.Length >= 2 &&
+                              tagValue[0] == '"' &&
+                              tagValue[^1] == '"'
+                    ? tagValue[1..^1]
+                    : tagValue;
+
+                return Convert.TryFromBase64String(
+                    encoded,
+                    new byte[encoded.Length],
+                    out var bytesWritten)
+                    ? Convert.FromBase64String(encoded)
+                    : null;
+            })
+            .Where(version => version is not null)
+            .Select(version => version!)
+            .ToArray();
+
+        var snapshot = await sender.Send(
+            new UpdateAccountCommand(
+                financialBookId,
+                accountId,
+                request.Name,
+                expectedVersions,
+                matchAny),
+            cancellationToken);
+
+        if (snapshot is null)
+            return Results.NotFound();
+
+        SetEtag(httpContext, snapshot.RowVersion);
+        return Results.Ok(ToResponse(snapshot.Account));
+    }
+
+    private static void SetEtag(HttpContext httpContext, byte[] rowVersion)
+    {
+        httpContext.Response.Headers.ETag = string.Concat(
+            (char)34,
+            Convert.ToBase64String(rowVersion),
+            (char)34);
+    }
+
+    private static AccountResponse ToResponse(Account account) =>
+        new(
+            account.Id,
+            account.FinancialBookId,
+            account.Code,
+            account.Name,
+            account.Type.ToString(),
+            account.NormalBalance.ToString(),
+            account.Status.ToString(),
+            account.CreatedAt,
+            account.DeactivatedAt);
 }
 
 internal sealed record CreateAccountRequest(string? Code, string? Name, string? Type);
+internal sealed record UpdateAccountRequest(string Name);
 internal sealed record CreateAccountResponse(Guid Id);
 
 internal sealed record AccountResponse(
