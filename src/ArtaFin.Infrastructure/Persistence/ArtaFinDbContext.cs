@@ -1,5 +1,6 @@
 using ArtaFin.Application.Abstractions.Persistence;
 using ArtaFin.Application.Features.Accounts.CreateAccount;
+using ArtaFin.Application.Features.Accounts.DeleteAccount;
 using ArtaFin.Domain.Finance;
 using ArtaFin.Domain.Security;
 using ArtaFin.Infrastructure.Persistence.Configurations;
@@ -12,6 +13,7 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
     : DbContext(options), IUnitOfWork
 {
     private const string AccountCodeUniqueIndexName = "UX_Accounts_FinancialBookId_Code";
+    private const string JournalLineAccountForeignKeyName = "FK_JournalLines_Accounts_FinancialBookId_AccountId";
 
     public DbSet<FinancialBook> FinancialBooks => Set<FinancialBook>();
     public DbSet<FinancialBookMember> FinancialBookMembers => Set<FinancialBookMember>();
@@ -61,6 +63,10 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
         {
             throw new AccountCodeAlreadyExistsException();
         }
+        catch (DbUpdateException exception) when (IsJournalLineAccountForeignKeyViolation(exception))
+        {
+            throw new AccountHasJournalEntriesException();
+        }
         catch (DbUpdateConcurrencyException exception)
         {
             throw new PersistenceConcurrencyException(
@@ -107,6 +113,28 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
             throw new InvalidOperationException(
                 "Posted journal entries and their lines cannot be modified or deleted.");
         }
+    }
+
+    private static bool IsJournalLineAccountForeignKeyViolation(DbUpdateException exception)
+    {
+        for (Exception? current = exception; current is not null; current = current.InnerException)
+        {
+            if (current is not SqlException sqlException)
+                continue;
+
+            foreach (SqlError error in sqlException.Errors)
+            {
+                if (error.Number == 547 &&
+                    error.Message.Contains(
+                        JournalLineAccountForeignKeyName,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     private static bool IsAccountCodeUniqueViolation(DbUpdateException exception)
