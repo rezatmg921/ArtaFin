@@ -226,6 +226,9 @@ public sealed class UpdateAccountCommandHandlerTests
             CancellationToken cancellationToken) =>
             Task.FromResult(false);
 
+        public Task<bool> DeleteIfUnusedAsync(Account account, CancellationToken cancellationToken) =>
+            Task.FromResult(true);
+
         public Task AddAsync(Account account, CancellationToken cancellationToken) =>
             Task.CompletedTask;
     }
