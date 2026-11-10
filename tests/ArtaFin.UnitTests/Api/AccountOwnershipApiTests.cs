@@ -226,6 +226,13 @@ public sealed class AccountOwnershipApiTests
             return Task.FromResult(snapshot);
         }
 
+        public Task<AccountReadSnapshot?> GetForUpdateAsync(
+            Guid financialBookId,
+            Guid accountId,
+            byte[]? expectedRowVersion,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<AccountReadSnapshot?>(null);
+
         public Task<bool> ExistsByCodeAsync(
             Guid financialBookId,
             string normalizedCode,
