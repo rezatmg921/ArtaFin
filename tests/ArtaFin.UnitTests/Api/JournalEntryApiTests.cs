@@ -374,6 +374,13 @@ public sealed class JournalEntryApiTests
             AddedEntry = entry;
             return Task.CompletedTask;
         }
+
+        public Task<AccountReadSnapshot?> GetForUpdateAsync(
+            Guid financialBookId,
+            Guid accountId,
+            byte[]? expectedRowVersion,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<AccountReadSnapshot?>(null);
     }
 
     private sealed record JournalEntryReadResponse(
