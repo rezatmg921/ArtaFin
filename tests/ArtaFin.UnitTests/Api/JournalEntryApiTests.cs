@@ -342,6 +342,13 @@ public sealed class JournalEntryApiTests
             Guid accountId,
             CancellationToken cancellationToken) =>
             Task.FromResult<AccountReadSnapshot?>(null);
+
+        public Task<AccountReadSnapshot?> GetForUpdateAsync(
+            Guid financialBookId,
+            Guid accountId,
+            byte[]? expectedRowVersion,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<AccountReadSnapshot?>(null);
         public Task<bool> ExistsByCodeAsync(Guid financialBookId, string normalizedCode, CancellationToken cancellationToken) =>
             Task.FromResult(false);
         public Task AddAsync(Account account, CancellationToken cancellationToken) =>
@@ -374,13 +381,6 @@ public sealed class JournalEntryApiTests
             AddedEntry = entry;
             return Task.CompletedTask;
         }
-
-        public Task<AccountReadSnapshot?> GetForUpdateAsync(
-            Guid financialBookId,
-            Guid accountId,
-            byte[]? expectedRowVersion,
-            CancellationToken cancellationToken) =>
-            Task.FromResult<AccountReadSnapshot?>(null);
     }
 
     private sealed record JournalEntryReadResponse(
