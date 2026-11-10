@@ -1,5 +1,6 @@
 using ArtaFin.Application.Abstractions.Persistence;
 using ArtaFin.Application.Features.Accounts.CreateAccount;
+using ArtaFin.Application.Features.Accounts.UpdateAccount;
 using ArtaFin.Application.Features.FinancialBooks.InviteMember;
 using ArtaFin.Application.Features.JournalEntries.CreateJournalEntry;
 using ArtaFin.Application.Features.JournalEntries.ReverseJournalEntry;
@@ -28,6 +29,11 @@ internal sealed class ApiExceptionHandler(
                 (StatusCodes.Status409Conflict,
                     "Concurrency conflict",
                     "The resource was modified by another operation. Please reload and try again."),
+
+            AccountPreconditionFailedException =>
+                (StatusCodes.Status412PreconditionFailed,
+                    "Account version mismatch",
+                    "The account has changed since it was last retrieved. Fetch the latest version and retry."),
 
             AccountCodeAlreadyExistsException =>
                 (StatusCodes.Status409Conflict,
