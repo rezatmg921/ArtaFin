@@ -136,7 +136,9 @@ internal static class AccountEndpoints
                 title: "If-Match header required",
                 detail: "Supply the account ETag returned by GET, or use If-Match: *.");
 
-        if (!EntityTagHeaderValue.TryParseList(rawIfMatch.ToArray(), out var entityTags) ||
+        if (!EntityTagHeaderValue.TryParseList(
+                rawIfMatch.Select(value => value ?? string.Empty).ToArray(),
+                out var entityTags) ||
             entityTags is null ||
             entityTags.Count == 0)
         {
