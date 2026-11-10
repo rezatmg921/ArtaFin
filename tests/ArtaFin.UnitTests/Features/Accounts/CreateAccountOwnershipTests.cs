@@ -251,6 +251,13 @@ public sealed class CreateAccountOwnershipTests
             return Task.FromResult(false);
         }
 
+        public Task<AccountReadSnapshot?> GetForUpdateAsync(
+            Guid financialBookId,
+            Guid accountId,
+            byte[]? expectedRowVersion,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<AccountReadSnapshot?>(null);
+
         public Task AddAsync(Account account, CancellationToken cancellationToken)
         {
             AddedAccount = account;
