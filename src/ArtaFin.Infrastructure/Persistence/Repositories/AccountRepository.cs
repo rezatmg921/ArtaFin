@@ -10,27 +10,23 @@ internal sealed class AccountRepository(ArtaFinDbContext dbContext)
     public Task<Account?> GetByIdAsync(
         Guid financialBookId,
         Guid accountId,
-        CancellationToken cancellationToken)
-    {
-        return dbContext.Accounts.SingleOrDefaultAsync(
+        CancellationToken cancellationToken) =>
+        dbContext.Accounts.SingleOrDefaultAsync(
             account => account.FinancialBookId == financialBookId &&
                        account.Id == accountId,
             cancellationToken);
-    }
 
     public Task<AccountReadSnapshot?> GetReadSnapshotByIdAsync(
         Guid financialBookId,
         Guid accountId,
-        CancellationToken cancellationToken)
-    {
-        return dbContext.Accounts
+        CancellationToken cancellationToken) =>
+        dbContext.Accounts
             .Where(account => account.FinancialBookId == financialBookId &&
                               account.Id == accountId)
             .Select(account => new AccountReadSnapshot(
                 account,
                 EF.Property<byte[]>(account, "RowVersion")))
             .SingleOrDefaultAsync(cancellationToken);
-    }
 
     public async Task<AccountReadSnapshot?> GetForUpdateAsync(
         Guid financialBookId,
@@ -70,6 +66,24 @@ internal sealed class AccountRepository(ArtaFinDbContext dbContext)
             account => account.FinancialBookId == financialBookId &&
                        account.Code == normalizedCode,
             cancellationToken);
+    }
+
+    public async Task<bool> DeleteIfUnusedAsync(
+        Account account,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(account);
+
+        var isUsed = await dbContext.JournalEntries.AnyAsync(
+            entry => entry.FinancialBookId == account.FinancialBookId &&
+                     entry.Lines.Any(line => line.AccountId == account.Id),
+            cancellationToken);
+
+        if (isUsed)
+            return false;
+
+        dbContext.Accounts.Remove(account);
+        return true;
     }
 
     public async Task AddAsync(Account account, CancellationToken cancellationToken)
