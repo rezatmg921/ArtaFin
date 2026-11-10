@@ -163,7 +163,7 @@ internal static class AccountEndpoints
             .Where(tag => !tag.IsWeak && tag.Tag.Value != "*")
             .Select(tag =>
             {
-                var tagValue = tag.Tag.Value;
+                var tagValue = tag.Tag.Value ?? string.Empty;
                 var encoded = tagValue.Length >= 2 &&
                               tagValue[0] == '"' &&
                               tagValue[^1] == '"'
