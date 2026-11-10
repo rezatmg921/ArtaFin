@@ -1,5 +1,6 @@
 using ArtaFin.Application.Abstractions.Persistence;
 using ArtaFin.Application.Features.Accounts.CreateAccount;
+using ArtaFin.Application.Features.Accounts.DeleteAccount;
 using ArtaFin.Application.Features.Accounts.UpdateAccount;
 using ArtaFin.Application.Features.FinancialBooks.InviteMember;
 using ArtaFin.Application.Features.JournalEntries.CreateJournalEntry;
@@ -29,6 +30,11 @@ internal sealed class ApiExceptionHandler(
                 (StatusCodes.Status409Conflict,
                     "Concurrency conflict",
                     "The resource was modified by another operation. Please reload and try again."),
+
+            AccountHasJournalEntriesException =>
+                (StatusCodes.Status409Conflict,
+                    "Account has accounting history",
+                    "The account is referenced by journal entries. Deactivate it instead of deleting it."),
 
             AccountPreconditionFailedException =>
                 (StatusCodes.Status412PreconditionFailed,
