@@ -91,6 +91,10 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
         {
             throw new AccountCodeAlreadyExistsException();
         }
+        catch (DbUpdateException exception) when (IsJournalLineAccountForeignKeyViolation(exception))
+        {
+            throw new AccountHasJournalEntriesException();
+        }
         catch (DbUpdateConcurrencyException exception)
         {
             throw new PersistenceConcurrencyException(
