@@ -172,6 +172,93 @@ public sealed class AccountOwnershipApiTests
     }
 
     [Fact]
+    public async Task DeleteAccount_WithoutIfMatch_ReturnsPreconditionRequired()
+    {
+        var ownerId = Guid.NewGuid();
+        var book = CreateBook(ownerId);
+        var account = Account.Create(Guid.NewGuid(), book.Id, "1000", "Cash", AccountType.Asset, DateTimeOffset.UtcNow);
+        using var factory = new OwnershipApiFactory(book);
+        factory.Accounts.AccountToReturn = account;
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateAccessToken(factory, ownerId));
+
+        using var response = await client.DeleteAsync(
+            $"/api/financial-books/{book.Id}/accounts/{account.Id}");
+
+        Assert.Equal((HttpStatusCode)428, response.StatusCode);
+        Assert.Equal(0, factory.UnitOfWork.SaveChangesCalls);
+        Assert.Null(factory.Accounts.DeletedAccount);
+    }
+
+    [Fact]
+    public async Task DeleteAccount_WithStaleEtag_ReturnsPreconditionFailed()
+    {
+        var ownerId = Guid.NewGuid();
+        var book = CreateBook(ownerId);
+        var account = Account.Create(Guid.NewGuid(), book.Id, "1000", "Cash", AccountType.Asset, DateTimeOffset.UtcNow);
+        using var factory = new OwnershipApiFactory(book);
+        factory.Accounts.AccountToReturn = account;
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateAccessToken(factory, ownerId));
+        client.DefaultRequestHeaders.IfMatch.Add(
+            new EntityTagHeaderValue(string.Concat((char)34, Convert.ToBase64String([8, 7, 6, 5, 4, 3, 2, 1]), (char)34)));
+
+        using var response = await client.DeleteAsync(
+            $"/api/financial-books/{book.Id}/accounts/{account.Id}");
+
+        Assert.Equal(HttpStatusCode.PreconditionFailed, response.StatusCode);
+        Assert.Equal(0, factory.UnitOfWork.SaveChangesCalls);
+        Assert.Null(factory.Accounts.DeletedAccount);
+    }
+
+    [Fact]
+    public async Task DeleteAccount_WithCurrentEtagAndNoHistory_ReturnsNoContent()
+    {
+        var ownerId = Guid.NewGuid();
+        var book = CreateBook(ownerId);
+        var account = Account.Create(Guid.NewGuid(), book.Id, "1000", "Cash", AccountType.Asset, DateTimeOffset.UtcNow);
+        using var factory = new OwnershipApiFactory(book);
+        factory.Accounts.AccountToReturn = account;
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateAccessToken(factory, ownerId));
+        client.DefaultRequestHeaders.IfMatch.Add(
+            new EntityTagHeaderValue(string.Concat((char)34, Convert.ToBase64String(factory.Accounts.RowVersion), (char)34)));
+
+        using var response = await client.DeleteAsync(
+            $"/api/financial-books/{book.Id}/accounts/{account.Id}");
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Same(account, factory.Accounts.DeletedAccount);
+        Assert.Equal(1, factory.UnitOfWork.SaveChangesCalls);
+    }
+
+    [Fact]
+    public async Task DeleteAccount_WhenAccountHasJournalHistory_ReturnsConflict()
+    {
+        var ownerId = Guid.NewGuid();
+        var book = CreateBook(ownerId);
+        var account = Account.Create(Guid.NewGuid(), book.Id, "1000", "Cash", AccountType.Asset, DateTimeOffset.UtcNow);
+        using var factory = new OwnershipApiFactory(book);
+        factory.Accounts.AccountToReturn = account;
+        factory.Accounts.DeleteAccountResult = false;
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateAccessToken(factory, ownerId));
+        client.DefaultRequestHeaders.IfMatch.Add(
+            new EntityTagHeaderValue(string.Concat((char)34, Convert.ToBase64String(factory.Accounts.RowVersion), (char)34)));
+
+        using var response = await client.DeleteAsync(
+            $"/api/financial-books/{book.Id}/accounts/{account.Id}");
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal(0, factory.UnitOfWork.SaveChangesCalls);
+        Assert.Null(factory.Accounts.DeletedAccount);
+    }
+
+    [Fact]
     public async Task CreateAccount_WithoutAccessToken_ReturnsUnauthorized()
     {
         var ownerId = Guid.NewGuid();
