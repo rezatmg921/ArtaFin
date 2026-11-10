@@ -162,6 +162,18 @@ public sealed class AccountRepositoryTests : IAsyncLifetime
         var deletedUsedAccount = await repository.DeleteIfUnusedAsync(usedAccount, CancellationToken.None);
         Assert.False(deletedUsedAccount);
 
+        // The database FK is the final guard if a journal line appears after the pre-check.
+        await using (var directDelete = new ArtaFinDbContext(_options))
+        {
+            var accountWithHistory = await directDelete.Accounts
+                .SingleAsync(x => x.Id == usedAccountId);
+
+            directDelete.Accounts.Remove(accountWithHistory);
+
+            await Assert.ThrowsAsync<AccountHasJournalEntriesException>(
+                () => directDelete.SaveChangesAsync());
+        }
+
         var unusedAccount = await repository.GetByIdAsync(bookId, unusedAccountId, CancellationToken.None);
         Assert.NotNull(unusedAccount);
         var deletedUnusedAccount = await repository.DeleteIfUnusedAsync(unusedAccount, CancellationToken.None);
