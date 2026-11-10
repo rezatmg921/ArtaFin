@@ -24,6 +24,16 @@ public interface IAccountRepository
         CancellationToken cancellationToken);
 
     /// <summary>
+    /// Loads a tracked account snapshot for an update and optionally applies
+    /// the client's expected version as EF Core's original concurrency value.
+    /// </summary>
+    Task<AccountReadSnapshot?> GetForUpdateAsync(
+        Guid financialBookId,
+        Guid accountId,
+        byte[]? expectedRowVersion,
+        CancellationToken cancellationToken);
+
+    /// <summary>
     /// Performs an application-level uniqueness pre-check.
     /// A database unique constraint on (FinancialBookId, normalized Code)
     /// remains mandatory to protect against concurrent requests.
