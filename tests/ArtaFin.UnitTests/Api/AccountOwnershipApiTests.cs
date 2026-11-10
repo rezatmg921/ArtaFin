@@ -371,6 +371,16 @@ public sealed class AccountOwnershipApiTests
             CancellationToken cancellationToken) =>
             Task.FromResult(false);
 
+        public bool DeleteAccountResult { get; set; } = true;
+        public Account? DeletedAccount { get; private set; }
+
+        public Task<bool> DeleteIfUnusedAsync(Account account, CancellationToken cancellationToken)
+        {
+            if (DeleteAccountResult)
+                DeletedAccount = account;
+            return Task.FromResult(DeleteAccountResult);
+        }
+
         public Task AddAsync(Account account, CancellationToken cancellationToken)
         {
             AddedAccount = account;
