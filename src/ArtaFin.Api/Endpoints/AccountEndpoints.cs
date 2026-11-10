@@ -1,4 +1,5 @@
 using ArtaFin.Application.Features.Accounts.CreateAccount;
+using ArtaFin.Application.Features.Accounts.DeleteAccount;
 using ArtaFin.Application.Features.Accounts.GetAccount;
 using ArtaFin.Application.Features.Accounts.UpdateAccount;
 using ArtaFin.Domain.Finance;
@@ -42,6 +43,20 @@ internal static class AccountEndpoints
             .WithTags("Accounts")
             .RequireAuthorization()
             .Produces<AccountResponse>()
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status404NotFound)
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status412PreconditionFailed)
+            .ProducesProblem(StatusCodes.Status428PreconditionRequired);
+
+        endpoints.MapDelete(
+                "/api/financial-books/{financialBookId:guid}/accounts/{accountId:guid}",
+                DeleteAsync)
+            .WithName("DeleteAccount")
+            .WithTags("Accounts")
+            .RequireAuthorization()
+            .Produces(StatusCodes.Status204NoContent)
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status404NotFound)
             .ProducesValidationProblem()
@@ -196,6 +211,72 @@ internal static class AccountEndpoints
 
         SetEtag(httpContext, snapshot.RowVersion);
         return Results.Ok(ToResponse(snapshot.Account));
+    }
+
+    private static async Task<IResult> DeleteAsync(
+        Guid financialBookId,
+        Guid accountId,
+        [FromHeader(Name = "If-Match")] string? ifMatch,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(ifMatch))
+            return Results.Problem(
+                statusCode: StatusCodes.Status428PreconditionRequired,
+                title: "If-Match header required",
+                detail: "Supply the account ETag returned by GET, or use If-Match: *.");
+
+        if (!EntityTagHeaderValue.TryParseList([ifMatch], out var entityTags) ||
+            entityTags is null || entityTags.Count == 0)
+        {
+            return Results.BadRequest(new
+            {
+                title = "Malformed If-Match header",
+                detail = "The If-Match header must contain valid entity tags."
+            });
+        }
+
+        var matchAny = entityTags.Any(tag => tag.Tag.Value == "*");
+        if (matchAny && entityTags.Count != 1)
+        {
+            return Results.BadRequest(new
+            {
+                title = "Malformed If-Match header",
+                detail = "The wildcard entity tag cannot be combined with other tags."
+            });
+        }
+
+        var expectedVersions = entityTags
+            .Where(tag => !tag.IsWeak && tag.Tag.Value != "*")
+            .Select(tag =>
+            {
+                var tagValue = tag.Tag.Value ?? string.Empty;
+                var encoded = tagValue.Length >= 2 &&
+                              tagValue[0] == '"' &&
+                              tagValue[^1] == '"'
+                    ? tagValue[1..^1]
+                    : tagValue;
+
+                return Convert.TryFromBase64String(
+                    encoded,
+                    new byte[encoded.Length],
+                    out _)
+                    ? Convert.FromBase64String(encoded)
+                    : null;
+            })
+            .Where(version => version is not null)
+            .Select(version => version!)
+            .ToArray();
+
+        var deleted = await sender.Send(
+            new DeleteAccountCommand(
+                financialBookId,
+                accountId,
+                expectedVersions,
+                matchAny),
+            cancellationToken);
+
+        return deleted ? Results.NoContent() : Results.NotFound();
     }
 
     private static void SetEtag(HttpContext httpContext, byte[] rowVersion)
