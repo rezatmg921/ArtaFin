@@ -118,7 +118,18 @@ internal static class AccountEndpoints
         HttpContext httpContext,
         CancellationToken cancellationToken)
     {
-        var rawIfMatch = httpContext.Request.Headers.IfMatch;
+        if (string.IsNullOrWhiteSpace(request.Name) ||
+            request.Name.Trim().Length > Account.MaxNameLength)
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["name"] = [string.IsNullOrWhiteSpace(request.Name)
+                    ? "Account name is required."
+                    : $"Account name cannot exceed {Account.MaxNameLength} characters."]
+            });
+        }
+
+        var rawIfMatch = httpContext.Request.Headers["If-Match"];
         if (rawIfMatch.Count == 0)
             return Results.Problem(
                 statusCode: StatusCodes.Status428PreconditionRequired,
@@ -186,7 +197,7 @@ internal static class AccountEndpoints
 
     private static void SetEtag(HttpContext httpContext, byte[] rowVersion)
     {
-        httpContext.Response.Headers.ETag = string.Concat(
+        httpContext.Response.Headers["ETag"] = string.Concat(
             (char)34,
             Convert.ToBase64String(rowVersion),
             (char)34);
