@@ -1,5 +1,6 @@
 using ArtaFin.Application.Abstractions.Persistence;
 using ArtaFin.Application.Abstractions.Security;
+using ArtaFin.Application.Features.Accounts.CreateAccount;
 using ArtaFin.Application.Features.Accounts.UpdateAccount;
 using ArtaFin.Domain.Finance;
 using Xunit;
@@ -171,7 +172,8 @@ public sealed class UpdateAccountCommandHandlerTests
             Guid userId,
             CancellationToken cancellationToken) =>
             Task.FromResult<FinancialBookMember?>(
-                member?.FinancialBookId == financialBookId &&
+                member is not null &&
+                member.FinancialBookId == financialBookId &&
                 member.UserId == userId ? member : null);
 
         public Task<IReadOnlyList<FinancialBookMemberSummary>> GetActiveMembersAsync(
