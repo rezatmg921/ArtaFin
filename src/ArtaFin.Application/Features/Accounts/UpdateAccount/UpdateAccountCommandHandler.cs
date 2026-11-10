@@ -7,7 +7,7 @@ using MediatR;
 namespace ArtaFin.Application.Features.Accounts.UpdateAccount;
 
 /// <summary>
-/// Renames an account after checking book access and the client's expected row version.
+/// Renames an account after checking book access and the client's If-Match condition.
 /// The database concurrency token protects the interval between the read and the commit.
 /// </summary>
 public sealed class UpdateAccountCommandHandler(
@@ -50,17 +50,21 @@ public sealed class UpdateAccountCommandHandler(
             }
         }
 
+        // Keep EF's loaded RowVersion as OriginalValue. It will detect a race
+        // even when the client supplied multiple acceptable entity tags.
         var snapshot = await accountRepository.GetForUpdateAsync(
             book.Id,
             command.AccountId,
-            command.ExpectedRowVersion,
+            expectedRowVersion: null,
             cancellationToken);
 
         if (snapshot is null)
             return null;
 
-        if (command.ExpectedRowVersion is not null &&
-            !snapshot.RowVersion.AsSpan().SequenceEqual(command.ExpectedRowVersion))
+        if (!command.MatchAny &&
+            (command.ExpectedRowVersions is null ||
+             !command.ExpectedRowVersions.Any(expected =>
+                 snapshot.RowVersion.AsSpan().SequenceEqual(expected))))
         {
             throw new AccountPreconditionFailedException();
         }
