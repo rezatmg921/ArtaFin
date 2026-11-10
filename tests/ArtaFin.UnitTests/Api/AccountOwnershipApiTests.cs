@@ -48,6 +48,130 @@ public sealed class AccountOwnershipApiTests
     }
 
     [Fact]
+    public async Task UpdateAccount_WithoutIfMatch_ReturnsPreconditionRequired()
+    {
+        var ownerId = Guid.NewGuid();
+        var book = CreateBook(ownerId);
+        var account = Account.Create(
+            Guid.NewGuid(), book.Id, "1000", "Cash", AccountType.Asset, DateTimeOffset.UtcNow);
+        using var factory = new OwnershipApiFactory(book);
+        factory.Accounts.AccountToReturn = account;
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateAccessToken(factory, ownerId));
+
+        using var response = await client.PutAsJsonAsync(
+            $"/api/financial-books/{book.Id}/accounts/{account.Id}",
+            new { name = "Operating Cash" });
+
+        Assert.Equal((HttpStatusCode)428, response.StatusCode);
+        Assert.Equal(0, factory.UnitOfWork.SaveChangesCalls);
+    }
+
+    [Fact]
+    public async Task UpdateAccount_WithMalformedIfMatch_ReturnsBadRequest()
+    {
+        var ownerId = Guid.NewGuid();
+        var book = CreateBook(ownerId);
+        var account = Account.Create(
+            Guid.NewGuid(), book.Id, "1000", "Cash", AccountType.Asset, DateTimeOffset.UtcNow);
+        using var factory = new OwnershipApiFactory(book);
+        factory.Accounts.AccountToReturn = account;
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateAccessToken(factory, ownerId));
+        using var request = new HttpRequestMessage(
+            HttpMethod.Put,
+            $"/api/financial-books/{book.Id}/accounts/{account.Id}")
+        {
+            Content = JsonContent.Create(new { name = "Operating Cash" })
+        };
+        request.Headers.TryAddWithoutValidation("If-Match", "not-an-entity-tag");
+
+        using var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(0, factory.UnitOfWork.SaveChangesCalls);
+    }
+
+    [Fact]
+    public async Task UpdateAccount_WithStaleEtag_ReturnsPreconditionFailed()
+    {
+        var ownerId = Guid.NewGuid();
+        var book = CreateBook(ownerId);
+        var account = Account.Create(
+            Guid.NewGuid(), book.Id, "1000", "Cash", AccountType.Asset, DateTimeOffset.UtcNow);
+        using var factory = new OwnershipApiFactory(book);
+        factory.Accounts.AccountToReturn = account;
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateAccessToken(factory, ownerId));
+        client.DefaultRequestHeaders.IfMatch.Add(
+            new EntityTagHeaderValue(string.Concat((char)34, Convert.ToBase64String([8, 7, 6, 5, 4, 3, 2, 1]), (char)34)));
+
+        using var response = await client.PutAsJsonAsync(
+            $"/api/financial-books/{book.Id}/accounts/{account.Id}",
+            new { name = "Operating Cash" });
+
+        Assert.Equal(HttpStatusCode.PreconditionFailed, response.StatusCode);
+        Assert.Equal(0, factory.UnitOfWork.SaveChangesCalls);
+        Assert.Equal("Cash", account.Name);
+    }
+
+    [Fact]
+    public async Task UpdateAccount_WithCurrentEtag_ReturnsUpdatedAccountAndNewEtag()
+    {
+        var ownerId = Guid.NewGuid();
+        var book = CreateBook(ownerId);
+        var account = Account.Create(
+            Guid.NewGuid(), book.Id, "1000", "Cash", AccountType.Asset, DateTimeOffset.UtcNow);
+        var updatedVersion = new byte[] { 9, 8, 7, 6, 5, 4, 3, 2 };
+        using var factory = new OwnershipApiFactory(book);
+        factory.Accounts.AccountToReturn = account;
+        factory.Accounts.UpdatedRowVersion = updatedVersion;
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateAccessToken(factory, ownerId));
+        client.DefaultRequestHeaders.IfMatch.Add(
+            new EntityTagHeaderValue(string.Concat((char)34, Convert.ToBase64String(factory.Accounts.RowVersion), (char)34)));
+
+        using var response = await client.PutAsJsonAsync(
+            $"/api/financial-books/{book.Id}/accounts/{account.Id}",
+            new { name = "Operating Cash" });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("Operating Cash", account.Name);
+        Assert.NotNull(response.Headers.ETag);
+        Assert.Equal(
+            string.Concat((char)34, Convert.ToBase64String(updatedVersion), (char)34),
+            response.Headers.ETag!.Tag);
+        Assert.Equal(1, factory.UnitOfWork.SaveChangesCalls);
+    }
+
+    [Fact]
+    public async Task UpdateAccount_WithWildcardIfMatch_AllowsUpdate()
+    {
+        var ownerId = Guid.NewGuid();
+        var book = CreateBook(ownerId);
+        var account = Account.Create(
+            Guid.NewGuid(), book.Id, "1000", "Cash", AccountType.Asset, DateTimeOffset.UtcNow);
+        using var factory = new OwnershipApiFactory(book);
+        factory.Accounts.AccountToReturn = account;
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateAccessToken(factory, ownerId));
+        client.DefaultRequestHeaders.TryAddWithoutValidation("If-Match", "*");
+
+        using var response = await client.PutAsJsonAsync(
+            $"/api/financial-books/{book.Id}/accounts/{account.Id}",
+            new { name = "Operating Cash" });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("Operating Cash", account.Name);
+        Assert.Equal(1, factory.UnitOfWork.SaveChangesCalls);
+    }
+
+    [Fact]
     public async Task CreateAccount_WithoutAccessToken_ReturnsUnauthorized()
     {
         var ownerId = Guid.NewGuid();
@@ -206,6 +330,7 @@ public sealed class AccountOwnershipApiTests
         public Account? AddedAccount { get; private set; }
         public Account? AccountToReturn { get; set; }
         public byte[] RowVersion { get; set; } = [1, 2, 3, 4, 5, 6, 7, 8];
+        public byte[]? UpdatedRowVersion { get; set; }
 
         public Task<Account?> GetByIdAsync(
             Guid financialBookId,
@@ -221,7 +346,7 @@ public sealed class AccountOwnershipApiTests
             var snapshot = AccountToReturn is not null &&
                            AccountToReturn.FinancialBookId == financialBookId &&
                            AccountToReturn.Id == accountId
-                ? new AccountReadSnapshot(AccountToReturn, RowVersion)
+                ? new AccountReadSnapshot(AccountToReturn, UpdatedRowVersion ?? RowVersion)
                 : null;
             return Task.FromResult(snapshot);
         }
@@ -230,8 +355,15 @@ public sealed class AccountOwnershipApiTests
             Guid financialBookId,
             Guid accountId,
             byte[]? expectedRowVersion,
-            CancellationToken cancellationToken) =>
-            Task.FromResult<AccountReadSnapshot?>(null);
+            CancellationToken cancellationToken)
+        {
+            var snapshot = AccountToReturn is not null &&
+                           AccountToReturn.FinancialBookId == financialBookId &&
+                           AccountToReturn.Id == accountId
+                ? new AccountReadSnapshot(AccountToReturn, RowVersion)
+                : null;
+            return Task.FromResult(snapshot);
+        }
 
         public Task<bool> ExistsByCodeAsync(
             Guid financialBookId,
