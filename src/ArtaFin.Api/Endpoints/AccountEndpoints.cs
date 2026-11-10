@@ -3,6 +3,7 @@ using ArtaFin.Application.Features.Accounts.GetAccount;
 using ArtaFin.Application.Features.Accounts.UpdateAccount;
 using ArtaFin.Domain.Finance;
 using MediatR;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Net.Http.Headers;
 
 namespace ArtaFin.Api.Endpoints;
@@ -114,6 +115,7 @@ internal static class AccountEndpoints
         Guid financialBookId,
         Guid accountId,
         UpdateAccountRequest request,
+        [FromHeader(Name = "If-Match")] string? ifMatch,
         ISender sender,
         HttpContext httpContext,
         CancellationToken cancellationToken)
@@ -129,15 +131,14 @@ internal static class AccountEndpoints
             });
         }
 
-        var rawIfMatch = httpContext.Request.Headers["If-Match"];
-        if (rawIfMatch.Count == 0)
+        if (string.IsNullOrWhiteSpace(ifMatch))
             return Results.Problem(
                 statusCode: StatusCodes.Status428PreconditionRequired,
                 title: "If-Match header required",
                 detail: "Supply the account ETag returned by GET, or use If-Match: *.");
 
         if (!EntityTagHeaderValue.TryParseList(
-                rawIfMatch.Select(value => value ?? string.Empty).ToArray(),
+                [ifMatch],
                 out var entityTags) ||
             entityTags is null ||
             entityTags.Count == 0)
