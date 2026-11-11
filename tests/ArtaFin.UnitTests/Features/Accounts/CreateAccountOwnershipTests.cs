@@ -258,6 +258,9 @@ public sealed class CreateAccountOwnershipTests
             CancellationToken cancellationToken) =>
             Task.FromResult<AccountReadSnapshot?>(null);
 
+        public Task<bool> DeleteIfUnusedAsync(Account account, CancellationToken cancellationToken) =>
+            Task.FromResult(false);
+
         public Task AddAsync(Account account, CancellationToken cancellationToken)
         {
             AddedAccount = account;
