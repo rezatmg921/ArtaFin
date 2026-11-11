@@ -144,6 +144,7 @@ app.MapGet("/health", () => Results.Ok(new
 app.MapAuthenticationEndpoints();
 app.MapFinancialBookEndpoints();
 app.MapAccountEndpoints();
+app.MapAccountListEndpoints();
 app.MapFinancialBookMemberEndpoints();
 app.MapJournalEntryEndpoints();
 
