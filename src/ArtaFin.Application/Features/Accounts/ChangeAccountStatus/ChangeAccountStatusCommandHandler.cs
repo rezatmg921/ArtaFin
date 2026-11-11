@@ -1,6 +1,7 @@
 using ArtaFin.Application.Abstractions.Persistence;
 using ArtaFin.Application.Abstractions.Security;
 using ArtaFin.Application.Features.Accounts.CreateAccount;
+using ArtaFin.Application.Features.Accounts.UpdateAccount;
 using ArtaFin.Domain.Finance;
 using MediatR;
 
