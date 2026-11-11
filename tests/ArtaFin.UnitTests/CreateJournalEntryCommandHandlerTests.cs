@@ -175,6 +175,9 @@ public sealed class CreateJournalEntryCommandHandlerTests
             Task.FromResult<AccountReadSnapshot?>(null);
         public Task<bool> ExistsByCodeAsync(Guid financialBookId, string normalizedCode, CancellationToken cancellationToken) =>
             Task.FromResult(false);
+        public Task<bool> DeleteIfUnusedAsync(Account account, CancellationToken cancellationToken) =>
+            Task.FromResult(false);
+
         public Task AddAsync(Account account, CancellationToken cancellationToken) => throw new NotImplementedException();
     }
 
