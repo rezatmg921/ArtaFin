@@ -121,8 +121,8 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
 
     private bool IsAccountDeleteForeignKeyViolation(DbUpdateException exception)
     {
-        var isDeletingAccount = ChangeTracker.Entries<Account>()
-            .Any(entry => entry.State == EntityState.Deleted);
+        var isDeletingAccount = exception.Entries
+            .Any(entry => entry.Entity is Account && entry.State == EntityState.Deleted);
 
         return isDeletingAccount && IsJournalLineAccountForeignKeyViolation(exception);
     }
