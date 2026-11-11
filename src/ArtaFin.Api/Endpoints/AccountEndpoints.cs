@@ -1,4 +1,5 @@
 using ArtaFin.Application.Features.Accounts.CreateAccount;
+using ArtaFin.Application.Features.Accounts.ChangeAccountStatus;
 using ArtaFin.Application.Features.Accounts.DeleteAccount;
 using ArtaFin.Application.Features.Accounts.GetAccount;
 using ArtaFin.Application.Features.Accounts.UpdateAccount;
@@ -47,6 +48,32 @@ internal static class AccountEndpoints
             .Produces(StatusCodes.Status404NotFound)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status412PreconditionFailed)
+            .ProducesProblem(StatusCodes.Status428PreconditionRequired);
+
+        endpoints.MapPost(
+                "/api/financial-books/{financialBookId:guid}/accounts/{accountId:guid}/deactivate",
+                DeactivateAsync)
+            .WithName("DeactivateAccount")
+            .WithTags("Accounts")
+            .RequireAuthorization()
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status412PreconditionFailed)
+            .ProducesProblem(StatusCodes.Status428PreconditionRequired);
+
+        endpoints.MapPost(
+                "/api/financial-books/{financialBookId:guid}/accounts/{accountId:guid}/reactivate",
+                ReactivateAsync)
+            .WithName("ReactivateAccount")
+            .WithTags("Accounts")
+            .RequireAuthorization()
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status412PreconditionFailed)
             .ProducesProblem(StatusCodes.Status428PreconditionRequired);
 
@@ -277,6 +304,99 @@ internal static class AccountEndpoints
             cancellationToken);
 
         return deleted ? Results.NoContent() : Results.NotFound();
+    }
+
+    private static Task<IResult> DeactivateAsync(
+        Guid financialBookId,
+        Guid accountId,
+        [FromHeader(Name = "If-Match")] string? ifMatch,
+        ISender sender,
+        HttpContext httpContext,
+        CancellationToken cancellationToken) =>
+        ChangeStatusAsync(financialBookId, accountId, ifMatch, reactivate: false,
+            sender, httpContext, cancellationToken);
+
+    private static Task<IResult> ReactivateAsync(
+        Guid financialBookId,
+        Guid accountId,
+        [FromHeader(Name = "If-Match")] string? ifMatch,
+        ISender sender,
+        HttpContext httpContext,
+        CancellationToken cancellationToken) =>
+        ChangeStatusAsync(financialBookId, accountId, ifMatch, reactivate: true,
+            sender, httpContext, cancellationToken);
+
+    private static async Task<IResult> ChangeStatusAsync(
+        Guid financialBookId,
+        Guid accountId,
+        string? ifMatch,
+        bool reactivate,
+        ISender sender,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(ifMatch))
+            return Results.Problem(
+                statusCode: StatusCodes.Status428PreconditionRequired,
+                title: "If-Match header required",
+                detail: "Supply the account ETag returned by GET, or use If-Match: *.");
+
+        if (!EntityTagHeaderValue.TryParseList([ifMatch], out var entityTags) ||
+            entityTags is null || entityTags.Count == 0)
+        {
+            return Results.BadRequest(new
+            {
+                title = "Malformed If-Match header",
+                detail = "The If-Match header must contain valid entity tags."
+            });
+        }
+
+        var matchAny = entityTags.Any(tag => tag.Tag.Value == "*");
+        if (matchAny && entityTags.Count != 1)
+        {
+            return Results.BadRequest(new
+            {
+                title = "Malformed If-Match header",
+                detail = "The wildcard entity tag cannot be combined with other tags."
+            });
+        }
+
+        var expectedVersions = new List<byte[]>();
+        foreach (var tag in entityTags.Where(tag => !tag.IsWeak && tag.Tag.Value != "*"))
+        {
+            var tagValue = tag.Tag.Value ?? string.Empty;
+            var encoded = tagValue.Length >= 2 &&
+                          tagValue[0] == '"' &&
+                          tagValue[^1] == '"'
+                ? tagValue[1..^1]
+                : tagValue;
+
+            if (!Convert.TryFromBase64String(encoded, new byte[encoded.Length], out _))
+            {
+                return Results.BadRequest(new
+                {
+                    title = "Malformed If-Match header",
+                    detail = "Strong account ETags must contain a valid Base64 row version."
+                });
+            }
+
+            expectedVersions.Add(Convert.FromBase64String(encoded));
+        }
+
+        var snapshot = await sender.Send(
+            new ChangeAccountStatusCommand(
+                financialBookId,
+                accountId,
+                expectedVersions,
+                matchAny,
+                reactivate),
+            cancellationToken);
+
+        if (snapshot is null)
+            return Results.NotFound();
+
+        SetEtag(httpContext, snapshot.RowVersion);
+        return Results.NoContent();
     }
 
     private static void SetEtag(HttpContext httpContext, byte[] rowVersion)
