@@ -227,6 +227,78 @@ public sealed class AccountRepositoryTests : IAsyncLifetime
         Assert.Equal("Cash - Updated By A", persistedAccount.Name);
     }
 
+    [Fact]
+    public async Task DeactivateAndReactivate_PersistStatusAndAdvanceRowVersion()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var bookId = Guid.NewGuid();
+        var accountId = Guid.NewGuid();
+
+        await using (var setup = new ArtaFinDbContext(_options))
+        {
+            setup.FinancialBooks.Add(FinancialBook.Create(
+                bookId, Guid.NewGuid(), "Account status test", "USD", now));
+            setup.Accounts.Add(Account.Create(
+                accountId, bookId, "1000", "Cash", AccountType.Asset, now));
+            await setup.SaveChangesAsync();
+        }
+
+        byte[] initialRowVersion;
+        await using (var deactivateContext = new ArtaFinDbContext(_options))
+        {
+            var account = await deactivateContext.Accounts
+                .SingleAsync(x => x.Id == accountId);
+            initialRowVersion = await deactivateContext.Accounts
+                .Where(x => x.Id == accountId)
+                .Select(x => EF.Property<byte[]>(x, "RowVersion"))
+                .SingleAsync();
+
+            account.Deactivate(now.AddMinutes(1));
+            await deactivateContext.SaveChangesAsync();
+        }
+
+        byte[] inactiveRowVersion;
+        await using (var verifyInactive = new ArtaFinDbContext(_options))
+        {
+            var inactiveAccount = await verifyInactive.Accounts
+                .AsNoTracking()
+                .SingleAsync(x => x.Id == accountId);
+            inactiveRowVersion = await verifyInactive.Accounts
+                .Where(x => x.Id == accountId)
+                .Select(x => EF.Property<byte[]>(x, "RowVersion"))
+                .SingleAsync();
+
+            Assert.Equal(AccountStatus.Inactive, inactiveAccount.Status);
+            Assert.Equal(now.AddMinutes(1), inactiveAccount.DeactivatedAt);
+        }
+
+        Assert.NotEqual(initialRowVersion, inactiveRowVersion);
+
+        await using (var reactivateContext = new ArtaFinDbContext(_options))
+        {
+            var account = await reactivateContext.Accounts
+                .SingleAsync(x => x.Id == accountId);
+
+            account.Reactivate(now.AddMinutes(2));
+            await reactivateContext.SaveChangesAsync();
+        }
+
+        await using (var verifyActive = new ArtaFinDbContext(_options))
+        {
+            var activeAccount = await verifyActive.Accounts
+                .AsNoTracking()
+                .SingleAsync(x => x.Id == accountId);
+            var activeRowVersion = await verifyActive.Accounts
+                .Where(x => x.Id == accountId)
+                .Select(x => EF.Property<byte[]>(x, "RowVersion"))
+                .SingleAsync();
+
+            Assert.Equal(AccountStatus.Active, activeAccount.Status);
+            Assert.Null(activeAccount.DeactivatedAt);
+            Assert.NotEqual(inactiveRowVersion, activeRowVersion);
+        }
+    }
+
     public async Task DisposeAsync()
     {
         await using var context = new ArtaFinDbContext(_options);
