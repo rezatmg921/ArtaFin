@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 namespace ArtaFin.Infrastructure.Persistence.Repositories;
 
 internal sealed class AccountRepository(ArtaFinDbContext dbContext)
-    : IAccountRepository
+    : IAccountRepository, IAccountReadRepository
 {
     public Task<Account?> GetByIdAsync(
         Guid financialBookId,
@@ -90,5 +90,38 @@ internal sealed class AccountRepository(ArtaFinDbContext dbContext)
     {
         ArgumentNullException.ThrowIfNull(account);
         await dbContext.Accounts.AddAsync(account, cancellationToken);
+    }
+
+    public async Task<AccountPage> GetPageAsync(
+        Guid financialBookId,
+        AccountStatus? status,
+        string? searchTerm,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken)
+    {
+        var query = dbContext.Accounts
+            .AsNoTracking()
+            .Where(account => account.FinancialBookId == financialBookId);
+
+        if (status is not null)
+            query = query.Where(account => account.Status == status);
+
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            query = query.Where(account =>
+                account.Code.Contains(searchTerm) ||
+                account.Name.Contains(searchTerm));
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var items = await query
+            .OrderBy(account => account.Code)
+            .ThenBy(account => account.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return new AccountPage(items, totalCount);
     }
 }
