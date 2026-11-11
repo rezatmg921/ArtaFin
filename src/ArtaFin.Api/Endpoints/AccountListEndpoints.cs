@@ -63,7 +63,7 @@ internal static class AccountListEndpoints
             });
         }
 
-        if (search?.Trim().Length > 200)
+        if (search is not null && search.Trim().Length > 200)
         {
             return Results.ValidationProblem(new Dictionary<string, string[]>
             {
