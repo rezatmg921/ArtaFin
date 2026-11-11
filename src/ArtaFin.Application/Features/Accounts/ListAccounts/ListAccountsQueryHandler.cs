@@ -29,7 +29,9 @@ public sealed class ListAccountsQueryHandler(
             throw new ArgumentOutOfRangeException(nameof(query), "Page must be greater than zero.");
         if (query.PageSize is < 1 or > 100)
             throw new ArgumentOutOfRangeException(nameof(query), "Page size must be between 1 and 100.");
-        if (query.SearchTerm?.Trim().Length > 200)
+        if (query.Page > int.MaxValue / query.PageSize)
+            throw new ArgumentOutOfRangeException(nameof(query), "Requested page is too large.");
+        if (query.SearchTerm is not null && query.SearchTerm.Trim().Length > 200)
             throw new ArgumentException("Search term cannot exceed 200 characters.", nameof(query));
 
         var book = await financialBookRepository.GetByIdAsync(
