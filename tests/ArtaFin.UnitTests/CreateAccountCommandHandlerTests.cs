@@ -150,6 +150,9 @@ public sealed class CreateAccountCommandHandlerTests
             CancellationToken cancellationToken) =>
             Task.FromResult(CodeExists);
 
+        public Task<bool> DeleteIfUnusedAsync(Account account, CancellationToken cancellationToken) =>
+            Task.FromResult(false);
+
         public Task AddAsync(Account account, CancellationToken cancellationToken)
         {
             AddedAccount = account;
