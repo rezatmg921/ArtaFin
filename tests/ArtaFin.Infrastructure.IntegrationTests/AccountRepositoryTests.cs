@@ -299,6 +299,57 @@ public sealed class AccountRepositoryTests : IAsyncLifetime
         }
     }
 
+
+    [Fact]
+    public async Task ListAccounts_FiltersByStatusAndSearch_AndAppliesStablePaging()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var bookId = Guid.NewGuid();
+
+        await using (var setup = new ArtaFinDbContext(_options))
+        {
+            setup.FinancialBooks.Add(FinancialBook.Create(
+                bookId, Guid.NewGuid(), "Account listing test", "USD", now));
+            var cash = Account.Create(
+                Guid.NewGuid(), bookId, "1000", "Cash", AccountType.Asset, now);
+            var bank = Account.Create(
+                Guid.NewGuid(), bookId, "1100", "Bank", AccountType.Asset, now);
+            var revenue = Account.Create(
+                Guid.NewGuid(), bookId, "4000", "Sales Revenue", AccountType.Income, now);
+            revenue.Deactivate(now.AddMinutes(1));
+            setup.Accounts.AddRange(cash, bank, revenue);
+            await setup.SaveChangesAsync();
+        }
+
+        var servicesConfiguration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:ArtaFin"] = _connectionString
+            })
+            .Build();
+        var services = new ServiceCollection();
+        services.AddInfrastructure(servicesConfiguration);
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var repository = scope.ServiceProvider.GetRequiredService<IAccountReadRepository>();
+
+        var firstPage = await repository.GetPageAsync(
+            bookId, AccountStatus.Active, null, 1, 1, CancellationToken.None);
+        var secondPage = await repository.GetPageAsync(
+            bookId, AccountStatus.Active, null, 2, 1, CancellationToken.None);
+        var inactiveSearch = await repository.GetPageAsync(
+            bookId, AccountStatus.Inactive, "revenue", 1, 10, CancellationToken.None);
+
+        Assert.Equal(2, firstPage.TotalCount);
+        Assert.Single(firstPage.Items);
+        Assert.Equal("1000", firstPage.Items[0].Code);
+        Assert.Single(secondPage.Items);
+        Assert.Equal("1100", secondPage.Items[0].Code);
+        Assert.Equal(1, inactiveSearch.TotalCount);
+        Assert.Equal("4000", Assert.Single(inactiveSearch.Items).Code);
+    }
+
     public async Task DisposeAsync()
     {
         await using var context = new ArtaFinDbContext(_options);
