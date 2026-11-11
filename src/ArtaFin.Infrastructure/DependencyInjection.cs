@@ -30,8 +30,11 @@ public static class DependencyInjection
 
         services.AddScoped<IUnitOfWork>(provider =>
             provider.GetRequiredService<ArtaFinDbContext>());
-        services.AddScoped<IAccountRepository, AccountRepository>();
-        services.AddScoped<IAccountReadRepository, AccountRepository>();
+        services.AddScoped<AccountRepository>();
+        services.AddScoped<IAccountRepository>(provider =>
+            provider.GetRequiredService<AccountRepository>());
+        services.AddScoped<IAccountReadRepository>(provider =>
+            provider.GetRequiredService<AccountRepository>());
         services.AddScoped<IJournalEntryRepository, JournalEntryRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IUserSessionRepository, UserSessionRepository>();
