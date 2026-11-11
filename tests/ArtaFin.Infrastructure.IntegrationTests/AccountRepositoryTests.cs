@@ -339,7 +339,7 @@ public sealed class AccountRepositoryTests : IAsyncLifetime
         var secondPage = await repository.GetPageAsync(
             bookId, AccountStatus.Active, null, 2, 1, CancellationToken.None);
         var inactiveSearch = await repository.GetPageAsync(
-            bookId, AccountStatus.Inactive, "revenue", 1, 10, CancellationToken.None);
+            bookId, AccountStatus.Inactive, "Revenue", 1, 10, CancellationToken.None);
 
         Assert.Equal(2, firstPage.TotalCount);
         Assert.Single(firstPage.Items);
