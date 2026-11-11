@@ -63,7 +63,7 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
         {
             throw new AccountCodeAlreadyExistsException();
         }
-        catch (DbUpdateException exception) when (IsJournalLineAccountForeignKeyViolation(exception))
+        catch (DbUpdateException exception) when (IsAccountDeleteForeignKeyViolation(exception))
         {
             throw new AccountHasJournalEntriesException();
         }
@@ -91,7 +91,7 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
         {
             throw new AccountCodeAlreadyExistsException();
         }
-        catch (DbUpdateException exception) when (IsJournalLineAccountForeignKeyViolation(exception))
+        catch (DbUpdateException exception) when (IsAccountDeleteForeignKeyViolation(exception))
         {
             throw new AccountHasJournalEntriesException();
         }
@@ -117,6 +117,14 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
             throw new InvalidOperationException(
                 "Posted journal entries and their lines cannot be modified or deleted.");
         }
+    }
+
+    private bool IsAccountDeleteForeignKeyViolation(DbUpdateException exception)
+    {
+        var isDeletingAccount = ChangeTracker.Entries<Account>()
+            .Any(entry => entry.State == EntityState.Deleted);
+
+        return isDeletingAccount && IsJournalLineAccountForeignKeyViolation(exception);
     }
 
     private static bool IsJournalLineAccountForeignKeyViolation(DbUpdateException exception)
