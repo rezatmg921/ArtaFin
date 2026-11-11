@@ -1,3 +1,4 @@
+using ArtaFin.Application.Abstractions.Persistence;
 using ArtaFin.Domain.Finance;
 using MediatR;
 
