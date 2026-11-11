@@ -25,12 +25,12 @@ internal static class AccountListEndpoints
 
     private static async Task<IResult> ListAsync(
         Guid financialBookId,
-        int page,
-        int pageSize,
-        string? search,
-        string? status,
         ISender sender,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        int page = 1,
+        int pageSize = 50,
+        string? search = null,
+        string? status = null)
     {
         AccountStatus? accountStatus = null;
         if (!string.IsNullOrWhiteSpace(status))
