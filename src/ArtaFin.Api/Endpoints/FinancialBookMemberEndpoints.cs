@@ -1,5 +1,6 @@
 using ArtaFin.Application.Features.FinancialBooks.InviteMember;
 using ArtaFin.Application.Features.FinancialBooks.ListMembers;
+using ArtaFin.Application.Features.FinancialBooks.ManageMember;
 using ArtaFin.Domain.Finance;
 
 namespace ArtaFin.Api.Endpoints;
@@ -27,6 +28,29 @@ internal static class FinancialBookMemberEndpoints
             .RequireAuthorization()
             .Produces(StatusCodes.Status201Created)
             .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
+        endpoints.MapPut(
+                "/api/financial-books/{financialBookId:guid}/members/{membershipId:guid}/role",
+                ChangeRoleAsync)
+            .WithName("ChangeFinancialBookMemberRole")
+            .WithTags("FinancialBookMembers")
+            .RequireAuthorization()
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
+        endpoints.MapDelete(
+                "/api/financial-books/{financialBookId:guid}/members/{membershipId:guid}",
+                RevokeAsync)
+            .WithName("RevokeFinancialBookMember")
+            .WithTags("FinancialBookMembers")
+            .RequireAuthorization()
+            .Produces(StatusCodes.Status204NoContent)
             .Produces(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
@@ -84,6 +108,42 @@ internal static class FinancialBookMemberEndpoints
             $"/api/financial-books/{financialBookId}/members/{memberId}",
             new InviteFinancialBookMemberResponse(memberId));
     }
+
+    private static async Task<IResult> ChangeRoleAsync(
+        Guid financialBookId,
+        Guid membershipId,
+        ChangeFinancialBookMemberRoleRequest request,
+        ChangeFinancialBookMemberRoleCommandHandler handler,
+        CancellationToken cancellationToken)
+    {
+        if (!Enum.TryParse<FinancialBookRole>(request.Role, true, out var role) ||
+            !Enum.IsDefined(role))
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["role"] = ["Role must be Accountant, Auditor, or Viewer."]
+            });
+        }
+
+        await handler.HandleAsync(
+            new ChangeFinancialBookMemberRoleCommand(financialBookId, membershipId, role),
+            cancellationToken);
+
+        return Results.NoContent();
+    }
+
+    private static async Task<IResult> RevokeAsync(
+        Guid financialBookId,
+        Guid membershipId,
+        RevokeFinancialBookMemberCommandHandler handler,
+        CancellationToken cancellationToken)
+    {
+        await handler.HandleAsync(
+            new RevokeFinancialBookMemberCommand(financialBookId, membershipId),
+            cancellationToken);
+
+        return Results.NoContent();
+    }
 }
 
 internal sealed record FinancialBookMemberResponse(
@@ -95,3 +155,4 @@ internal sealed record FinancialBookMemberResponse(
 
 internal sealed record InviteFinancialBookMemberRequest(string? Email, string? Role);
 internal sealed record InviteFinancialBookMemberResponse(Guid Id);
+internal sealed record ChangeFinancialBookMemberRoleRequest(string? Role);
