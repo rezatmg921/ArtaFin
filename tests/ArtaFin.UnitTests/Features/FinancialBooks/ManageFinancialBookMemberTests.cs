@@ -72,7 +72,7 @@ public sealed class ManageFinancialBookMemberTests
     public async Task Revoke_WhenOwnerRevokesActiveMember_SetsTimestampAndSaves()
     {
         var ownerId = Guid.NewGuid();
-        var now = DateTimeOffset.Parse("2026-11-14T12:00:00Z");
+        var now = DateTimeOffset.UtcNow.AddMinutes(1);
         var book = CreateBook(ownerId);
         var member = CreateMember(book.Id);
         var repository = new FakeFinancialBookRepository(book, member);
