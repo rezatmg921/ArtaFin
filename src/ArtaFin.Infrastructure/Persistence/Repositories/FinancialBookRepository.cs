@@ -31,6 +31,19 @@ internal sealed class FinancialBookRepository(ArtaFinDbContext dbContext)
                 cancellationToken);
     }
 
+    public Task<FinancialBookMember?> GetMemberByIdAsync(
+        Guid financialBookId,
+        Guid membershipId,
+        CancellationToken cancellationToken)
+    {
+        // This entity must be tracked because the application layer changes its domain state.
+        return dbContext.FinancialBookMembers
+            .SingleOrDefaultAsync(
+                member => member.FinancialBookId == financialBookId &&
+                          member.Id == membershipId,
+                cancellationToken);
+    }
+
     public async Task<IReadOnlyList<FinancialBookMemberSummary>> GetActiveMembersAsync(
         Guid financialBookId,
         CancellationToken cancellationToken)
