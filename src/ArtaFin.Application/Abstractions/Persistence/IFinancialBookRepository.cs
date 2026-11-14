@@ -16,6 +16,11 @@ public interface IFinancialBookRepository
         Guid userId,
         CancellationToken cancellationToken);
 
+    Task<FinancialBookMember?> GetMemberByIdAsync(
+        Guid financialBookId,
+        Guid membershipId,
+        CancellationToken cancellationToken);
+
     Task<IReadOnlyList<FinancialBookMemberSummary>> GetActiveMembersAsync(
         Guid financialBookId,
         CancellationToken cancellationToken);
