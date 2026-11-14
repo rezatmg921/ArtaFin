@@ -231,6 +231,106 @@ public sealed class FinancialBookMemberPersistenceTests : IAsyncLifetime
             members.Select(x => x.Role).ToArray());
     }
 
+
+    [Fact]
+    public async Task Repository_ChangeRole_PersistsUpdatedRole()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var bookId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var memberId = Guid.NewGuid();
+
+        await using (var setup = new ArtaFinDbContext(_options))
+        {
+            setup.FinancialBooks.Add(FinancialBook.Create(
+                bookId, Guid.NewGuid(), "Change member role", "USD", now));
+            setup.Users.Add(AppUser.Register(userId, "role-change@example.com", now));
+            setup.FinancialBookMembers.Add(FinancialBookMember.Grant(
+                memberId, bookId, userId, FinancialBookRole.Accountant, now));
+            await setup.SaveChangesAsync();
+        }
+
+        var servicesConfiguration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:ArtaFin"] = _connectionString
+            })
+            .Build();
+        var services = new ServiceCollection();
+        services.AddInfrastructure(servicesConfiguration);
+
+        await using (var provider = services.BuildServiceProvider())
+        await using (var scope = provider.CreateAsyncScope())
+        {
+            var repository = scope.ServiceProvider.GetRequiredService<IFinancialBookRepository>();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var member = await repository.GetMemberByIdAsync(
+                bookId, memberId, CancellationToken.None);
+
+            Assert.NotNull(member);
+            member.ChangeRole(FinancialBookRole.Auditor);
+            await unitOfWork.SaveChangesAsync(CancellationToken.None);
+        }
+
+        await using var verify = new ArtaFinDbContext(_options);
+        var actual = await verify.FinancialBookMembers
+            .AsNoTracking()
+            .SingleAsync(x => x.Id == memberId);
+
+        Assert.Equal(FinancialBookRole.Auditor, actual.Role);
+    }
+
+    [Fact]
+    public async Task Repository_Revoke_PersistsTimestampAndRetainsMembership()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var revokedAt = now.AddHours(2);
+        var bookId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var memberId = Guid.NewGuid();
+
+        await using (var setup = new ArtaFinDbContext(_options))
+        {
+            setup.FinancialBooks.Add(FinancialBook.Create(
+                bookId, Guid.NewGuid(), "Revoke member", "USD", now));
+            setup.Users.Add(AppUser.Register(userId, "revoke-member@example.com", now));
+            setup.FinancialBookMembers.Add(FinancialBookMember.Grant(
+                memberId, bookId, userId, FinancialBookRole.Viewer, now));
+            await setup.SaveChangesAsync();
+        }
+
+        var servicesConfiguration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:ArtaFin"] = _connectionString
+            })
+            .Build();
+        var services = new ServiceCollection();
+        services.AddInfrastructure(servicesConfiguration);
+
+        await using (var provider = services.BuildServiceProvider())
+        await using (var scope = provider.CreateAsyncScope())
+        {
+            var repository = scope.ServiceProvider.GetRequiredService<IFinancialBookRepository>();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var member = await repository.GetMemberByIdAsync(
+                bookId, memberId, CancellationToken.None);
+
+            Assert.NotNull(member);
+            member.Revoke(revokedAt);
+            await unitOfWork.SaveChangesAsync(CancellationToken.None);
+        }
+
+        await using var verify = new ArtaFinDbContext(_options);
+        var actual = await verify.FinancialBookMembers
+            .AsNoTracking()
+            .SingleOrDefaultAsync(x => x.Id == memberId);
+
+        Assert.NotNull(actual);
+        Assert.Equal(revokedAt, actual.RevokedAt);
+        Assert.Equal(FinancialBookRole.Viewer, actual.Role);
+    }
+
     public async Task DisposeAsync()
     {
         await using var context = new ArtaFinDbContext(_options);
