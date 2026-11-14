@@ -1,5 +1,6 @@
 using ArtaFin.Application.Abstractions.Persistence;
 using ArtaFin.Application.Abstractions.Security;
+using ArtaFin.Application.Features.FinancialBooks.InviteMember;
 
 namespace ArtaFin.Application.Features.FinancialBooks.ManageMember;
 
