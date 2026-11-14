@@ -3,6 +3,7 @@ using ArtaFin.Application.Features.Accounts.CreateAccount;
 using ArtaFin.Application.Features.Accounts.DeleteAccount;
 using ArtaFin.Application.Features.Accounts.UpdateAccount;
 using ArtaFin.Application.Features.FinancialBooks.InviteMember;
+using ArtaFin.Application.Features.FinancialBooks.ManageMember;
 using ArtaFin.Application.Features.JournalEntries.CreateJournalEntry;
 using ArtaFin.Application.Features.JournalEntries.ReverseJournalEntry;
 using ArtaFin.Domain.Common;
@@ -52,6 +53,16 @@ internal sealed class ApiExceptionHandler(
                 (StatusCodes.Status404NotFound,
                     "Financial book not found",
                     "The financial book was not found or is not accessible."),
+
+            FinancialBookMemberNotFoundException =>
+                (StatusCodes.Status404NotFound,
+                    "Financial book member not found",
+                    "The membership was not found in this financial book."),
+
+            FinancialBookMemberNotActiveException =>
+                (StatusCodes.Status409Conflict,
+                    "Membership is not active",
+                    "The membership has already been revoked and cannot be changed again."),
 
             DbUpdateException databaseException
                 when databaseException.ToString().Contains(
