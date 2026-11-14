@@ -1,0 +1,247 @@
+using System.Data.Common;
+using ArtaFin.Application.Features.Accounts.CreateAccount;
+using ArtaFin.Domain.Finance;
+using ArtaFin.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Xunit;
+
+namespace ArtaFin.Infrastructure.IntegrationTests;
+
+public sealed class JournalEntryPersistenceTests : IAsyncLifetime
+{
+    private readonly string _connectionString;
+    private readonly DbContextOptions<ArtaFinDbContext> _options;
+
+    public JournalEntryPersistenceTests()
+    {
+        var configuration = new ConfigurationBuilder()
+            .SetBasePath(AppContext.BaseDirectory)
+            .AddJsonFile("appsettings.Local.json", optional: true)
+            .AddEnvironmentVariables()
+            .Build();
+
+        var configuredConnectionString =
+            configuration.GetConnectionString("ArtaFin")
+            ?? Environment.GetEnvironmentVariable("ARTAFIN_SQLSERVER");
+
+        if (string.IsNullOrWhiteSpace(configuredConnectionString))
+        {
+            throw new InvalidOperationException(
+                "SQL Server connection string was not found. Add ConnectionStrings:ArtaFin " +
+                "to tests/ArtaFin.Infrastructure.IntegrationTests/appsettings.Local.json, " +
+                "or set the ConnectionStrings__ArtaFin environment variable.");
+        }
+
+        var builder = new DbConnectionStringBuilder { ConnectionString = configuredConnectionString };
+        builder["Initial Catalog"] = $"ArtaFin_JournalEntry_{Guid.NewGuid():N}";
+        _connectionString = builder.ConnectionString;
+        _options = new DbContextOptionsBuilder<ArtaFinDbContext>().UseSqlServer(_connectionString).Options;
+    }
+
+    public async Task InitializeAsync()
+    {
+        await using var context = new ArtaFinDbContext(_options);
+        await context.Database.MigrateAsync();
+    }
+
+    [Fact]
+    public async Task Database_MigrationsCreateTheExpectedSchema()
+    {
+        await using var context = new ArtaFinDbContext(_options);
+
+        var appliedMigrations = await context.Database.GetAppliedMigrationsAsync();
+
+        Assert.Contains("20261108051753_InitialCreate", appliedMigrations);
+        Assert.True(await context.Database.CanConnectAsync());
+    }
+
+    [Fact]
+    public async Task SaveAndReload_PreservesJournalEntryLinesAndMoney()
+    {
+        var entryId = Guid.NewGuid();
+        var bookId = Guid.NewGuid();
+        var ownerId = Guid.NewGuid();
+        var cashId = Guid.NewGuid();
+        var incomeId = Guid.NewGuid();
+        var postedAt = new DateTimeOffset(2026, 11, 7, 10, 0, 0, TimeSpan.Zero);
+
+        var book = FinancialBook.Create(bookId, ownerId, "Personal finances", "USD", postedAt);
+        var cash = Account.Create(cashId, bookId, "1000", "Cash", AccountType.Asset, postedAt);
+        var income = Account.Create(incomeId, bookId, "4000", "Income", AccountType.Income, postedAt);
+        var entry = JournalEntry.Post(entryId, bookId, postedAt, "Initial cash receipt",
+        [
+            new JournalLine(cashId, PostingSide.Debit, new Money(1250.7500m, "USD")),
+            new JournalLine(incomeId, PostingSide.Credit, new Money(1250.7500m, "USD"))
+        ]);
+
+        await using (var write = new ArtaFinDbContext(_options))
+        {
+            write.FinancialBooks.Add(book);
+            write.Accounts.AddRange(cash, income);
+            write.JournalEntries.Add(entry);
+            await write.SaveChangesAsync();
+        }
+
+        await using var read = new ArtaFinDbContext(_options);
+        var actualBook = await read.FinancialBooks.AsNoTracking()
+            .SingleAsync(x => x.Id == bookId);
+        var actual = await read.JournalEntries.AsNoTracking().Include(x => x.Lines)
+            .SingleAsync(x => x.Id == entryId);
+
+        Assert.Equal("USD", actualBook.BaseCurrency.Code);
+        Assert.Equal(2, actualBook.BaseCurrency.MinorUnit);
+        Assert.Equal(entryId, actual.Id);
+        Assert.Equal(bookId, actual.FinancialBookId);
+        Assert.Equal(postedAt, actual.PostedAt);
+        Assert.Equal("Initial cash receipt", actual.Description);
+        Assert.Equal(new[] { 1, 2 }, actual.Lines.Select(x => x.LineNumber).ToArray());
+        Assert.Equal(bookId, actual.Lines[0].FinancialBookId);
+        Assert.Equal(cashId, actual.Lines[0].AccountId);
+        Assert.Equal(PostingSide.Debit, actual.Lines[0].Side);
+        Assert.Equal(1250.7500m, actual.Lines[0].Amount.Amount);
+        Assert.Equal("USD", actual.Lines[0].Amount.Currency);
+        Assert.Equal(incomeId, actual.Lines[1].AccountId);
+        Assert.Equal(PostingSide.Credit, actual.Lines[1].Side);
+    }
+
+    [Fact]
+    public async Task PostedJournalEntry_RejectsDescriptionChanges()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var bookId = Guid.NewGuid();
+        var cashId = Guid.NewGuid();
+        var incomeId = Guid.NewGuid();
+        var entryId = Guid.NewGuid();
+
+        await using (var write = new ArtaFinDbContext(_options))
+        {
+            write.FinancialBooks.Add(FinancialBook.Create(
+                bookId, Guid.NewGuid(), "Immutability test", "USD", now));
+            write.Accounts.AddRange(
+                Account.Create(cashId, bookId, "1000", "Cash", AccountType.Asset, now),
+                Account.Create(incomeId, bookId, "4000", "Income", AccountType.Income, now));
+            write.JournalEntries.Add(JournalEntry.Post(
+                entryId, bookId, now, "Original description",
+                [
+                    new JournalLine(cashId, PostingSide.Debit, new Money(25m, "USD")),
+                    new JournalLine(incomeId, PostingSide.Credit, new Money(25m, "USD"))
+                ]));
+            await write.SaveChangesAsync();
+        }
+
+        await using (var update = new ArtaFinDbContext(_options))
+        {
+            var entry = await update.JournalEntries
+                .SingleAsync(x => x.Id == entryId);
+
+            update.Entry(entry)
+                .Property(x => x.Description)
+                .CurrentValue = "Changed description";
+
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                () => update.SaveChangesAsync());
+        }
+
+        await using var verify = new ArtaFinDbContext(_options);
+        var persisted = await verify.JournalEntries
+            .AsNoTracking()
+            .SingleAsync(x => x.Id == entryId);
+
+        Assert.Equal("Original description", persisted.Description);
+    }
+
+    [Fact]
+    public async Task Accounts_RejectDuplicateCodesWithinTheSameFinancialBook()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var bookId = Guid.NewGuid();
+        await using var context = new ArtaFinDbContext(_options);
+        context.FinancialBooks.Add(FinancialBook.Create(bookId, Guid.NewGuid(), "Personal", "USD", now));
+        context.Accounts.AddRange(
+            Account.Create(Guid.NewGuid(), bookId, "1000", "Cash", AccountType.Asset, now),
+            Account.Create(Guid.NewGuid(), bookId, "1000", "Bank cash", AccountType.Asset, now));
+        await Assert.ThrowsAsync<AccountCodeAlreadyExistsException>(() => context.SaveChangesAsync());
+    }
+
+    [Fact]
+    public async Task JournalLine_RejectsAccountFromAnotherFinancialBook()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var entryBookId = Guid.NewGuid();
+        var otherBookId = Guid.NewGuid();
+        var accountId = Guid.NewGuid();
+        var validAccountId = Guid.NewGuid();
+
+        await using var context = new ArtaFinDbContext(_options);
+        context.FinancialBooks.AddRange(
+            FinancialBook.Create(entryBookId, Guid.NewGuid(), "Book A", "USD", now),
+            FinancialBook.Create(otherBookId, Guid.NewGuid(), "Book B", "USD", now));
+        context.Accounts.AddRange(
+            Account.Create(accountId, otherBookId, "1000", "Cash", AccountType.Asset, now),
+            Account.Create(validAccountId, entryBookId, "2000", "Payable", AccountType.Liability, now));
+
+        var entry = JournalEntry.Post(Guid.NewGuid(), entryBookId, now, "Cross-book reference",
+        [
+            new JournalLine(accountId, PostingSide.Debit, new Money(10m, "USD")),
+            new JournalLine(validAccountId, PostingSide.Credit, new Money(10m, "USD"))
+        ]);
+        context.JournalEntries.Add(entry);
+
+        await Assert.ThrowsAsync<DbUpdateException>(() => context.SaveChangesAsync());
+    }
+
+    [Fact]
+    public async Task JournalEntry_RejectsMoreThanOneReversalForOriginal()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var bookId = Guid.NewGuid();
+        var cashId = Guid.NewGuid();
+        var incomeId = Guid.NewGuid();
+        var originalId = Guid.NewGuid();
+
+        await using (var setup = new ArtaFinDbContext(_options))
+        {
+            setup.FinancialBooks.Add(FinancialBook.Create(
+                bookId, Guid.NewGuid(), "Reversal uniqueness test", "USD", now));
+            setup.Accounts.AddRange(
+                Account.Create(cashId, bookId, "1000", "Cash", AccountType.Asset, now),
+                Account.Create(incomeId, bookId, "4000", "Income", AccountType.Income, now));
+            setup.JournalEntries.Add(JournalEntry.Post(
+                originalId, bookId, now, "Original entry",
+                [
+                    new JournalLine(cashId, PostingSide.Debit, new Money(30m, "USD")),
+                    new JournalLine(incomeId, PostingSide.Credit, new Money(30m, "USD"))
+                ]));
+            await setup.SaveChangesAsync();
+        }
+
+        await using (var firstReversalContext = new ArtaFinDbContext(_options))
+        {
+            var original = await firstReversalContext.JournalEntries
+                .Include(entry => entry.Lines)
+                .SingleAsync(entry => entry.Id == originalId);
+            firstReversalContext.JournalEntries.Add(JournalEntry.Reverse(
+                Guid.NewGuid(), original, now.AddMinutes(1), "First reversal"));
+            await firstReversalContext.SaveChangesAsync();
+        }
+
+        await using (var secondReversalContext = new ArtaFinDbContext(_options))
+        {
+            var original = await secondReversalContext.JournalEntries
+                .Include(entry => entry.Lines)
+                .SingleAsync(entry => entry.Id == originalId);
+            secondReversalContext.JournalEntries.Add(JournalEntry.Reverse(
+                Guid.NewGuid(), original, now.AddMinutes(2), "Second reversal"));
+
+            await Assert.ThrowsAsync<DbUpdateException>(
+                () => secondReversalContext.SaveChangesAsync());
+        }
+    }
+
+    public async Task DisposeAsync()
+    {
+        await using var context = new ArtaFinDbContext(_options);
+        await context.Database.EnsureDeletedAsync();
+    }
+}
