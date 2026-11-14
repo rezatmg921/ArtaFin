@@ -3,6 +3,7 @@ using ArtaFin.Application.Features.Authentication;
 using ArtaFin.Application.Features.FinancialBooks.CreateFinancialBook;
 using ArtaFin.Application.Features.FinancialBooks.InviteMember;
 using ArtaFin.Application.Features.FinancialBooks.ListMembers;
+using ArtaFin.Application.Features.FinancialBooks.ManageMember;
 using ArtaFin.Application.Features.JournalEntries.CreateJournalEntry;
 using ArtaFin.Application.Features.JournalEntries.GetJournalEntry;
 using MediatR;
@@ -23,6 +24,8 @@ public static class DependencyInjection
         services.AddScoped<AuthenticationService>();
         services.AddScoped<InviteFinancialBookMemberCommandHandler>();
         services.AddScoped<ListFinancialBookMembersQueryHandler>();
+        services.AddScoped<ChangeFinancialBookMemberRoleCommandHandler>();
+        services.AddScoped<RevokeFinancialBookMemberCommandHandler>();
         return services;
     }
 }
