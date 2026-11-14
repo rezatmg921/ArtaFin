@@ -1,5 +1,6 @@
 using System.Data.Common;
 using ArtaFin.Application.Abstractions.Persistence;
+using ArtaFin.Application.Features.FinancialBooks.InviteMember;
 using ArtaFin.Domain.Finance;
 using ArtaFin.Domain.Security;
 using ArtaFin.Infrastructure;
