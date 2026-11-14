@@ -139,8 +139,10 @@ public sealed class ManageFinancialBookMemberTests
 
         public Task<FinancialBookMember?> GetMemberByIdAsync(
             Guid financialBookId, Guid membershipId, CancellationToken cancellationToken) =>
-            Task.FromResult(
-                member?.FinancialBookId == financialBookId && member.Id == membershipId
+            Task.FromResult<FinancialBookMember?>(
+                member is not null &&
+                member.FinancialBookId == financialBookId &&
+                member.Id == membershipId
                     ? member
                     : null);
 
