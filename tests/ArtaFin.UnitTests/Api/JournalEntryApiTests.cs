@@ -179,6 +179,38 @@ public sealed class JournalEntryApiTests
     }
 
     [Fact]
+    public async Task CreateJournalEntry_WhenLineCurrencyDiffersFromBookBaseCurrency_ReturnsBadRequest()
+    {
+        var ownerId = Guid.NewGuid();
+        var book = CreateBook(ownerId);
+        using var factory = new JournalEntryApiFactory(book);
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateAccessToken(factory, ownerId));
+
+        var request = new
+        {
+            description = "Foreign currency entry",
+            lines = new[]
+            {
+                new { accountId = factory.DebitAccount.Id, side = "Debit", amount = 25m, currency = "USD" },
+                new { accountId = factory.CreditAccount.Id, side = "Credit", amount = 25m, currency = "USD" }
+            }
+        };
+
+        using var response = await client.PostAsJsonAsync(
+            $"/api/financial-books/{book.Id}/journal-entries", request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<ProblemDetailsResponse>();
+        Assert.NotNull(problem);
+        Assert.Equal(400, problem.Status);
+        Assert.Equal("Journal entry currency mismatch", problem.Title);
+        Assert.Null(factory.JournalEntries.AddedEntry);
+        Assert.Equal(0, factory.UnitOfWork.SaveChangesCalls);
+    }
+
+    [Fact]
     public async Task CreateJournalEntry_WithInvalidRequest_ReturnsValidationProblem()
     {
         var ownerId = Guid.NewGuid();
