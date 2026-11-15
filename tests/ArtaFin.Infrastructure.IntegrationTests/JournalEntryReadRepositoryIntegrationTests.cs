@@ -83,12 +83,30 @@ public sealed class JournalEntryReadRepositoryIntegrationTests : IAsyncLifetime
                 new JournalLine(expenseId, PostingSide.Debit, new Money(200m, "USD")),
                 new JournalLine(cashId, PostingSide.Credit, new Money(200m, "USD"))
             ]);
+        var otherBookId = Guid.NewGuid();
+        var otherCashId = Guid.NewGuid();
+        var otherExpenseId = Guid.NewGuid();
+        var otherBook = FinancialBook.Create(
+            otherBookId, Guid.NewGuid(), "Another financial book", "USD", now);
+        var otherCash = Account.Create(
+            otherCashId, otherBookId, "1000", "Other cash", AccountType.Asset, now);
+        var otherExpense = Account.Create(
+            otherExpenseId, otherBookId, "6000", "Other office expense", AccountType.Expense, now);
+        var otherBookEntry = JournalEntry.Post(
+            Guid.NewGuid(),
+            otherBookId,
+            now.AddDays(-2),
+            "Office supplies in another book",
+            [
+                new JournalLine(otherExpenseId, PostingSide.Debit, new Money(75m, "USD")),
+                new JournalLine(otherCashId, PostingSide.Credit, new Money(75m, "USD"))
+            ]);
 
         await using (var write = new ArtaFinDbContext(_options))
         {
-            write.FinancialBooks.Add(book);
-            write.Accounts.AddRange(cash, expense);
-            write.JournalEntries.AddRange(original, reversal, unrelated);
+            write.FinancialBooks.AddRange(book, otherBook);
+            write.Accounts.AddRange(cash, expense, otherCash, otherExpense);
+            write.JournalEntries.AddRange(original, reversal, unrelated, otherBookEntry);
             await write.SaveChangesAsync();
         }
 
