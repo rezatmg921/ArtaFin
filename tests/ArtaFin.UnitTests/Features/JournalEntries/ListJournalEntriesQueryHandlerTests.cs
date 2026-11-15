@@ -219,7 +219,7 @@ public sealed class ListJournalEntriesQueryHandlerTests
             IsReversal = isReversal;
             Page = page;
             PageSize = pageSize;
-            return Task.FromResult(this.page);
+            return Task.FromResult(page);
         }
     }
 
