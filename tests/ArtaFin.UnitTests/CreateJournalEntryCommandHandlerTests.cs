@@ -118,6 +118,27 @@ public sealed class CreateJournalEntryCommandHandlerTests
             handler.HandleAsync(command, CancellationToken.None));
     }
 
+    [Fact]
+    public async Task HandleAsync_WhenLineCurrencyDiffersFromBookBaseCurrency_RejectsWithoutWriting()
+    {
+        var journalRepository = new FakeJournalEntryRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = CreateHandler(CreateBook(OwnerId), OwnerId,
+            [CreateAccount(DebitAccountId), CreateAccount(CreditAccountId)],
+            journalRepository, unitOfWork);
+        var command = new CreateJournalEntryCommand(BookId, "Foreign currency entry",
+        [
+            new JournalEntryLineCommand(DebitAccountId, PostingSide.Debit, new Money(25m, "USD")),
+            new JournalEntryLineCommand(CreditAccountId, PostingSide.Credit, new Money(25m, "USD"))
+        ]);
+
+        await Assert.ThrowsAsync<JournalEntryBaseCurrencyMismatchException>(() =>
+            handler.HandleAsync(command, CancellationToken.None));
+
+        Assert.Null(journalRepository.AddedEntry);
+        Assert.Equal(0, unitOfWork.SaveChangesCalls);
+    }
+
     private static CreateJournalEntryCommand CreateCommand() =>
         new(BookId, " Office supplies ",
         [
