@@ -405,6 +405,12 @@ public sealed class AccountOwnershipApiTests
             CancellationToken cancellationToken) =>
             Task.FromResult<FinancialBookMember?>(null);
 
+        public Task<FinancialBookMember?> GetMemberByIdAsync(
+            Guid financialBookId,
+            Guid membershipId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<FinancialBookMember?>(null);
+
         //public Task<IReadOnlyList<FinancialBookMemberSummary>> GetActiveMembersAsync(
         //    Guid financialBookId,
         //    CancellationToken cancellationToken) =>
