@@ -326,6 +326,12 @@ public sealed class JournalEntryApiTests
         public Task<FinancialBookMember?> GetMemberAsync(Guid financialBookId, Guid userId, CancellationToken cancellationToken) =>
             Task.FromResult<FinancialBookMember?>(
                 member?.FinancialBookId == financialBookId && member.UserId == userId ? member : null);
+        public Task<FinancialBookMember?> GetMemberByIdAsync(
+            Guid financialBookId,
+            Guid membershipId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<FinancialBookMember?>(
+                member?.FinancialBookId == financialBookId && member.Id == membershipId ? member : null);
         public Task<IReadOnlyList<FinancialBookMemberSummary>> GetActiveMembersAsync(Guid financialBookId, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<FinancialBookMemberSummary>>(Array.Empty<FinancialBookMemberSummary>());
         public Task AddMemberAsync(FinancialBookMember member, CancellationToken cancellationToken) =>
