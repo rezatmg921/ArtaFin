@@ -74,6 +74,15 @@ public sealed class JournalEntryReadRepositoryIntegrationTests : IAsyncLifetime
             original,
             now.AddDays(-1),
             "Office supplies reversal");
+        var secondOriginal = JournalEntry.Post(
+            Guid.NewGuid(),
+            bookId,
+            now.AddDays(-2),
+            "Office stationery",
+            [
+                new JournalLine(expenseId, PostingSide.Debit, new Money(35m, "USD")),
+                new JournalLine(cashId, PostingSide.Credit, new Money(35m, "USD"))
+            ]);
         var unrelated = JournalEntry.Post(
             Guid.NewGuid(),
             bookId,
@@ -106,7 +115,7 @@ public sealed class JournalEntryReadRepositoryIntegrationTests : IAsyncLifetime
         {
             write.FinancialBooks.AddRange(book, otherBook);
             write.Accounts.AddRange(cash, expense, otherCash, otherExpense);
-            write.JournalEntries.AddRange(original, reversal, unrelated, otherBookEntry);
+            write.JournalEntries.AddRange(original, reversal, secondOriginal, unrelated, otherBookEntry);
             await write.SaveChangesAsync();
         }
 
@@ -149,8 +158,22 @@ public sealed class JournalEntryReadRepositoryIntegrationTests : IAsyncLifetime
             pageSize: 1,
             CancellationToken.None);
 
-        Assert.Equal(1, originals.TotalCount);
-        Assert.Equal(original.Id, Assert.Single(originals.Items).Id);
+        Assert.Equal(2, originals.TotalCount);
+        var firstPageItem = Assert.Single(originals.Items);
+        Assert.Equal(2, firstPageItem.LineCount);
+
+        var secondPage = await repository.GetPageAsync(
+            bookId,
+            null,
+            now.AddDays(-2),
+            "Office",
+            isReversal: false,
+            page: 2,
+            pageSize: 1,
+            CancellationToken.None);
+
+        Assert.Equal(2, secondPage.TotalCount);
+        Assert.NotEqual(firstPageItem.Id, Assert.Single(secondPage.Items).Id);
     }
 
     public async Task DisposeAsync()
