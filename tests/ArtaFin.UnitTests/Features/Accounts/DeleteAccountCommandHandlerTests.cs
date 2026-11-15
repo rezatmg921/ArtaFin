@@ -153,6 +153,12 @@ public sealed class DeleteAccountCommandHandlerTests
                 member is not null && member.FinancialBookId == financialBookId &&
                 member.UserId == userId ? member : null);
 
+        public Task<FinancialBookMember?> GetMemberByIdAsync(
+            Guid financialBookId, Guid membershipId, CancellationToken cancellationToken) =>
+            Task.FromResult<FinancialBookMember?>(
+                member is not null && member.FinancialBookId == financialBookId &&
+                member.Id == membershipId ? member : null);
+
         public Task<IReadOnlyList<FinancialBookMemberSummary>> GetActiveMembersAsync(
             Guid financialBookId, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<FinancialBookMemberSummary>>(
