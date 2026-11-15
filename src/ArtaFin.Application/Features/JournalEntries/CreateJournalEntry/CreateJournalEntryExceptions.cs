@@ -7,3 +7,7 @@ public sealed class JournalEntryAccessDeniedException()
 /// <summary>Indicates that an account is missing, belongs to another book, or is inactive.</summary>
 public sealed class JournalEntryAccountUnavailableException()
     : Exception("One or more journal entry accounts are unavailable in this financial book.");
+
+/// <summary>Indicates that a journal entry uses a currency other than the financial book's base currency.</summary>
+public sealed class JournalEntryBaseCurrencyMismatchException()
+    : Exception("Every journal line must use the financial book's base currency.");
