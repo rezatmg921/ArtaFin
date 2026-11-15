@@ -35,7 +35,11 @@ public static class DependencyInjection
             provider.GetRequiredService<AccountRepository>());
         services.AddScoped<IAccountReadRepository>(provider =>
             provider.GetRequiredService<AccountRepository>());
-        services.AddScoped<IJournalEntryRepository, JournalEntryRepository>();
+        services.AddScoped<JournalEntryRepository>();
+        services.AddScoped<IJournalEntryRepository>(provider =>
+            provider.GetRequiredService<JournalEntryRepository>());
+        services.AddScoped<IJournalEntryReadRepository>(provider =>
+            provider.GetRequiredService<JournalEntryRepository>());
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IUserSessionRepository, UserSessionRepository>();
         services.AddScoped<IFinancialBookRepository, FinancialBookRepository>();
