@@ -127,6 +127,42 @@ public sealed class CreateExpenseCommandHandlerTests
         Assert.Equal(0, unitOfWork.SaveChangesCalls);
     }
 
+    [Fact]
+    public async Task Handle_WhenAmountIsNotPositive_RejectsWithoutWriting()
+    {
+        var journalRepository = new FakeJournalEntryRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = CreateHandler(OwnerId,
+            [CreateAccount(ExpenseAccountId, AccountType.Expense),
+             CreateAccount(PaymentAccountId, AccountType.Asset)],
+            journalRepository, unitOfWork);
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            handler.Handle(CreateCommand(new Money(-1m, "USD")), CancellationToken.None));
+
+        Assert.Null(journalRepository.AddedEntry);
+        Assert.Equal(0, unitOfWork.SaveChangesCalls);
+    }
+
+    [Fact]
+    public async Task Handle_WhenBothAccountIdsAreTheSame_RejectsWithoutWriting()
+    {
+        var journalRepository = new FakeJournalEntryRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = CreateHandler(OwnerId,
+            [CreateAccount(ExpenseAccountId, AccountType.Expense)],
+            journalRepository, unitOfWork);
+        var command = new CreateExpenseCommand(
+            BookId, ExpenseAccountId, ExpenseAccountId, "Invalid expense",
+            new Money(10m, "USD"));
+
+        await Assert.ThrowsAsync<ExpenseAccountsMustBeDifferentException>(() =>
+            handler.Handle(command, CancellationToken.None));
+
+        Assert.Null(journalRepository.AddedEntry);
+        Assert.Equal(0, unitOfWork.SaveChangesCalls);
+    }
+
     private static CreateExpenseCommand CreateCommand(Money? amount = null) =>
         new(BookId, ExpenseAccountId, PaymentAccountId, "Office supplies",
             amount ?? new Money(125m, "USD"));
