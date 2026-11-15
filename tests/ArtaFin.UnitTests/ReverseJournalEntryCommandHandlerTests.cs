@@ -125,6 +125,9 @@ public sealed class ReverseJournalEntryCommandHandlerTests
         public Task<FinancialBookMember?> GetMemberAsync(Guid financialBookId, Guid userId, CancellationToken cancellationToken) =>
             Task.FromResult<FinancialBookMember?>(null);
 
+        public Task<FinancialBookMember?> GetMemberByIdAsync(Guid financialBookId, Guid membershipId, CancellationToken cancellationToken) =>
+            Task.FromResult<FinancialBookMember?>(null);
+
         public Task<IReadOnlyList<FinancialBookMemberSummary>> GetActiveMembersAsync(Guid financialBookId, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<FinancialBookMemberSummary>>(Array.Empty<FinancialBookMemberSummary>());
 
