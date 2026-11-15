@@ -28,9 +28,10 @@ public sealed class JournalEntryListApiTests
         var entryId = Guid.NewGuid();
         var repository = new FakeJournalEntryReadRepository(new JournalEntryPage(
             [
-                new JournalEntryListItem(entryId, DateTimeOffset.UtcNow, "Office supplies", null, 2)
+                new JournalEntryListItem(entryId, DateTimeOffset.UtcNow, "Office supplies", null, 2),
+                new JournalEntryListItem(Guid.NewGuid(), DateTimeOffset.UtcNow.AddMinutes(-1), "Office rent", null, 2)
             ],
-            1));
+            2));
         using var factory = new JournalEntryListApiFactory(book, repository);
         using var client = CreateAuthenticatedClient(factory, ownerId);
 
