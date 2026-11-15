@@ -223,6 +223,17 @@ public sealed class CreateAccountOwnershipTests
                 member.UserId == userId
                     ? member
                     : null);
+
+        public Task<FinancialBookMember?> GetMemberByIdAsync(
+            Guid financialBookId,
+            Guid membershipId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<FinancialBookMember?>(
+                member is not null &&
+                member.FinancialBookId == financialBookId &&
+                member.Id == membershipId
+                    ? member
+                    : null);
     }
 
     private sealed class FakeAccountRepository : IAccountRepository
