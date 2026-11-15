@@ -61,6 +61,13 @@ public sealed class CreateJournalEntryCommandHandler(
         {
             ArgumentNullException.ThrowIfNull(requestedLine);
 
+            if (!StringComparer.Ordinal.Equals(
+                    requestedLine.Amount.Currency,
+                    financialBook.BaseCurrency.Code))
+            {
+                throw new JournalEntryBaseCurrencyMismatchException();
+            }
+
             var account = await accountRepository.GetByIdAsync(
                 financialBook.Id,
                 requestedLine.AccountId,
