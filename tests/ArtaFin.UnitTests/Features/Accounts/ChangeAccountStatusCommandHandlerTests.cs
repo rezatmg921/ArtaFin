@@ -83,6 +83,9 @@ public sealed class ChangeAccountStatusCommandHandlerTests
     {
         public Task<FinancialBook?> GetByIdAsync(Guid id, CancellationToken ct) => Task.FromResult<FinancialBook?>(book.Id == id ? book : null);
         public Task<FinancialBookMember?> GetMemberAsync(Guid bookId, Guid userId, CancellationToken ct) => Task.FromResult<FinancialBookMember?>(null);
+
+        public Task<FinancialBookMember?> GetMemberByIdAsync(Guid financialBookId, Guid membershipId, CancellationToken ct) =>
+            Task.FromResult<FinancialBookMember?>(null);
         public Task<IReadOnlyList<FinancialBookMemberSummary>> GetActiveMembersAsync(Guid id, CancellationToken ct) => Task.FromResult<IReadOnlyList<FinancialBookMemberSummary>>(Array.Empty<FinancialBookMemberSummary>());
         public Task AddMemberAsync(FinancialBookMember member, CancellationToken ct) => throw new NotImplementedException();
     }
