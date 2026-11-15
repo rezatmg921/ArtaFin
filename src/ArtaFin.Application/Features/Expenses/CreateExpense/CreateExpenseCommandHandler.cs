@@ -33,6 +33,8 @@ public sealed class CreateExpenseCommandHandler(
             throw new ArgumentException("Payment account id cannot be empty.", nameof(command));
         if (command.ExpenseAccountId == command.PaymentAccountId)
             throw new ExpenseAccountsMustBeDifferentException();
+        if (command.Amount.Amount <= 0)
+            throw new ArgumentOutOfRangeException(nameof(command.Amount), "Expense amount must be greater than zero.");
         if (string.IsNullOrWhiteSpace(command.Description))
             throw new ArgumentException("Description is required.", nameof(command));
         if (command.Description.Trim().Length > JournalEntry.MaxDescriptionLength)
