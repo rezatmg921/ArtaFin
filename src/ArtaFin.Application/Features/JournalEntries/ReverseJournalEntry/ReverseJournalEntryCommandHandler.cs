@@ -67,6 +67,13 @@ public sealed class ReverseJournalEntryCommandHandler(
         if (original is null)
             throw new JournalEntryAccessDeniedException();
 
+        if (original.Lines.Any(line => !StringComparer.Ordinal.Equals(
+                line.Amount.Currency,
+                financialBook.BaseCurrency.Code)))
+        {
+            throw new JournalEntryBaseCurrencyMismatchException();
+        }
+
         if (await journalEntryRepository.HasReversalAsync(
                 financialBook.Id,
                 original.Id,
