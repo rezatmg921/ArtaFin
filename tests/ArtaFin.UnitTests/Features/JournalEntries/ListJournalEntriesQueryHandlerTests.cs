@@ -189,7 +189,7 @@ public sealed class ListJournalEntriesQueryHandlerTests
             throw new NotImplementedException();
     }
 
-    private sealed class FakeJournalEntryReadRepository(JournalEntryPage page)
+    private sealed class FakeJournalEntryReadRepository(JournalEntryPage resultPage)
         : IJournalEntryReadRepository
     {
         public int Calls { get; private set; }
@@ -219,7 +219,7 @@ public sealed class ListJournalEntriesQueryHandlerTests
             IsReversal = isReversal;
             Page = page;
             PageSize = pageSize;
-            return Task.FromResult(page);
+            return Task.FromResult(resultPage);
         }
     }
 
