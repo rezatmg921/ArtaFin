@@ -145,6 +145,45 @@ public sealed class CreateExpenseCommandHandlerTests
     }
 
     [Fact]
+    public async Task Handle_WhenAccountantMemberRecordsExpense_PostsAndCommits()
+    {
+        var memberId = Guid.NewGuid();
+        var member = FinancialBookMember.Grant(
+            memberId, BookId, memberId, FinancialBookRole.Accountant, Now.AddDays(-1));
+        var journalRepository = new FakeJournalEntryRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = CreateHandler(memberId,
+            [CreateAccount(ExpenseAccountId, AccountType.Expense),
+             CreateAccount(PaymentAccountId, AccountType.Asset)],
+            journalRepository, unitOfWork, member);
+
+        var id = await handler.Handle(CreateCommand(), CancellationToken.None);
+
+        Assert.NotEqual(Guid.Empty, id);
+        Assert.NotNull(journalRepository.AddedEntry);
+        Assert.Equal(1, unitOfWork.SaveChangesCalls);
+    }
+
+    [Fact]
+    public async Task Handle_WhenExpenseAccountBelongsToAnotherBook_RejectsWithoutWriting()
+    {
+        var otherBookAccount = Account.Create(
+            ExpenseAccountId, Guid.NewGuid(), "6000", "Foreign expense",
+            AccountType.Expense, Now.AddDays(-1));
+        var journalRepository = new FakeJournalEntryRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = CreateHandler(OwnerId,
+            [otherBookAccount, CreateAccount(PaymentAccountId, AccountType.Asset)],
+            journalRepository, unitOfWork);
+
+        await Assert.ThrowsAsync<JournalEntryAccountUnavailableException>(() =>
+            handler.Handle(CreateCommand(), CancellationToken.None));
+
+        Assert.Null(journalRepository.AddedEntry);
+        Assert.Equal(0, unitOfWork.SaveChangesCalls);
+    }
+
+    [Fact]
     public async Task Handle_WhenBothAccountIdsAreTheSame_RejectsWithoutWriting()
     {
         var journalRepository = new FakeJournalEntryRepository();
@@ -175,10 +214,11 @@ public sealed class CreateExpenseCommandHandlerTests
         Guid userId,
         IReadOnlyCollection<Account> accounts,
         FakeJournalEntryRepository journalRepository,
-        FakeUnitOfWork unitOfWork) =>
+        FakeUnitOfWork unitOfWork,
+        FinancialBookMember? member = null) =>
         new(new FakeCurrentUser(userId),
             new FakeFinancialBookRepository(FinancialBook.Create(
-                BookId, OwnerId, "Test book", "USD", Now.AddYears(-1))),
+                BookId, OwnerId, "Test book", "USD", Now.AddYears(-1)), member),
             new FakeAccountRepository(accounts),
             journalRepository,
             unitOfWork,
@@ -189,12 +229,15 @@ public sealed class CreateExpenseCommandHandlerTests
         public Guid UserId { get; } = userId;
     }
 
-    private sealed class FakeFinancialBookRepository(FinancialBook book) : IFinancialBookRepository
+    private sealed class FakeFinancialBookRepository(FinancialBook book, FinancialBookMember? member = null) : IFinancialBookRepository
     {
         public Task<FinancialBook?> GetByIdAsync(Guid financialBookId, CancellationToken cancellationToken) =>
             Task.FromResult<FinancialBook?>(book.Id == financialBookId ? book : null);
         public Task<FinancialBookMember?> GetMemberAsync(Guid financialBookId, Guid userId, CancellationToken cancellationToken) =>
-            Task.FromResult<FinancialBookMember?>(null);
+            Task.FromResult<FinancialBookMember?>(
+                member is not null && member.FinancialBookId == financialBookId && member.UserId == userId
+                    ? member
+                    : null);
         public Task<FinancialBookMember?> GetMemberByIdAsync(Guid financialBookId, Guid membershipId, CancellationToken cancellationToken) =>
             Task.FromResult<FinancialBookMember?>(null);
         public Task<IReadOnlyList<FinancialBookMemberSummary>> GetActiveMembersAsync(Guid financialBookId, CancellationToken cancellationToken) =>
