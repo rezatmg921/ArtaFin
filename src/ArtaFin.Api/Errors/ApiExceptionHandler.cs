@@ -87,6 +87,11 @@ internal sealed class ApiExceptionHandler(
                     "Journal entry account unavailable",
                     "One or more accounts are unavailable in this financial book."),
 
+            JournalEntryBaseCurrencyMismatchException =>
+                (StatusCodes.Status400BadRequest,
+                    "Journal entry currency mismatch",
+                    "Every journal line must use the financial book's base currency."),
+
             InviteTargetUserNotFoundException =>
                 (StatusCodes.Status404NotFound,
                     "User not found",
