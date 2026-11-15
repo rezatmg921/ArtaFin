@@ -147,6 +147,7 @@ app.MapAccountEndpoints();
 app.MapAccountListEndpoints();
 app.MapFinancialBookMemberEndpoints();
 app.MapJournalEntryEndpoints();
+app.MapJournalEntryListEndpoints();
 app.MapExpenseEndpoints();
 
 app.Run();
