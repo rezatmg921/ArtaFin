@@ -89,6 +89,28 @@ public sealed class ReverseJournalEntryCommandHandlerTests
         Assert.Null(journalRepository.AddedEntry);
     }
 
+    [Fact]
+    public async Task Handle_WhenOriginalCurrencyDiffersFromBookBaseCurrency_RejectsWithoutWriting()
+    {
+        var foreignCurrencyOriginal = JournalEntry.Post(
+            Guid.NewGuid(), BookId, Now.AddHours(-1), "Foreign currency entry",
+            [
+                new JournalLine(DebitAccountId, PostingSide.Debit, new Money(50m, "USD")),
+                new JournalLine(CreditAccountId, PostingSide.Credit, new Money(50m, "USD"))
+            ]);
+        var journalRepository = new FakeJournalEntryRepository(foreignCurrencyOriginal);
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = CreateHandler(OwnerId, journalRepository, unitOfWork);
+
+        await Assert.ThrowsAsync<JournalEntryBaseCurrencyMismatchException>(() =>
+            handler.Handle(
+                new ReverseJournalEntryCommand(BookId, foreignCurrencyOriginal.Id, "Reverse foreign entry"),
+                CancellationToken.None));
+
+        Assert.Null(journalRepository.AddedEntry);
+        Assert.Equal(0, unitOfWork.SaveChangesCalls);
+    }
+
     private static JournalEntry CreateOriginal() =>
         JournalEntry.Post(
             Guid.NewGuid(),
