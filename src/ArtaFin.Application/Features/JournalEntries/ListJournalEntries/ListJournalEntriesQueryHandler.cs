@@ -1,5 +1,6 @@
 using ArtaFin.Application.Abstractions.Persistence;
 using ArtaFin.Application.Abstractions.Security;
+using ArtaFin.Application.Features.Accounts.CreateAccount;
 using MediatR;
 
 namespace ArtaFin.Application.Features.JournalEntries.ListJournalEntries;
