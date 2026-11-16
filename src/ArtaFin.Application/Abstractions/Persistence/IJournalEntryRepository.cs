@@ -10,6 +10,13 @@ public interface IJournalEntryRepository
         Guid journalEntryId,
         CancellationToken cancellationToken);
 
+    Task<JournalEntry?> GetByIdempotencyKeyAsync(
+        Guid financialBookId,
+        Guid userId,
+        string idempotencyKey,
+        CancellationToken cancellationToken) =>
+        Task.FromResult<JournalEntry?>(null);
+
     Task<bool> HasReversalAsync(
         Guid financialBookId,
         Guid originalJournalEntryId,
