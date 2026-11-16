@@ -33,6 +33,7 @@ internal sealed class AccountBalanceReadRepository(ArtaFinDbContext dbContext)
                 account.Name,
                 account.Type,
                 account.NormalBalance,
+                account.BalancePolicy,
                 account.Status
             })
             .ToListAsync(cancellationToken);
@@ -82,6 +83,7 @@ internal sealed class AccountBalanceReadRepository(ArtaFinDbContext dbContext)
                 account.Name,
                 account.Type,
                 account.NormalBalance,
+                account.BalancePolicy,
                 account.Status,
                 debits,
                 credits,
