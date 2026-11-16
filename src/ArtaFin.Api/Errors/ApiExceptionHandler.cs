@@ -6,6 +6,7 @@ using ArtaFin.Application.Features.Accounts.UpdateAccount;
 using ArtaFin.Application.Features.FinancialBooks.InviteMember;
 using ArtaFin.Application.Features.Expenses.CreateExpense;
 using ArtaFin.Application.Features.Income.CreateIncome;
+using ArtaFin.Application.Features.Idempotency;
 using ArtaFin.Application.Features.Transfers.CreateTransfer;
 using ArtaFin.Application.Features.FinancialBooks.ManageMember;
 using ArtaFin.Application.Features.JournalEntries.CreateJournalEntry;
@@ -51,6 +52,9 @@ internal sealed class ApiExceptionHandler(
             FinancialBookMemberNotActiveException =>
                 (StatusCodes.Status409Conflict, "Membership is not active",
                     "The membership has already been revoked and cannot be changed again."),
+            IdempotencyKeyConflictException =>
+                (StatusCodes.Status409Conflict, "Idempotency key conflict",
+                    "This Idempotency-Key has already been used for a different financial request."),
             JournalEntryAlreadyReversedException =>
                 (StatusCodes.Status409Conflict, "Journal entry already reversed",
                     "This journal entry already has a reversal entry."),
