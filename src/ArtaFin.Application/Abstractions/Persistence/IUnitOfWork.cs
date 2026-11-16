@@ -10,6 +10,12 @@ public interface IUnitOfWork
 {
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 
+    Task AcquireIdempotencyLockAsync(
+        Guid financialBookId,
+        Guid userId,
+        string idempotencyKey,
+        CancellationToken cancellationToken) => Task.CompletedTask;
+
     Task ExecuteInTransactionAsync(
         Func<CancellationToken, Task> operation,
         CancellationToken cancellationToken) => operation(cancellationToken);
