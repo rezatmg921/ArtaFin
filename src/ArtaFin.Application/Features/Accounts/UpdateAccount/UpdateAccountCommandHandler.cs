@@ -70,6 +70,9 @@ public sealed class UpdateAccountCommandHandler(
         }
 
         snapshot.Account.Rename(command.Name);
+        if (command.BalancePolicy.HasValue)
+            snapshot.Account.ChangeBalancePolicy(command.BalancePolicy.Value);
+
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // Read the database-generated row version after SaveChanges so the caller
