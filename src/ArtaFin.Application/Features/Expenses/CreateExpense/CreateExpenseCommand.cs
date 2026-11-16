@@ -11,4 +11,5 @@ public sealed record CreateExpenseCommand(
     Guid ExpenseAccountId,
     Guid PaymentAccountId,
     string Description,
-    Money Amount) : IRequest<Guid>;
+    Money Amount,
+    string? IdempotencyKey = null) : IRequest<Guid>;
