@@ -453,7 +453,7 @@ internal static class AccountEndpoints
 }
 
 internal sealed record CreateAccountRequest(string? Code, string? Name, string? Type, string? BalancePolicy = null);
-internal sealed record UpdateAccountRequest(string Name);
+internal sealed record UpdateAccountRequest(string Name, string? BalancePolicy = null);
 internal sealed record CreateAccountResponse(Guid Id);
 
 internal sealed record AccountResponse(
