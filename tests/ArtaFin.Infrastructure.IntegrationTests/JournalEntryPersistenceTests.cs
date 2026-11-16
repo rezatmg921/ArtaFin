@@ -160,6 +160,60 @@ public sealed class JournalEntryPersistenceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task SaveAndReload_IncomeJournalEntry_PreservesDepositAndIncomeLines()
+    {
+        var now = new DateTimeOffset(2026, 11, 16, 10, 0, 0, TimeSpan.Zero);
+        var bookId = Guid.NewGuid();
+        var ownerId = Guid.NewGuid();
+        var depositAccountId = Guid.NewGuid();
+        var incomeAccountId = Guid.NewGuid();
+        var entryId = Guid.NewGuid();
+
+        var book = FinancialBook.Create(bookId, ownerId, "Income persistence test", "IRR", now);
+        var depositAccount = Account.Create(
+            depositAccountId, bookId, "1000", "Bank", AccountType.Asset, now);
+        var incomeAccount = Account.Create(
+            incomeAccountId, bookId, "4000", "Sales income", AccountType.Income, now);
+        var incomeEntry = JournalEntry.Post(
+            entryId,
+            bookId,
+            now,
+            "Product sales",
+            [
+                new JournalLine(depositAccountId, PostingSide.Debit, new Money(12500m, "IRR")),
+                new JournalLine(incomeAccountId, PostingSide.Credit, new Money(12500m, "IRR"))
+            ]);
+
+        await using (var write = new ArtaFinDbContext(_options))
+        {
+            write.FinancialBooks.Add(book);
+            write.Accounts.AddRange(depositAccount, incomeAccount);
+            write.JournalEntries.Add(incomeEntry);
+            await write.SaveChangesAsync();
+        }
+
+        await using var read = new ArtaFinDbContext(_options);
+        var persisted = await read.JournalEntries
+            .AsNoTracking()
+            .Include(entry => entry.Lines)
+            .SingleAsync(entry => entry.Id == entryId);
+
+        Assert.Equal(bookId, persisted.FinancialBookId);
+        Assert.Equal("Product sales", persisted.Description);
+        Assert.Equal(2, persisted.Lines.Count);
+
+        var debit = Assert.Single(persisted.Lines, line => line.Side == PostingSide.Debit);
+        Assert.Equal(depositAccountId, debit.AccountId);
+        Assert.Equal(12500m, debit.Amount.Amount);
+        Assert.Equal("IRR", debit.Amount.Currency);
+
+        var credit = Assert.Single(persisted.Lines, line => line.Side == PostingSide.Credit);
+        Assert.Equal(incomeAccountId, credit.AccountId);
+        Assert.Equal(12500m, credit.Amount.Amount);
+        Assert.Equal("IRR", credit.Amount.Currency);
+    }
+
+    [Fact]
     public async Task PostedJournalEntry_RejectsDescriptionChanges()
     {
         var now = DateTimeOffset.UtcNow;
