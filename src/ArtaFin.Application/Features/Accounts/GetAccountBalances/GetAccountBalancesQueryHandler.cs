@@ -53,6 +53,7 @@ public sealed class GetAccountBalancesQueryHandler(
                 item.Name,
                 item.Type,
                 item.NormalBalance,
+                item.BalancePolicy,
                 item.Status,
                 item.TotalDebits,
                 item.TotalCredits,
