@@ -76,8 +76,12 @@ public sealed class CreateTransferCommandHandler(
                 new JournalLine(source.Id, PostingSide.Credit, command.Amount)
             ]);
 
-        await journalEntryRepository.AddAsync(entry, cancellationToken);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.ExecuteInTransactionAsync(async ct =>
+        {
+            await unitOfWork.EnsureCanPostAsync(book.Id, entry.Lines, ct);
+            await journalEntryRepository.AddAsync(entry, ct);
+            await unitOfWork.SaveChangesAsync(ct);
+        }, cancellationToken);
         return entry.Id;
     }
 }
