@@ -3,6 +3,7 @@ using ArtaFin.Application.Abstractions.Persistence;
 using ArtaFin.Application.Features.Accounts.CreateAccount;
 using ArtaFin.Application.Features.Accounts.DeleteAccount;
 using ArtaFin.Application.Features.JournalEntries.CreateJournalEntry;
+using ArtaFin.Application.Features.JournalEntries.ReverseJournalEntry;
 using ArtaFin.Domain.Finance;
 using ArtaFin.Domain.Security;
 using ArtaFin.Infrastructure.Persistence.Configurations;
@@ -15,6 +16,7 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
     : DbContext(options), IUnitOfWork
 {
     private const string AccountCodeUniqueIndexName = "UX_Accounts_FinancialBookId_Code";
+    private const string JournalEntryReversalUniqueIndexName = "UX_JournalEntries_ReversesJournalEntryId";
     private const string JournalLineAccountForeignKeyName = "FK_JournalLines_Accounts_FinancialBookId_AccountId";
 
     public DbSet<FinancialBook> FinancialBooks => Set<FinancialBook>();
@@ -63,6 +65,10 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
         catch (DbUpdateException exception) when (IsAccountCodeUniqueViolation(exception))
         {
             throw new AccountCodeAlreadyExistsException();
+        }
+        catch (DbUpdateException exception) when (IsJournalEntryReversalUniqueViolation(exception))
+        {
+            throw new JournalEntryAlreadyReversedException();
         }
         catch (DbUpdateException exception) when (IsAccountDeleteForeignKeyViolation(exception))
         {
@@ -251,6 +257,27 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
             {
                 if (error.Number == 547 &&
                     error.Message.Contains(JournalLineAccountForeignKeyName, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsJournalEntryReversalUniqueViolation(DbUpdateException exception)
+    {
+        for (Exception? current = exception; current is not null; current = current.InnerException)
+        {
+            if (current is not SqlException sqlException)
+                continue;
+
+            foreach (SqlError error in sqlException.Errors)
+            {
+                var isDuplicateKey = error.Number is 2601 or 2627;
+                var isReversalIndex = error.Message.Contains(
+                    JournalEntryReversalUniqueIndexName, StringComparison.OrdinalIgnoreCase);
+
+                if (isDuplicateKey && isReversalIndex)
                     return true;
             }
         }
