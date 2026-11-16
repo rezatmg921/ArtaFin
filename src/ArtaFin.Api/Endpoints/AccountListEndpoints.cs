@@ -90,6 +90,7 @@ internal static class AccountListEndpoints
                 account.Name,
                 account.Type.ToString(),
                 account.NormalBalance.ToString(),
+                account.BalancePolicy.ToString(),
                 account.Status.ToString(),
                 account.CreatedAt,
                 account.DeactivatedAt)).ToArray());
@@ -110,6 +111,7 @@ internal sealed record AccountListItemResponse(
     string Name,
     string Type,
     string NormalBalance,
+    string BalancePolicy,
     string Status,
     DateTimeOffset CreatedAt,
     DateTimeOffset? DeactivatedAt);
