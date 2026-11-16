@@ -26,9 +26,11 @@ internal static class IncomeEndpoints
         Guid financialBookId,
         CreateIncomeRequest request,
         ISender sender,
+        HttpRequest httpRequest,
         CancellationToken cancellationToken)
     {
         var errors = new Dictionary<string, string[]>();
+        var idempotencyKey = IdempotencyKeyHeader.Read(httpRequest, errors);
         if (string.IsNullOrWhiteSpace(request.Description))
             errors["description"] = ["Description is required."];
         else if (request.Description.Trim().Length > JournalEntry.MaxDescriptionLength)
@@ -51,7 +53,7 @@ internal static class IncomeEndpoints
             return Results.ValidationProblem(errors);
 
         var entryId = await sender.Send(new CreateIncomeCommand(
-            financialBookId, request.IncomeAccountId, request.DepositAccountId, request.Description!, amount), cancellationToken);
+            financialBookId, request.IncomeAccountId, request.DepositAccountId, request.Description!, amount, idempotencyKey), cancellationToken);
         return Results.Created(
             $"/api/financial-books/{financialBookId}/journal-entries/{entryId}",
             new CreateIncomeResponse(entryId));
