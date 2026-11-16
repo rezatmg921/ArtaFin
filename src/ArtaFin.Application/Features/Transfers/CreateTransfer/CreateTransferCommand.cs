@@ -9,4 +9,5 @@ public sealed record CreateTransferCommand(
     Guid SourceAccountId,
     Guid DestinationAccountId,
     string Description,
-    Money Amount) : IRequest<Guid>;
+    Money Amount,
+    string? IdempotencyKey = null) : IRequest<Guid>;
