@@ -8,6 +8,10 @@ public sealed partial class AddJournalEntryIdempotency : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
     {
+        migrationBuilder.DropIndex(
+            name: "IX_JournalEntries_FinancialBookId",
+            table: "JournalEntries");
+
         migrationBuilder.AddColumn<string>(
             name: "IdempotencyKey",
             table: "JournalEntries",
@@ -56,5 +60,10 @@ public sealed partial class AddJournalEntryIdempotency : Migration
         migrationBuilder.DropColumn(name: "IdempotencyKey", table: "JournalEntries");
         migrationBuilder.DropColumn(name: "IdempotencyUserId", table: "JournalEntries");
         migrationBuilder.DropColumn(name: "RequestHash", table: "JournalEntries");
+
+        migrationBuilder.CreateIndex(
+            name: "IX_JournalEntries_FinancialBookId",
+            table: "JournalEntries",
+            column: "FinancialBookId");
     }
 }
