@@ -1,5 +1,6 @@
 using System.Data.Common;
 using ArtaFin.Application.Features.Accounts.CreateAccount;
+using ArtaFin.Application.Features.JournalEntries.ReverseJournalEntry;
 using ArtaFin.Domain.Finance;
 using ArtaFin.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -390,7 +391,7 @@ public sealed class JournalEntryPersistenceTests : IAsyncLifetime
             secondReversalContext.JournalEntries.Add(JournalEntry.Reverse(
                 Guid.NewGuid(), original, now.AddMinutes(2), "Second reversal"));
 
-            await Assert.ThrowsAsync<DbUpdateException>(
+            await Assert.ThrowsAsync<JournalEntryAlreadyReversedException>(
                 () => secondReversalContext.SaveChangesAsync());
         }
     }
