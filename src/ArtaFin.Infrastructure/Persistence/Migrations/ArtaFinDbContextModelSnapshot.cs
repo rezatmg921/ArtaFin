@@ -57,6 +57,11 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                     b.Property<byte>("NormalBalance")
                         .HasColumnType("tinyint");
 
+                    b.Property<byte>("BalancePolicy")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint")
+                        .HasDefaultValue((byte)1);
+
                     b.Property<byte>("Status")
                         .HasColumnType("tinyint");
 
@@ -75,6 +80,8 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                     b.ToTable("Accounts", null, t =>
                         {
                             t.HasCheckConstraint("CK_Accounts_NormalBalance_Valid", "[NormalBalance] IN (1, 2)");
+
+                            t.HasCheckConstraint("CK_Accounts_BalancePolicy_Valid", "[BalancePolicy] IN (1, 2)");
 
                             t.HasCheckConstraint("CK_Accounts_Status_Valid", "[Status] IN (1, 2)");
 
