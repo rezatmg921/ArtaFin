@@ -113,6 +113,10 @@ Example registration/login body:
 - [ ] Budgets and reports
 - [ ] CI, security checks, observability and deployment docs
 
+## API behavior
+
+- [Idempotent financial write requests](docs/operations/idempotency.md) — retry-safe expense, income, and transfer creation with `Idempotency-Key`.
+
 ## Development principles
 
 - Keep domain logic independent of EF Core and HTTP.
