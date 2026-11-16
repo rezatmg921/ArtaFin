@@ -192,7 +192,6 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("FinancialBookId");
 
                     b.HasIndex("FinancialBookId", "IdempotencyUserId", "IdempotencyKey")
                         .IsUnique()
