@@ -24,19 +24,27 @@ internal sealed class AccountLedgerReadRepository(ArtaFinDbContext dbContext)
             ? PostingSide.Debit
             : PostingSide.Credit;
 
+        // Use SelectMany's result selector and an anonymous projection. EF Core can
+        // translate this directly to a relational join over JournalEntries/JournalLines;
+        // projecting a custom record from a nested collection selector prevented CountAsync
+        // from being translated by the SQL Server provider.
         var allLines = dbContext.JournalEntries
             .AsNoTracking()
             .Where(entry => entry.FinancialBookId == financialBookId)
-            .SelectMany(entry => entry.Lines.Select(line => new LedgerRow(
-                entry.Id,
-                entry.PostedAt,
-                entry.Description,
-                entry.ReversesJournalEntryId,
-                line.LineNumber,
-                line.AccountId,
-                line.Side,
-                EF.Property<decimal>(line, "_amount"),
-                EF.Property<string>(line, "_currency"))))
+            .SelectMany(
+                entry => entry.Lines,
+                (entry, line) => new
+                {
+                    JournalEntryId = entry.Id,
+                    entry.PostedAt,
+                    entry.Description,
+                    entry.ReversesJournalEntryId,
+                    line.LineNumber,
+                    line.AccountId,
+                    line.Side,
+                    Amount = EF.Property<decimal>(line, "_amount"),
+                    Currency = EF.Property<string>(line, "_currency")
+                })
             .Where(line => line.AccountId == accountId);
 
         var filteredLines = allLines;
@@ -65,17 +73,13 @@ internal sealed class AccountLedgerReadRepository(ArtaFinDbContext dbContext)
                  (line.JournalEntryId.CompareTo(first.JournalEntryId) < 0 ||
                   (line.JournalEntryId == first.JournalEntryId &&
                    line.LineNumber < first.LineNumber))))
-            .Select(line => line.Side == normalSide
-                ? line.Amount
-                : -line.Amount)
+            .Select(line => line.Side == normalSide ? line.Amount : -line.Amount)
             .SumAsync(cancellationToken);
 
         var balance = openingBalance;
         var items = rows.Select(line =>
         {
-            balance += line.Side == (PostingSide)normalBalance
-                ? line.Amount
-                : -line.Amount;
+            balance += line.Side == normalSide ? line.Amount : -line.Amount;
 
             return new AccountLedgerLine(
                 line.JournalEntryId,
@@ -91,15 +95,4 @@ internal sealed class AccountLedgerReadRepository(ArtaFinDbContext dbContext)
 
         return new AccountLedgerPage(items, totalCount, openingBalance);
     }
-
-    private sealed record LedgerRow(
-        Guid JournalEntryId,
-        DateTimeOffset PostedAt,
-        string Description,
-        Guid? ReversesJournalEntryId,
-        int LineNumber,
-        Guid AccountId,
-        PostingSide Side,
-        decimal Amount,
-        string Currency);
 }
