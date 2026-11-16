@@ -31,8 +31,8 @@ internal sealed class AccountLedgerReadRepository(ArtaFinDbContext dbContext)
                 line.LineNumber,
                 line.AccountId,
                 line.Side,
-                line.Amount.Amount,
-                line.Amount.Currency)))
+                EF.Property<decimal>(line, "_amount"),
+                EF.Property<string>(line, "_currency"))))
             .Where(line => line.AccountId == accountId);
 
         var filteredLines = allLines;
