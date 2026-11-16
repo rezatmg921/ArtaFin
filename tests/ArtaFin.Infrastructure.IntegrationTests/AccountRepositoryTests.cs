@@ -355,4 +355,157 @@ public sealed class AccountRepositoryTests : IAsyncLifetime
         await using var context = new ArtaFinDbContext(_options);
         await context.Database.EnsureDeletedAsync();
     }
+    [Fact]
+    public async Task PostingPolicy_RejectsJournalEntryThatWouldMakeCashNegative()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var bookId = Guid.NewGuid();
+        var cashId = Guid.NewGuid();
+        var bankId = Guid.NewGuid();
+        var equityId = Guid.NewGuid();
+
+        await using (var setup = new ArtaFinDbContext(_options))
+        {
+            setup.FinancialBooks.Add(FinancialBook.Create(bookId, Guid.NewGuid(), "Balance policy", "USD", now));
+            setup.Accounts.AddRange(
+                Account.Create(cashId, bookId, "1000", "Cash", AccountType.Asset, now),
+                Account.Create(bankId, bookId, "1010", "Bank", AccountType.Asset, now),
+                Account.Create(equityId, bookId, "3000", "Equity", AccountType.Equity, now));
+            setup.JournalEntries.Add(JournalEntry.Post(
+                Guid.NewGuid(), bookId, now, "Opening cash",
+                [
+                    new JournalLine(cashId, PostingSide.Debit, new Money(100m, "USD")),
+                    new JournalLine(equityId, PostingSide.Credit, new Money(100m, "USD"))
+                ]));
+            await setup.SaveChangesAsync();
+        }
+
+        await using var context = new ArtaFinDbContext(_options);
+        var transfer = JournalEntry.Post(
+            Guid.NewGuid(), bookId, now.AddMinutes(1), "Overdraw cash",
+            [
+                new JournalLine(bankId, PostingSide.Debit, new Money(150m, "USD")),
+                new JournalLine(cashId, PostingSide.Credit, new Money(150m, "USD"))
+            ]);
+
+        await Assert.ThrowsAsync<AccountNegativeBalanceException>(() =>
+            context.ExecuteInTransactionAsync(async ct =>
+            {
+                await context.EnsureCanPostAsync(bookId, transfer.Lines, ct);
+                context.JournalEntries.Add(transfer);
+                await context.SaveChangesAsync(ct);
+            }, CancellationToken.None));
+
+        await using var verification = new ArtaFinDbContext(_options);
+        Assert.Null(await verification.JournalEntries.SingleOrDefaultAsync(x => x.Id == transfer.Id));
+    }
+
+    [Fact]
+    public async Task PostingPolicy_AllowsNegativeWhenAccountPolicyExplicitlyAllowsIt()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var bookId = Guid.NewGuid();
+        var cashId = Guid.NewGuid();
+        var bankId = Guid.NewGuid();
+        var equityId = Guid.NewGuid();
+
+        await using (var setup = new ArtaFinDbContext(_options))
+        {
+            setup.FinancialBooks.Add(FinancialBook.Create(bookId, Guid.NewGuid(), "Overdraft policy", "USD", now));
+            var cash = Account.Create(cashId, bookId, "1000", "Cash", AccountType.Asset, now);
+            cash.ChangeBalancePolicy(AccountBalancePolicy.AllowNegative);
+            setup.Accounts.AddRange(
+                cash,
+                Account.Create(bankId, bookId, "1010", "Bank", AccountType.Asset, now),
+                Account.Create(equityId, bookId, "3000", "Equity", AccountType.Equity, now));
+            setup.JournalEntries.Add(JournalEntry.Post(
+                Guid.NewGuid(), bookId, now, "Opening cash",
+                [
+                    new JournalLine(cashId, PostingSide.Debit, new Money(100m, "USD")),
+                    new JournalLine(equityId, PostingSide.Credit, new Money(100m, "USD"))
+                ]));
+            await setup.SaveChangesAsync();
+        }
+
+        await using var context = new ArtaFinDbContext(_options);
+        var transfer = JournalEntry.Post(
+            Guid.NewGuid(), bookId, now.AddMinutes(1), "Permitted overdraft",
+            [
+                new JournalLine(bankId, PostingSide.Debit, new Money(150m, "USD")),
+                new JournalLine(cashId, PostingSide.Credit, new Money(150m, "USD"))
+            ]);
+
+        await context.ExecuteInTransactionAsync(async ct =>
+        {
+            await context.EnsureCanPostAsync(bookId, transfer.Lines, ct);
+            context.JournalEntries.Add(transfer);
+            await context.SaveChangesAsync(ct);
+        }, CancellationToken.None);
+
+        await using var verification = new ArtaFinDbContext(_options);
+        Assert.NotNull(await verification.JournalEntries.SingleOrDefaultAsync(x => x.Id == transfer.Id));
+    }
+
+    [Fact]
+    public async Task PostingPolicy_SerializesConcurrentSpendingAgainstSameCashAccount()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var bookId = Guid.NewGuid();
+        var cashId = Guid.NewGuid();
+        var bankId = Guid.NewGuid();
+        var equityId = Guid.NewGuid();
+
+        await using (var setup = new ArtaFinDbContext(_options))
+        {
+            setup.FinancialBooks.Add(FinancialBook.Create(bookId, Guid.NewGuid(), "Concurrent balance policy", "USD", now));
+            setup.Accounts.AddRange(
+                Account.Create(cashId, bookId, "1000", "Cash", AccountType.Asset, now),
+                Account.Create(bankId, bookId, "1010", "Bank", AccountType.Asset, now),
+                Account.Create(equityId, bookId, "3000", "Equity", AccountType.Equity, now));
+            setup.JournalEntries.Add(JournalEntry.Post(
+                Guid.NewGuid(), bookId, now, "Opening cash",
+                [
+                    new JournalLine(cashId, PostingSide.Debit, new Money(100m, "USD")),
+                    new JournalLine(equityId, PostingSide.Credit, new Money(100m, "USD"))
+                ]));
+            await setup.SaveChangesAsync();
+        }
+
+        async Task<bool> TryPostAsync()
+        {
+            await using var context = new ArtaFinDbContext(_options);
+            var entry = JournalEntry.Post(
+                Guid.NewGuid(), bookId, DateTimeOffset.UtcNow, "Concurrent transfer",
+                [
+                    new JournalLine(bankId, PostingSide.Debit, new Money(80m, "USD")),
+                    new JournalLine(cashId, PostingSide.Credit, new Money(80m, "USD"))
+                ]);
+
+            try
+            {
+                await context.ExecuteInTransactionAsync(async ct =>
+                {
+                    await context.EnsureCanPostAsync(bookId, entry.Lines, ct);
+                    context.JournalEntries.Add(entry);
+                    await context.SaveChangesAsync(ct);
+                }, CancellationToken.None);
+                return true;
+            }
+            catch (AccountNegativeBalanceException)
+            {
+                return false;
+            }
+        }
+
+        var results = await Task.WhenAll(TryPostAsync(), TryPostAsync());
+
+        Assert.Single(results.Where(result => result));
+        Assert.Single(results.Where(result => !result));
+
+        await using var verification = new ArtaFinDbContext(_options);
+        var persistedTransfers = await verification.JournalEntries
+            .CountAsync(entry => entry.FinancialBookId == bookId && entry.Description == "Concurrent transfer");
+        Assert.Equal(1, persistedTransfers);
+    }
+
 }
