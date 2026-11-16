@@ -21,3 +21,7 @@ The accounting ledger is the authoritative record for posted financial effects. 
 ## Implementation notes
 
 Choose and document the account normal-balance/sign convention. Cross-currency transfers need explicit source amount, destination amount, rate, fee, and FX accounting. Never use binary floating point for money. Define limits and precision for each supported currency.
+
+## Account balance convention
+
+Account balances use the account's normal-balance convention. Debit-normal accounts (assets and expenses) increase on debit lines and decrease on credit lines. Credit-normal accounts (liabilities, equity, and income) increase on credit lines and decrease on debit lines. A ledger row's running balance is the cumulative signed sum of that account's posted journal lines, including prior activity before the requested date range. Paginated results carry the cumulative balance forward from all earlier posted lines; balances are projections and are never stored on the Account aggregate.
