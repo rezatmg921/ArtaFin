@@ -33,7 +33,8 @@ internal static class JournalEntryEndpoints
             .ProducesValidationProblem()
             .Produces(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status400BadRequest)
-            .ProducesProblem(StatusCodes.Status404NotFound);
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
 
         endpoints.MapPost(
                 "/api/financial-books/{financialBookId:guid}/journal-entries/{journalEntryId:guid}/reversal",
