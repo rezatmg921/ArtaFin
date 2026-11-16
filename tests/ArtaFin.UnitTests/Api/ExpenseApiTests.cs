@@ -68,7 +68,7 @@ public sealed class ExpenseApiTests
         {
             Content = JsonContent.Create(CreateValidRequest(factory))
         };
-        retryRequest.Headers.Add("Idempotency-Key", "expense-request-001");
+        retryRequest.Headers.Add("Idempotency-Key", "EXPENSE-REQUEST-001");
         using var retryResponse = await client.SendAsync(retryRequest);
         Assert.Equal(HttpStatusCode.Created, retryResponse.StatusCode);
         var retryPayload = await retryResponse.Content.ReadFromJsonAsync<CreateExpenseResponse>();
