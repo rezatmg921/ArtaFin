@@ -24,6 +24,16 @@ public enum AccountStatus
 }
 
 /// <summary>
+/// Operational policy controlling whether posting may make this account's
+/// normal-balance amount negative. It is independent of accounting type.
+/// </summary>
+public enum AccountBalancePolicy
+{
+    PreventNegative = 1,
+    AllowNegative = 2
+}
+
+/// <summary>
 /// A ledger account owned by one financial book.
 /// Its balance is derived from posted journal entries and is never stored here.
 /// </summary>
@@ -37,6 +47,7 @@ public sealed class Account : AggregateRoot
     public string Name { get; private set; }
     public AccountType Type { get; }
     public AccountNormalBalance NormalBalance { get; }
+    public AccountBalancePolicy BalancePolicy { get; private set; }
     public AccountStatus Status { get; private set; }
     public DateTimeOffset CreatedAt { get; }
     public DateTimeOffset? DeactivatedAt { get; private set; }
@@ -48,6 +59,7 @@ public sealed class Account : AggregateRoot
         string name,
         AccountType type,
         AccountNormalBalance normalBalance,
+        AccountBalancePolicy balancePolicy,
         DateTimeOffset createdAt) : base(id)
     {
         FinancialBookId = financialBookId;
@@ -55,6 +67,7 @@ public sealed class Account : AggregateRoot
         Name = name;
         Type = type;
         NormalBalance = normalBalance;
+        BalancePolicy = balancePolicy;
         CreatedAt = createdAt;
         Status = AccountStatus.Active;
     }
@@ -65,7 +78,8 @@ public sealed class Account : AggregateRoot
         string code,
         string name,
         AccountType type,
-        DateTimeOffset createdAt)
+        DateTimeOffset createdAt,
+        AccountBalancePolicy? balancePolicy = null)
     {
         if (financialBookId == Guid.Empty)
             throw new ArgumentException("Financial book id cannot be empty.", nameof(financialBookId));
@@ -90,8 +104,15 @@ public sealed class Account : AggregateRoot
             _ => throw new ArgumentOutOfRangeException(nameof(type))
         };
 
+        var effectiveBalancePolicy = balancePolicy ?? (type == AccountType.Asset
+            ? AccountBalancePolicy.PreventNegative
+            : AccountBalancePolicy.AllowNegative);
+
+        if (!Enum.IsDefined(effectiveBalancePolicy))
+            throw new ArgumentOutOfRangeException(nameof(balancePolicy));
+
         return new Account(id, financialBookId, normalizedCode, normalizedName,
-            type, normalBalance, createdAt);
+            type, normalBalance, effectiveBalancePolicy, createdAt);
     }
 
     public void Rename(string name)
@@ -104,6 +125,14 @@ public sealed class Account : AggregateRoot
             throw new ArgumentException($"Account name cannot exceed {MaxNameLength} characters.", nameof(name));
 
         Name = normalizedName;
+    }
+
+    public void ChangeBalancePolicy(AccountBalancePolicy balancePolicy)
+    {
+        if (!Enum.IsDefined(balancePolicy))
+            throw new ArgumentOutOfRangeException(nameof(balancePolicy));
+
+        BalancePolicy = balancePolicy;
     }
 
     public void Deactivate(DateTimeOffset deactivatedAt)
