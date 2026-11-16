@@ -150,6 +150,7 @@ app.MapJournalEntryEndpoints();
 app.MapJournalEntryListEndpoints();
 app.MapExpenseEndpoints();
 app.MapIncomeEndpoints();
+app.MapTransferEndpoints();
 
 app.Run();
 
