@@ -21,6 +21,7 @@ public sealed record AccountBalanceSnapshot(
     string Name,
     AccountType Type,
     AccountNormalBalance NormalBalance,
+    AccountBalancePolicy BalancePolicy,
     AccountStatus Status,
     decimal TotalDebits,
     decimal TotalCredits,
