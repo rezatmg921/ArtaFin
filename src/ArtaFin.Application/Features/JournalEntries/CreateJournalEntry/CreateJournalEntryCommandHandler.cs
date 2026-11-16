@@ -89,8 +89,12 @@ public sealed class CreateJournalEntryCommandHandler(
             command.Description,
             lines);
 
-        await journalEntryRepository.AddAsync(entry, cancellationToken);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.ExecuteInTransactionAsync(async ct =>
+        {
+            await unitOfWork.EnsureCanPostAsync(financialBook.Id, entry.Lines, ct);
+            await journalEntryRepository.AddAsync(entry, ct);
+            await unitOfWork.SaveChangesAsync(ct);
+        }, cancellationToken);
 
         return entry.Id;
     }
