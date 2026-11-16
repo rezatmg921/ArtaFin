@@ -105,8 +105,16 @@ public sealed class JournalEntry : AggregateRoot
         Guid? idempotencyUserId = null,
         string? idempotencyKey = null,
         string? requestHash = null) =>
-        CreatePosted(id, financialBookId, postedAt, description, lines,
-            reversesJournalEntryId: null, idempotencyUserId, idempotencyKey, requestHash);
+        CreatePosted(
+            id,
+            financialBookId,
+            postedAt,
+            description,
+            lines,
+            reversesJournalEntryId: null,
+            idempotencyUserId: idempotencyUserId,
+            idempotencyKey: idempotencyKey,
+            requestHash: requestHash);
 
     /// <summary>
     /// Creates a new posted entry that reverses the accounting effect of an original entry.
