@@ -1,5 +1,7 @@
+using System.Globalization;
 using ArtaFin.Application.Abstractions.Persistence;
 using ArtaFin.Application.Abstractions.Security;
+using ArtaFin.Application.Features.Idempotency;
 using ArtaFin.Application.Features.JournalEntries.CreateJournalEntry;
 using ArtaFin.Domain.Finance;
 using MediatR;
@@ -38,6 +40,8 @@ public sealed class CreateIncomeCommandHandler(
         if (command.Description.Trim().Length > JournalEntry.MaxDescriptionLength)
             throw new ArgumentException($"Description cannot exceed {JournalEntry.MaxDescriptionLength} characters.", nameof(command));
 
+        IdempotencyRequestHash.ValidateKey(command.IdempotencyKey);
+
         var book = await financialBookRepository.GetByIdAsync(command.FinancialBookId, cancellationToken);
         if (book is null)
             throw new JournalEntryAccessDeniedException();
@@ -50,37 +54,70 @@ public sealed class CreateIncomeCommandHandler(
                 throw new JournalEntryAccessDeniedException();
         }
 
-        if (!StringComparer.Ordinal.Equals(command.Amount.Currency, book.BaseCurrency.Code))
-            throw new JournalEntryBaseCurrencyMismatchException();
+        var requestHash = IdempotencyRequestHash.Compute(
+            "income",
+            command.FinancialBookId.ToString("N"),
+            command.IncomeAccountId.ToString("N"),
+            command.DepositAccountId.ToString("N"),
+            command.Description.Trim(),
+            command.Amount.Amount.ToString("G29", CultureInfo.InvariantCulture),
+            command.Amount.Currency);
 
-        var incomeAccount = await accountRepository.GetByIdAsync(book.Id, command.IncomeAccountId, cancellationToken);
-        var depositAccount = await accountRepository.GetByIdAsync(book.Id, command.DepositAccountId, cancellationToken);
-
-        if (incomeAccount is null || depositAccount is null ||
-            incomeAccount.Status != AccountStatus.Active || depositAccount.Status != AccountStatus.Active)
-            throw new JournalEntryAccountUnavailableException();
-
-        if (incomeAccount.Type != AccountType.Income)
-            throw new IncomeAccountTypeInvalidException();
-        if (depositAccount.Type != AccountType.Asset)
-            throw new IncomeDepositAccountTypeInvalidException();
-
-        var entry = JournalEntry.Post(
-            Guid.NewGuid(),
-            book.Id,
-            now,
-            command.Description,
-            [
-                new JournalLine(depositAccount.Id, PostingSide.Debit, command.Amount),
-                new JournalLine(incomeAccount.Id, PostingSide.Credit, command.Amount)
-            ]);
-
+        var entryId = Guid.Empty;
         await unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
+            if (command.IdempotencyKey is not null)
+            {
+                await unitOfWork.AcquireIdempotencyLockAsync(
+                    book.Id, currentUser.UserId, command.IdempotencyKey, ct);
+
+                var existing = await journalEntryRepository.GetByIdempotencyKeyAsync(
+                    book.Id, currentUser.UserId, command.IdempotencyKey, ct);
+
+                if (existing is not null)
+                {
+                    if (!StringComparer.Ordinal.Equals(existing.RequestHash, requestHash))
+                        throw new IdempotencyKeyConflictException();
+
+                    entryId = existing.Id;
+                    return;
+                }
+            }
+
+            if (!StringComparer.Ordinal.Equals(command.Amount.Currency, book.BaseCurrency.Code))
+                throw new JournalEntryBaseCurrencyMismatchException();
+
+            var incomeAccount = await accountRepository.GetByIdAsync(book.Id, command.IncomeAccountId, ct);
+            var depositAccount = await accountRepository.GetByIdAsync(book.Id, command.DepositAccountId, ct);
+
+            if (incomeAccount is null || depositAccount is null ||
+                incomeAccount.Status != AccountStatus.Active || depositAccount.Status != AccountStatus.Active)
+                throw new JournalEntryAccountUnavailableException();
+
+            if (incomeAccount.Type != AccountType.Income)
+                throw new IncomeAccountTypeInvalidException();
+            if (depositAccount.Type != AccountType.Asset)
+                throw new IncomeDepositAccountTypeInvalidException();
+
+            var entry = JournalEntry.Post(
+                Guid.NewGuid(),
+                book.Id,
+                now,
+                command.Description,
+                [
+                    new JournalLine(depositAccount.Id, PostingSide.Debit, command.Amount),
+                    new JournalLine(incomeAccount.Id, PostingSide.Credit, command.Amount)
+                ],
+                idempotencyUserId: command.IdempotencyKey is null ? null : currentUser.UserId,
+                idempotencyKey: command.IdempotencyKey,
+                requestHash: command.IdempotencyKey is null ? null : requestHash);
+
             await unitOfWork.EnsureCanPostAsync(book.Id, entry.Lines, ct);
             await journalEntryRepository.AddAsync(entry, ct);
             await unitOfWork.SaveChangesAsync(ct);
+            entryId = entry.Id;
         }, cancellationToken);
-        return entry.Id;
+
+        return entryId;
     }
 }
