@@ -26,9 +26,11 @@ internal static class TransferEndpoints
         Guid financialBookId,
         CreateTransferRequest request,
         ISender sender,
+        HttpRequest httpRequest,
         CancellationToken cancellationToken)
     {
         var errors = new Dictionary<string, string[]>();
+        var idempotencyKey = IdempotencyKeyHeader.Read(httpRequest, errors);
         if (string.IsNullOrWhiteSpace(request.Description))
             errors["description"] = ["Description is required."];
         else if (request.Description.Trim().Length > JournalEntry.MaxDescriptionLength)
@@ -52,7 +54,7 @@ internal static class TransferEndpoints
 
         var entryId = await sender.Send(new CreateTransferCommand(
             financialBookId, request.SourceAccountId, request.DestinationAccountId,
-            request.Description!, amount), cancellationToken);
+            request.Description!, amount, idempotencyKey), cancellationToken);
 
         return Results.Created(
             $"/api/financial-books/{financialBookId}/journal-entries/{entryId}",
