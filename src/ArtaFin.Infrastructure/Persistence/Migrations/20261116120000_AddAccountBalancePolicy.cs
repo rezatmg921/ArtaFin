@@ -21,6 +21,11 @@ public sealed class AddAccountBalancePolicy : Migration
 
         migrationBuilder.Sql(
             "UPDATE [Accounts] SET [BalancePolicy] = 2 WHERE [Type] <> 1;");
+
+        migrationBuilder.AddCheckConstraint(
+            name: "CK_Accounts_BalancePolicy_Valid",
+            table: "Accounts",
+            sql: "[BalancePolicy] IN (1, 2)");
     }
 
     protected override void Down(MigrationBuilder migrationBuilder)
