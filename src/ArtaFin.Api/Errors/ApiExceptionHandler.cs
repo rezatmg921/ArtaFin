@@ -11,6 +11,7 @@ using ArtaFin.Application.Features.FinancialBooks.ManageMember;
 using ArtaFin.Application.Features.JournalEntries.CreateJournalEntry;
 using ArtaFin.Application.Features.JournalEntries.ReverseJournalEntry;
 using ArtaFin.Domain.Common;
+using ArtaFin.Domain.Finance;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -58,6 +59,9 @@ internal sealed class ApiExceptionHandler(
             JournalEntryAlreadyReversedException =>
                 (StatusCodes.Status409Conflict, "Journal entry already reversed",
                     "This journal entry already has a reversal entry."),
+            AccountNegativeBalanceException =>
+                (StatusCodes.Status409Conflict, "Insufficient account balance",
+                    "The posting would make an account with PreventNegative policy have a negative balance. Review the account balance or change its policy if overdraft is permitted."),
             DomainException =>
                 (StatusCodes.Status400BadRequest, "Invalid journal entry", exception.Message),
             JournalEntryAccountUnavailableException =>
