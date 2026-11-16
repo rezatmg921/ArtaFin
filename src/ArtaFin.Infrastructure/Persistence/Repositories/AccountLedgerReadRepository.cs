@@ -20,6 +20,10 @@ internal sealed class AccountLedgerReadRepository(ArtaFinDbContext dbContext)
         int pageSize,
         CancellationToken cancellationToken)
     {
+        var normalSide = normalBalance == AccountNormalBalance.Debit
+            ? PostingSide.Debit
+            : PostingSide.Credit;
+
         var allLines = dbContext.JournalEntries
             .AsNoTracking()
             .Where(entry => entry.FinancialBookId == financialBookId)
@@ -61,7 +65,7 @@ internal sealed class AccountLedgerReadRepository(ArtaFinDbContext dbContext)
                  (line.JournalEntryId.CompareTo(first.JournalEntryId) < 0 ||
                   (line.JournalEntryId == first.JournalEntryId &&
                    line.LineNumber < first.LineNumber))))
-            .Select(line => line.Side == (PostingSide)normalBalance
+            .Select(line => line.Side == normalSide
                 ? line.Amount
                 : -line.Amount)
             .SumAsync(cancellationToken);
