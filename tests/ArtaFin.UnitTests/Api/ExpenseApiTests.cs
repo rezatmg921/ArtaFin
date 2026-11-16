@@ -47,6 +47,92 @@ public sealed class ExpenseApiTests
     }
 
     [Fact]
+    public async Task CreateExpense_WithSameIdempotencyKeyAndPayload_ReturnsOriginalEntry()
+    {
+        var ownerId = Guid.NewGuid();
+        var book = CreateBook(ownerId);
+        using var factory = new ExpenseApiFactory(book);
+        using var client = CreateAuthenticatedClient(factory, ownerId);
+
+        using var firstRequest = new HttpRequestMessage(HttpMethod.Post, $"/api/financial-books/{book.Id}/expenses")
+        {
+            Content = JsonContent.Create(CreateValidRequest(factory))
+        };
+        firstRequest.Headers.Add("Idempotency-Key", "expense-request-001");
+        using var firstResponse = await client.SendAsync(firstRequest);
+        Assert.Equal(HttpStatusCode.Created, firstResponse.StatusCode);
+        var firstPayload = await firstResponse.Content.ReadFromJsonAsync<CreateExpenseResponse>();
+        Assert.NotNull(firstPayload);
+
+        using var retryRequest = new HttpRequestMessage(HttpMethod.Post, $"/api/financial-books/{book.Id}/expenses")
+        {
+            Content = JsonContent.Create(CreateValidRequest(factory))
+        };
+        retryRequest.Headers.Add("Idempotency-Key", "expense-request-001");
+        using var retryResponse = await client.SendAsync(retryRequest);
+        Assert.Equal(HttpStatusCode.Created, retryResponse.StatusCode);
+        var retryPayload = await retryResponse.Content.ReadFromJsonAsync<CreateExpenseResponse>();
+
+        Assert.NotNull(retryPayload);
+        Assert.Equal(firstPayload.JournalEntryId, retryPayload.JournalEntryId);
+        Assert.Equal(1, factory.UnitOfWork.SaveChangesCalls);
+    }
+
+    [Fact]
+    public async Task CreateExpense_WithReusedIdempotencyKeyAndDifferentPayload_ReturnsConflict()
+    {
+        var ownerId = Guid.NewGuid();
+        var book = CreateBook(ownerId);
+        using var factory = new ExpenseApiFactory(book);
+        using var client = CreateAuthenticatedClient(factory, ownerId);
+
+        using var firstRequest = new HttpRequestMessage(HttpMethod.Post, $"/api/financial-books/{book.Id}/expenses")
+        {
+            Content = JsonContent.Create(CreateValidRequest(factory))
+        };
+        firstRequest.Headers.Add("Idempotency-Key", "expense-request-002");
+        using var firstResponse = await client.SendAsync(firstRequest);
+        Assert.Equal(HttpStatusCode.Created, firstResponse.StatusCode);
+
+        using var changedRequest = new HttpRequestMessage(HttpMethod.Post, $"/api/financial-books/{book.Id}/expenses")
+        {
+            Content = JsonContent.Create(new
+            {
+                expenseAccountId = factory.ExpenseAccount.Id,
+                paymentAccountId = factory.PaymentAccount.Id,
+                description = "Office supplies",
+                amount = 250m,
+                currency = "EUR"
+            })
+        };
+        changedRequest.Headers.Add("Idempotency-Key", "expense-request-002");
+        using var changedResponse = await client.SendAsync(changedRequest);
+
+        Assert.Equal(HttpStatusCode.Conflict, changedResponse.StatusCode);
+        Assert.Equal(1, factory.UnitOfWork.SaveChangesCalls);
+    }
+
+    [Fact]
+    public async Task CreateExpense_WithInvalidIdempotencyKey_ReturnsValidationProblem()
+    {
+        var ownerId = Guid.NewGuid();
+        var book = CreateBook(ownerId);
+        using var factory = new ExpenseApiFactory(book);
+        using var client = CreateAuthenticatedClient(factory, ownerId);
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"/api/financial-books/{book.Id}/expenses")
+        {
+            Content = JsonContent.Create(CreateValidRequest(factory))
+        };
+        request.Headers.Add("Idempotency-Key", new string('x', 129));
+        using var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Null(factory.JournalEntries.AddedEntry);
+        Assert.Equal(0, factory.UnitOfWork.SaveChangesCalls);
+    }
+
+    [Fact]
     public async Task CreateExpense_WithoutAccessToken_ReturnsUnauthorized()
     {
         var book = CreateBook(Guid.NewGuid());
@@ -182,6 +268,14 @@ public sealed class ExpenseApiTests
         public JournalEntry? AddedEntry { get; private set; }
         public Task<JournalEntry?> GetByIdAsync(Guid financialBookId, Guid journalEntryId, CancellationToken cancellationToken) =>
             Task.FromResult<JournalEntry?>(null);
+        public Task<JournalEntry?> GetByIdempotencyKeyAsync(
+            Guid financialBookId, Guid userId, string idempotencyKey, CancellationToken cancellationToken) =>
+            Task.FromResult(AddedEntry is not null &&
+                            AddedEntry.FinancialBookId == financialBookId &&
+                            AddedEntry.IdempotencyUserId == userId &&
+                            AddedEntry.IdempotencyKey == idempotencyKey
+                ? AddedEntry
+                : null);
         public Task<bool> HasReversalAsync(Guid financialBookId, Guid originalJournalEntryId, CancellationToken cancellationToken) =>
             Task.FromResult(false);
         public Task AddAsync(JournalEntry entry, CancellationToken cancellationToken)
