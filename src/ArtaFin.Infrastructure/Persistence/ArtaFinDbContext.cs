@@ -2,6 +2,7 @@ using System.Data;
 using ArtaFin.Application.Abstractions.Persistence;
 using ArtaFin.Application.Features.Accounts.CreateAccount;
 using ArtaFin.Application.Features.Accounts.DeleteAccount;
+using ArtaFin.Application.Features.JournalEntries.CreateJournalEntry;
 using ArtaFin.Domain.Finance;
 using ArtaFin.Domain.Security;
 using ArtaFin.Infrastructure.Persistence.Configurations;
@@ -162,8 +163,11 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
             var account = await Accounts
                 .AsNoTracking()
                 .Where(item => item.FinancialBookId == financialBookId && item.Id == accountId)
-                .Select(item => new { item.NormalBalance, item.BalancePolicy })
+                .Select(item => new { item.NormalBalance, item.BalancePolicy, item.Status })
                 .SingleAsync(cancellationToken);
+
+            if (account.Status != AccountStatus.Active)
+                throw new JournalEntryAccountUnavailableException();
 
             if (account.BalancePolicy == AccountBalancePolicy.AllowNegative)
                 continue;
