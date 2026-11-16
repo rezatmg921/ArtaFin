@@ -90,11 +90,13 @@ public sealed class AccountBalanceReadRepositoryIntegrationTests : IAsyncLifetim
         Assert.Equal(200m, cashBalance.TotalDebits);
         Assert.Equal(50m, cashBalance.TotalCredits);
         Assert.Equal(150m, cashBalance.Balance);
+        Assert.Equal(AccountBalancePolicy.PreventNegative, cashBalance.BalancePolicy);
 
         var incomeBalance = Assert.Single(result.Items, item => item.AccountId == income.Id);
         Assert.Equal(0m, incomeBalance.TotalDebits);
         Assert.Equal(200m, incomeBalance.TotalCredits);
         Assert.Equal(200m, incomeBalance.Balance);
+        Assert.Equal(AccountBalancePolicy.AllowNegative, incomeBalance.BalancePolicy);
 
         var expenseBalance = Assert.Single(result.Items, item => item.AccountId == expense.Id);
         Assert.Equal(50m, expenseBalance.TotalDebits);
