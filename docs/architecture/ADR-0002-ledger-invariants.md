@@ -25,3 +25,7 @@ Choose and document the account normal-balance/sign convention. Cross-currency t
 ## Account balance convention
 
 Account balances use the account's normal-balance convention. Debit-normal accounts (assets and expenses) increase on debit lines and decrease on credit lines. Credit-normal accounts (liabilities, equity, and income) increase on credit lines and decrease on debit lines. A ledger row's running balance is the cumulative signed sum of that account's posted journal lines, including prior activity before the requested date range. Paginated results carry the cumulative balance forward from all earlier posted lines; balances are projections and are never stored on the Account aggregate.
+
+## Account balance report
+
+The account-balances read model aggregates debit and credit totals from posted journal lines for each account. Its net balance is debits minus credits for debit-normal accounts and credits minus debits for credit-normal accounts. Accounts with no journal activity are returned with zero totals and zero balance. The report is paged by account code and ID, and balances are computed from the ledger rather than persisted as mutable account state.
