@@ -137,6 +137,8 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
         ArgumentNullException.ThrowIfNull(lines);
         if (financialBookId == Guid.Empty || lines.Count == 0)
             return;
+        if (Database.CurrentTransaction is null)
+            throw new InvalidOperationException("Account balance validation must run inside a posting transaction.");
 
         var proposedLines = lines
             .GroupBy(line => line.AccountId)
