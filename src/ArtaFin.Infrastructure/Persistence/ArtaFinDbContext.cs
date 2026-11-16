@@ -98,6 +98,10 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
         {
             throw new AccountCodeAlreadyExistsException();
         }
+        catch (DbUpdateException exception) when (IsJournalEntryReversalUniqueViolation(exception))
+        {
+            throw new JournalEntryAlreadyReversedException();
+        }
         catch (DbUpdateException exception) when (IsAccountDeleteForeignKeyViolation(exception))
         {
             throw new AccountHasJournalEntriesException();
