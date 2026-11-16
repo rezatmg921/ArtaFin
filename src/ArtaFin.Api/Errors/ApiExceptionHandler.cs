@@ -5,6 +5,7 @@ using ArtaFin.Application.Features.Accounts.UpdateAccount;
 using ArtaFin.Application.Features.FinancialBooks.InviteMember;
 using ArtaFin.Application.Features.Expenses.CreateExpense;
 using ArtaFin.Application.Features.Income.CreateIncome;
+using ArtaFin.Application.Features.Transfers.CreateTransfer;
 using ArtaFin.Application.Features.FinancialBooks.ManageMember;
 using ArtaFin.Application.Features.JournalEntries.CreateJournalEntry;
 using ArtaFin.Application.Features.JournalEntries.ReverseJournalEntry;
@@ -65,6 +66,8 @@ internal sealed class ApiExceptionHandler(
                 (StatusCodes.Status400BadRequest, "Invalid expense accounts", exception.Message),
             IncomeAccountsMustBeDifferentException or IncomeAccountTypeInvalidException or IncomeDepositAccountTypeInvalidException =>
                 (StatusCodes.Status400BadRequest, "Invalid income accounts", exception.Message),
+            TransferAccountsMustBeDifferentException or TransferAccountTypeInvalidException =>
+                (StatusCodes.Status400BadRequest, "Invalid transfer accounts", exception.Message),
             InviteTargetUserNotFoundException =>
                 (StatusCodes.Status404NotFound, "User not found",
                     "The specified user was not found or is not active."),
