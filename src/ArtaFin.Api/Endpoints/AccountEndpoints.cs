@@ -138,6 +138,20 @@ internal static class AccountEndpoints
             errors["type"] = ["Account type must be Asset, Liability, Equity, Income, or Expense."];
         }
 
+        AccountBalancePolicy? balancePolicy = null;
+        if (!string.IsNullOrWhiteSpace(request.BalancePolicy))
+        {
+            if (!Enum.TryParse<AccountBalancePolicy>(request.BalancePolicy, true, out var parsedPolicy) ||
+                !Enum.IsDefined(parsedPolicy))
+            {
+                errors["balancePolicy"] = ["Balance policy must be PreventNegative or AllowNegative."];
+            }
+            else
+            {
+                balancePolicy = parsedPolicy;
+            }
+        }
+
         if (errors.Count > 0)
             return Results.ValidationProblem(errors);
 
@@ -145,7 +159,8 @@ internal static class AccountEndpoints
             financialBookId,
             request.Code!,
             request.Name!,
-            accountType);
+            accountType,
+            balancePolicy);
 
         var accountId = await handler.HandleAsync(command, cancellationToken);
         var location = $"/api/financial-books/{financialBookId}/accounts/{accountId}";
@@ -171,6 +186,21 @@ internal static class AccountEndpoints
                     ? "Account name is required."
                     : $"Account name cannot exceed {Account.MaxNameLength} characters."]
             });
+        }
+
+        AccountBalancePolicy? balancePolicy = null;
+        if (!string.IsNullOrWhiteSpace(request.BalancePolicy))
+        {
+            if (!Enum.TryParse<AccountBalancePolicy>(request.BalancePolicy, true, out var parsedPolicy) ||
+                !Enum.IsDefined(parsedPolicy))
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["balancePolicy"] = ["Balance policy must be PreventNegative or AllowNegative."]
+                });
+            }
+
+            balancePolicy = parsedPolicy;
         }
 
         if (string.IsNullOrWhiteSpace(ifMatch))
@@ -230,7 +260,8 @@ internal static class AccountEndpoints
                 accountId,
                 request.Name,
                 expectedVersions,
-                matchAny),
+                matchAny,
+                balancePolicy),
             cancellationToken);
 
         if (snapshot is null)
@@ -415,12 +446,13 @@ internal static class AccountEndpoints
             account.Name,
             account.Type.ToString(),
             account.NormalBalance.ToString(),
+            account.BalancePolicy.ToString(),
             account.Status.ToString(),
             account.CreatedAt,
             account.DeactivatedAt);
 }
 
-internal sealed record CreateAccountRequest(string? Code, string? Name, string? Type);
+internal sealed record CreateAccountRequest(string? Code, string? Name, string? Type, string? BalancePolicy = null);
 internal sealed record UpdateAccountRequest(string Name);
 internal sealed record CreateAccountResponse(Guid Id);
 
@@ -431,6 +463,7 @@ internal sealed record AccountResponse(
     string Name,
     string Type,
     string NormalBalance,
+    string BalancePolicy,
     string Status,
     DateTimeOffset CreatedAt,
     DateTimeOffset? DeactivatedAt);
