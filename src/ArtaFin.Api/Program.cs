@@ -145,6 +145,7 @@ app.MapAuthenticationEndpoints();
 app.MapFinancialBookEndpoints();
 app.MapAccountEndpoints();
 app.MapAccountListEndpoints();
+app.MapAccountLedgerEndpoints();
 app.MapFinancialBookMemberEndpoints();
 app.MapJournalEntryEndpoints();
 app.MapJournalEntryListEndpoints();
