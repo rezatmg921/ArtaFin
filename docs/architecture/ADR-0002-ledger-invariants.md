@@ -29,3 +29,18 @@ Account balances use the account's normal-balance convention. Debit-normal accou
 ## Account balance report
 
 The account-balances read model aggregates debit and credit totals from posted journal lines for each account. Its net balance is debits minus credits for debit-normal accounts and credits minus debits for credit-normal accounts. Accounts with no journal activity are returned with zero totals and zero balance. The report is paged by account code and ID, and balances are computed from the ledger rather than persisted as mutable account state.
+
+## Operational negative-balance policy
+
+Account type and balance policy are separate concepts. Account type determines accounting classification and normal balance; balance policy determines whether a posting is allowed to take the account below zero in its normal-balance convention.
+
+- Asset accounts default to `PreventNegative`.
+- Non-asset accounts default to `AllowNegative`; the policy can be explicitly changed where a business rule requires it.
+- An Asset account that represents an overdraft-enabled bank account can opt into `AllowNegative`.
+- The policy is configurable on account creation and through the account update endpoint. Changing it does not rewrite or normalize historical ledger entries.
+- The ledger and account-balance reports always show the actual posted balance, including negative balances caused by historical data or policy changes. A read projection must never clamp a negative amount to zero.
+- A new posting that would make any `PreventNegative` account's normal balance negative is rejected with HTTP 409. The rule applies uniformly to manual journal entries, expenses, income deposits, transfers, and reversals.
+- Reversals remain new immutable journal entries. They are subject to the same policy, so a reversal that would create a prohibited negative balance is rejected; users must first post an appropriate correction/reclassification or obtain an explicitly permitted policy change.
+- The policy check and journal insert execute in one SQL Server serializable transaction. Account rows are locked in deterministic ID order with update/hold locks until commit, preventing concurrent requests from consuming the same available balance.
+
+This is an operational posting control, not a change to double-entry accounting. A negative ledger balance remains visible and auditable; the control prevents new postings that violate the configured policy.
