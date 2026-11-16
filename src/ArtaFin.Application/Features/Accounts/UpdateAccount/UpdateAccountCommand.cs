@@ -1,15 +1,14 @@
 using ArtaFin.Application.Abstractions.Persistence;
+using ArtaFin.Domain.Finance;
 using MediatR;
 
 namespace ArtaFin.Application.Features.Accounts.UpdateAccount;
 
-/// <summary>
-/// Requests a rename of an account. MatchAny represents the If-Match wildcard.
-/// Otherwise, at least one supplied strong row-version tag must match.
-/// </summary>
+/// <summary>Renames an account and optionally changes its operational balance policy.</summary>
 public sealed record UpdateAccountCommand(
     Guid FinancialBookId,
     Guid AccountId,
     string Name,
     IReadOnlyList<byte[]>? ExpectedRowVersions,
-    bool MatchAny) : IRequest<AccountReadSnapshot?>;
+    bool MatchAny,
+    AccountBalancePolicy? BalancePolicy = null) : IRequest<AccountReadSnapshot?>;
