@@ -44,6 +44,7 @@ public sealed class AccountBalancesApiTests
         Assert.Equal("USD", payload.Currency);
         Assert.Equal(2, payload.TotalCount);
         Assert.Equal(110m, payload.Items[0].Balance);
+        Assert.Equal("PreventNegative", payload.Items[0].BalancePolicy);
         Assert.Equal(150m, payload.Items[1].Balance);
         Assert.Equal(1, repository.Calls);
     }
