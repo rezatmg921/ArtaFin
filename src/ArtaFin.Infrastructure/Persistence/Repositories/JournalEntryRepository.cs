@@ -20,6 +20,21 @@ internal sealed class JournalEntryRepository(ArtaFinDbContext dbContext)
                 cancellationToken);
     }
 
+    public Task<JournalEntry?> GetByIdempotencyKeyAsync(
+        Guid financialBookId,
+        Guid userId,
+        string idempotencyKey,
+        CancellationToken cancellationToken)
+    {
+        return dbContext.JournalEntries
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                entry => entry.FinancialBookId == financialBookId &&
+                         entry.IdempotencyUserId == userId &&
+                         entry.IdempotencyKey == idempotencyKey,
+                cancellationToken);
+    }
+
     public Task<bool> HasReversalAsync(
         Guid financialBookId,
         Guid originalJournalEntryId,
