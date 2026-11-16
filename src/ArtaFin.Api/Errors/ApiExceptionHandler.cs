@@ -1,6 +1,7 @@
 using ArtaFin.Application.Abstractions.Persistence;
 using ArtaFin.Application.Features.Accounts.CreateAccount;
 using ArtaFin.Application.Features.Accounts.DeleteAccount;
+using ArtaFin.Application.Features.Accounts.GetAccountLedger;
 using ArtaFin.Application.Features.Accounts.UpdateAccount;
 using ArtaFin.Application.Features.FinancialBooks.InviteMember;
 using ArtaFin.Application.Features.Expenses.CreateExpense;
@@ -41,6 +42,9 @@ internal sealed class ApiExceptionHandler(
             FinancialBookAccessDeniedException or FinancialBookManagementDeniedException or JournalEntryAccessDeniedException =>
                 (StatusCodes.Status404NotFound, "Financial book not found",
                     "The financial book was not found or is not accessible."),
+            AccountLedgerNotFoundException =>
+                (StatusCodes.Status404NotFound, "Account not found",
+                    "The account was not found in this financial book."),
             FinancialBookMemberNotFoundException =>
                 (StatusCodes.Status404NotFound, "Financial book member not found",
                     "The membership was not found in this financial book."),
