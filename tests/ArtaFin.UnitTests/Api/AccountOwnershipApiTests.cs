@@ -137,10 +137,11 @@ public sealed class AccountOwnershipApiTests
 
         using var response = await client.PutAsJsonAsync(
             $"/api/financial-books/{book.Id}/accounts/{account.Id}",
-            new { name = "Operating Cash" });
+            new { name = "Operating Cash", balancePolicy = "AllowNegative" });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("Operating Cash", account.Name);
+        Assert.Equal(AccountBalancePolicy.AllowNegative, account.BalancePolicy);
         Assert.NotNull(response.Headers.ETag);
         Assert.Equal(
             string.Concat((char)34, Convert.ToBase64String(updatedVersion), (char)34),
