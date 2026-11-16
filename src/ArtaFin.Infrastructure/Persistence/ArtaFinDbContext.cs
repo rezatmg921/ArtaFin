@@ -211,7 +211,7 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
             // Existing negative balances may come from legacy history. Permit
             // corrective postings that improve them, but never worsen them.
             if (projectedBalance < 0m && proposedDelta < 0m)
-                throw new AccountNegativeBalanceException(account.Id, projectedBalance);
+                throw new AccountNegativeBalanceException(accountId, projectedBalance);
         }
     }
 
