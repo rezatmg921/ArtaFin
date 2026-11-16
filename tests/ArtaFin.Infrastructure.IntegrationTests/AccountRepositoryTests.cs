@@ -508,4 +508,53 @@ public sealed class AccountRepositoryTests : IAsyncLifetime
         Assert.Equal(1, persistedTransfers);
     }
 
+    [Fact]
+    public async Task PostingPolicy_AllowsCorrectionThatImprovesLegacyNegativeBalance()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var bookId = Guid.NewGuid();
+        var cashId = Guid.NewGuid();
+        var equityId = Guid.NewGuid();
+
+        await using (var setup = new ArtaFinDbContext(_options))
+        {
+            setup.FinancialBooks.Add(FinancialBook.Create(bookId, Guid.NewGuid(), "Legacy negative balance", "USD", now));
+            setup.Accounts.AddRange(
+                Account.Create(cashId, bookId, "1000", "Cash", AccountType.Asset, now),
+                Account.Create(equityId, bookId, "3000", "Equity", AccountType.Equity, now));
+            setup.JournalEntries.AddRange(
+                JournalEntry.Post(
+                    Guid.NewGuid(), bookId, now, "Opening cash",
+                    [
+                        new JournalLine(cashId, PostingSide.Debit, new Money(100m, "USD")),
+                        new JournalLine(equityId, PostingSide.Credit, new Money(100m, "USD"))
+                    ]),
+                JournalEntry.Post(
+                    Guid.NewGuid(), bookId, now.AddMinutes(1), "Legacy overpayment",
+                    [
+                        new JournalLine(equityId, PostingSide.Debit, new Money(150m, "USD")),
+                        new JournalLine(cashId, PostingSide.Credit, new Money(150m, "USD"))
+                    ]));
+            await setup.SaveChangesAsync();
+        }
+
+        await using var context = new ArtaFinDbContext(_options);
+        var correction = JournalEntry.Post(
+            Guid.NewGuid(), bookId, now.AddMinutes(2), "Correct cash balance",
+            [
+                new JournalLine(cashId, PostingSide.Debit, new Money(25m, "USD")),
+                new JournalLine(equityId, PostingSide.Credit, new Money(25m, "USD"))
+            ]);
+
+        await context.ExecuteInTransactionAsync(async ct =>
+        {
+            await context.EnsureCanPostAsync(bookId, correction.Lines, ct);
+            context.JournalEntries.Add(correction);
+            await context.SaveChangesAsync(ct);
+        }, CancellationToken.None);
+
+        await using var verification = new ArtaFinDbContext(_options);
+        Assert.NotNull(await verification.JournalEntries.SingleOrDefaultAsync(x => x.Id == correction.Id));
+    }
+
 }
