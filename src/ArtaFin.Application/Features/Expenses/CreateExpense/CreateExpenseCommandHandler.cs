@@ -45,6 +45,8 @@ public sealed class CreateExpenseCommandHandler(
                 nameof(command));
 
         IdempotencyRequestHash.ValidateKey(command.IdempotencyKey);
+        var idempotencyKey = command.IdempotencyKey?.Trim().ToUpperInvariant();
+
 
         var financialBook = await financialBookRepository.GetByIdAsync(
             command.FinancialBookId,
@@ -77,13 +79,13 @@ public sealed class CreateExpenseCommandHandler(
         var entryId = Guid.Empty;
         await unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
-            if (command.IdempotencyKey is not null)
+            if (idempotencyKey is not null)
             {
                 await unitOfWork.AcquireIdempotencyLockAsync(
-                    financialBook.Id, currentUser.UserId, command.IdempotencyKey, ct);
+                    financialBook.Id, currentUser.UserId, idempotencyKey, ct);
 
                 var existing = await journalEntryRepository.GetByIdempotencyKeyAsync(
-                    financialBook.Id, currentUser.UserId, command.IdempotencyKey, ct);
+                    financialBook.Id, currentUser.UserId, idempotencyKey, ct);
 
                 if (existing is not null)
                 {
@@ -128,9 +130,9 @@ public sealed class CreateExpenseCommandHandler(
                     new JournalLine(expenseAccount.Id, PostingSide.Debit, command.Amount),
                     new JournalLine(paymentAccount.Id, PostingSide.Credit, command.Amount)
                 ],
-                idempotencyUserId: command.IdempotencyKey is null ? null : currentUser.UserId,
-                idempotencyKey: command.IdempotencyKey,
-                requestHash: command.IdempotencyKey is null ? null : requestHash);
+                idempotencyUserId: idempotencyKey is null ? null : currentUser.UserId,
+                idempotencyKey: idempotencyKey,
+                requestHash: idempotencyKey is null ? null : requestHash);
 
             await unitOfWork.EnsureCanPostAsync(financialBook.Id, entry.Lines, ct);
             await journalEntryRepository.AddAsync(entry, ct);
