@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace ArtaFin.Infrastructure.Persistence.Migrations;
 
-public sealed class AddJournalEntryIdempotency : Migration
+public sealed partial class AddJournalEntryIdempotency : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
     {
