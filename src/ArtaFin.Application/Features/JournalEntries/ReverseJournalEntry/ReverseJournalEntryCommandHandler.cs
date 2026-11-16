@@ -88,8 +88,12 @@ public sealed class ReverseJournalEntryCommandHandler(
             now,
             command.Description);
 
-        await journalEntryRepository.AddAsync(reversal, cancellationToken);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.ExecuteInTransactionAsync(async ct =>
+        {
+            await unitOfWork.EnsureCanPostAsync(financialBook.Id, reversal.Lines, ct);
+            await journalEntryRepository.AddAsync(reversal, ct);
+            await unitOfWork.SaveChangesAsync(ct);
+        }, cancellationToken);
 
         return reversal.Id;
     }
