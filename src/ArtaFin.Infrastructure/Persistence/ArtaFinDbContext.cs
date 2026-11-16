@@ -1,3 +1,4 @@
+using System.Data;
 using ArtaFin.Application.Abstractions.Persistence;
 using ArtaFin.Application.Features.Accounts.CreateAccount;
 using ArtaFin.Application.Features.Accounts.DeleteAccount;
@@ -27,7 +28,6 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        // Keep runtime entity registration order aligned with the migration snapshot.
         modelBuilder.Entity<FinancialBook>();
         modelBuilder.Entity<FinancialBookMember>();
         modelBuilder.Entity<Account>();
@@ -102,6 +102,107 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
         }
     }
 
+    public async Task ExecuteInTransactionAsync(
+        Func<CancellationToken, Task> operation,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+
+        await using var transaction = await Database.BeginTransactionAsync(
+            IsolationLevel.Serializable, cancellationToken);
+
+        try
+        {
+            await operation(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Must be called inside ExecuteInTransactionAsync. Account rows are locked
+    /// in deterministic order until the journal entry is committed, preventing
+    /// concurrent postings from spending the same available balance.
+    /// </summary>
+    public async Task EnsureCanPostAsync(
+        Guid financialBookId,
+        IReadOnlyCollection<JournalLine> lines,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(lines);
+        if (financialBookId == Guid.Empty || lines.Count == 0)
+            return;
+
+        var proposedLines = lines
+            .GroupBy(line => line.AccountId)
+            .OrderBy(group => group.Key)
+            .ToArray();
+
+        foreach (var proposed in proposedLines)
+        {
+            var accountId = proposed.Key;
+
+            // UPDLOCK + HOLDLOCK keeps a per-account write lock until transaction end.
+            var lockedAccountId = await Accounts
+                .FromSqlInterpolated($@"SELECT * FROM [Accounts] WITH (UPDLOCK, HOLDLOCK)
+                    WHERE [FinancialBookId] = {financialBookId} AND [Id] = {accountId}")
+                .AsNoTracking()
+                .Select(account => account.Id)
+                .SingleOrDefaultAsync(cancellationToken);
+
+            if (lockedAccountId == Guid.Empty)
+                throw new InvalidOperationException("A journal line references an account that no longer exists.");
+
+            var account = await Accounts.SingleAsync(
+                item => item.FinancialBookId == financialBookId && item.Id == accountId,
+                cancellationToken);
+
+            if (account.BalancePolicy == AccountBalancePolicy.AllowNegative)
+                continue;
+
+            var totals = await JournalEntries
+                .AsNoTracking()
+                .Where(entry => entry.FinancialBookId == financialBookId)
+                .SelectMany(entry => entry.Lines, (entry, line) => new
+                {
+                    line.AccountId,
+                    line.Side,
+                    Amount = EF.Property<decimal>(line, "_amount")
+                })
+                .Where(line => line.AccountId == accountId)
+                .GroupBy(line => line.AccountId)
+                .Select(group => new
+                {
+                    Debits = group.Sum(line =>
+                        line.Side == PostingSide.Debit ? line.Amount : 0m),
+                    Credits = group.Sum(line =>
+                        line.Side == PostingSide.Credit ? line.Amount : 0m)
+                })
+                .SingleOrDefaultAsync(cancellationToken);
+
+            var currentBalance = account.NormalBalance == AccountNormalBalance.Debit
+                ? (totals?.Debits ?? 0m) - (totals?.Credits ?? 0m)
+                : (totals?.Credits ?? 0m) - (totals?.Debits ?? 0m);
+
+            var proposedDelta = proposed.Sum(line =>
+            {
+                var increasesNormalBalance = account.NormalBalance == AccountNormalBalance.Debit
+                    ? line.Side == PostingSide.Debit
+                    : line.Side == PostingSide.Credit;
+
+                return increasesNormalBalance ? line.Amount.Amount : -line.Amount.Amount;
+            });
+
+            var projectedBalance = currentBalance + proposedDelta;
+            if (projectedBalance < 0m)
+                throw new AccountNegativeBalanceException(account.Id, projectedBalance);
+        }
+    }
+
     private void EnsurePostedJournalEntriesAreImmutable()
     {
         ChangeTracker.DetectChanges();
@@ -137,12 +238,8 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
             foreach (SqlError error in sqlException.Errors)
             {
                 if (error.Number == 547 &&
-                    error.Message.Contains(
-                        JournalLineAccountForeignKeyName,
-                        StringComparison.OrdinalIgnoreCase))
-                {
+                    error.Message.Contains(JournalLineAccountForeignKeyName, StringComparison.OrdinalIgnoreCase))
                     return true;
-                }
             }
         }
 
@@ -160,8 +257,7 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
             {
                 var isDuplicateKey = error.Number is 2601 or 2627;
                 var isAccountCodeIndex = error.Message.Contains(
-                    AccountCodeUniqueIndexName,
-                    StringComparison.OrdinalIgnoreCase);
+                    AccountCodeUniqueIndexName, StringComparison.OrdinalIgnoreCase);
 
                 if (isDuplicateKey && isAccountCodeIndex)
                     return true;
