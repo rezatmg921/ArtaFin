@@ -9,4 +9,5 @@ public sealed record CreateIncomeCommand(
     Guid IncomeAccountId,
     Guid DepositAccountId,
     string Description,
-    Money Amount) : IRequest<Guid>;
+    Money Amount,
+    string? IdempotencyKey = null) : IRequest<Guid>;
