@@ -17,7 +17,7 @@ Content-Type: application/json
 Idempotency-Key: 7c0e6db1-7e7e-4a45-ae80-fb6fdc3b813e
 ```
 
-The header is optional for backward compatibility. When supplied, it must contain one non-empty value of at most 128 characters and no control characters.
+The header is optional for backward compatibility. When supplied, it must contain one non-empty value of at most 128 characters and no control characters. Keys are trimmed and normalized to uppercase before lookup, so they are case-insensitive.
 
 ## Server guarantees
 
