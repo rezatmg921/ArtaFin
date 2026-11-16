@@ -30,6 +30,10 @@ public sealed class AddAccountBalancePolicy : Migration
 
     protected override void Down(MigrationBuilder migrationBuilder)
     {
+        migrationBuilder.DropCheckConstraint(
+            name: "CK_Accounts_BalancePolicy_Valid",
+            table: "Accounts");
+
         migrationBuilder.DropColumn(
             name: "BalancePolicy",
             table: "Accounts");
