@@ -8,12 +8,32 @@ public sealed class JournalEntryConfiguration : IEntityTypeConfiguration<Journal
 {
     public void Configure(EntityTypeBuilder<JournalEntry> builder)
     {
-        builder.ToTable("JournalEntries");
+        builder.ToTable("JournalEntries", table =>
+            table.HasCheckConstraint(
+                "CK_JournalEntries_IdempotencyMetadata_Consistent",
+                "([IdempotencyKey] IS NULL AND [IdempotencyUserId] IS NULL AND [RequestHash] IS NULL) OR ([IdempotencyKey] IS NOT NULL AND [IdempotencyUserId] IS NOT NULL AND [RequestHash] IS NOT NULL)"));
         builder.HasKey(entry => entry.Id);
         builder.Property(entry => entry.FinancialBookId).IsRequired();
         builder.Property(entry => entry.PostedAt).HasColumnType("datetimeoffset(7)").IsRequired();
         builder.Property(entry => entry.Description).HasMaxLength(JournalEntry.MaxDescriptionLength).IsRequired();
         builder.Property(entry => entry.ReversesJournalEntryId);
+        builder.Property(entry => entry.IdempotencyUserId);
+        builder.Property(entry => entry.IdempotencyKey).HasMaxLength(128);
+        builder.Property(entry => entry.RequestHash)
+            .HasColumnType("char(64)")
+            .HasMaxLength(64)
+            .IsUnicode(false)
+            .IsFixedLength();
+
+        builder.HasIndex(entry => new
+            {
+                entry.FinancialBookId,
+                entry.IdempotencyUserId,
+                entry.IdempotencyKey
+            })
+            .IsUnique()
+            .HasFilter("[IdempotencyKey] IS NOT NULL")
+            .HasDatabaseName("UX_JournalEntries_Idempotency");
 
         // A journal entry can be reversed at most once. The filtered unique index
         // allows any number of original entries because NULL values are excluded.
