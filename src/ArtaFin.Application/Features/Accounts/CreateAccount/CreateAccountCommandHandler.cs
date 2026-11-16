@@ -61,7 +61,8 @@ public sealed class CreateAccountCommandHandler(
             normalizedCode,
             command.Name,
             command.Type,
-            timeProvider.GetUtcNow());
+            timeProvider.GetUtcNow(),
+            command.BalancePolicy);
 
         await accountRepository.AddAsync(account, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
