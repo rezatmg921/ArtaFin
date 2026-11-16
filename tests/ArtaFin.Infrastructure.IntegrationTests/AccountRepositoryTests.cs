@@ -499,8 +499,8 @@ public sealed class AccountRepositoryTests : IAsyncLifetime
 
         var results = await Task.WhenAll(TryPostAsync(), TryPostAsync());
 
-        Assert.Single(results.Where(result => result));
-        Assert.Single(results.Where(result => !result));
+        Assert.Single(results, result => result);
+        Assert.Single(results, result => !result);
 
         await using var verification = new ArtaFinDbContext(_options);
         var persistedTransfers = await verification.JournalEntries
