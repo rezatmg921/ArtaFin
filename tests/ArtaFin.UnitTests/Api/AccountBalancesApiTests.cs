@@ -28,9 +28,9 @@ public sealed class AccountBalancesApiTests
         var repository = new FakeBalanceRepository(new AccountBalancePage(
             [
                 new AccountBalanceSnapshot(Guid.NewGuid(), "1000", "Cash", AccountType.Asset,
-                    AccountNormalBalance.Debit, AccountStatus.Active, 150m, 40m, 110m),
+                    AccountNormalBalance.Debit, AccountBalancePolicy.PreventNegative, AccountStatus.Active, 150m, 40m, 110m),
                 new AccountBalanceSnapshot(Guid.NewGuid(), "4000", "Sales", AccountType.Income,
-                    AccountNormalBalance.Credit, AccountStatus.Active, 0m, 150m, 150m)
+                    AccountNormalBalance.Credit, AccountBalancePolicy.AllowNegative, AccountStatus.Active, 0m, 150m, 150m)
             ], 2));
         using var factory = new ApiFactory(book, repository);
         using var client = CreateAuthenticatedClient(factory, ownerId);
@@ -127,5 +127,5 @@ public sealed class AccountBalancesApiTests
         IReadOnlyList<BalanceItemResponse> Items);
     private sealed record BalanceItemResponse(
         Guid AccountId, string Code, string Name, string Type, string NormalBalance,
-        string Status, decimal TotalDebits, decimal TotalCredits, decimal Balance);
+        string BalancePolicy, string Status, decimal TotalDebits, decimal TotalCredits, decimal Balance);
 }
