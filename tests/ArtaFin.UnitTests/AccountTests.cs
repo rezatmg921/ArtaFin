@@ -140,4 +140,36 @@ public sealed class AccountTests
 
     private static Account CreateAccount() => Account.Create(
         Guid.NewGuid(), BookId, "1000", "Main Bank", AccountType.Asset, CreatedAt);
+    [Fact]
+    public void Create_DefaultsAssetToPreventNegativeAndNonAssetToAllowNegative()
+    {
+        var asset = Account.Create(Guid.NewGuid(), BookId, "1000", "Cash", AccountType.Asset, CreatedAt);
+        var income = Account.Create(Guid.NewGuid(), BookId, "4000", "Income", AccountType.Income, CreatedAt);
+
+        Assert.Equal(AccountBalancePolicy.PreventNegative, asset.BalancePolicy);
+        Assert.Equal(AccountBalancePolicy.AllowNegative, income.BalancePolicy);
+    }
+
+    [Fact]
+    public void Create_AllowsExplicitBalancePolicyOverride()
+    {
+        var overdraftBank = Account.Create(
+            Guid.NewGuid(), BookId, "1010", "Overdraft bank", AccountType.Asset, CreatedAt,
+            AccountBalancePolicy.AllowNegative);
+
+        Assert.Equal(AccountBalancePolicy.AllowNegative, overdraftBank.BalancePolicy);
+    }
+
+    [Fact]
+    public void ChangeBalancePolicy_ChangesOperationalPolicyWithoutChangingAccountType()
+    {
+        var account = CreateAccount();
+
+        account.ChangeBalancePolicy(AccountBalancePolicy.AllowNegative);
+
+        Assert.Equal(AccountType.Asset, account.Type);
+        Assert.Equal(AccountNormalBalance.Debit, account.NormalBalance);
+        Assert.Equal(AccountBalancePolicy.AllowNegative, account.BalancePolicy);
+    }
+
 }
