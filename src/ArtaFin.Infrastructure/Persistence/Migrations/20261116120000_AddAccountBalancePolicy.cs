@@ -1,14 +1,10 @@
-using ArtaFin.Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace ArtaFin.Infrastructure.Persistence.Migrations;
 
-[DbContext(typeof(ArtaFinDbContext))]
-[Migration("20261116120000_AddAccountBalancePolicy")]
-public sealed class AddAccountBalancePolicy : Migration
+public sealed partial class AddAccountBalancePolicy : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
     {
