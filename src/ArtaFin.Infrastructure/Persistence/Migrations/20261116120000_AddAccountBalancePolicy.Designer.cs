@@ -161,10 +161,6 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("ArtaFin.Domain.Finance.JournalEntry", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasMaxLength(500)
@@ -173,8 +169,25 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("FinancialBookId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("IdempotencyKey")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<Guid?>("IdempotencyUserId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<DateTimeOffset>("PostedAt")
                         .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<string>("RequestHash")
+                        .IsFixedLength()
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)");
 
                     b.Property<Guid?>("ReversesJournalEntryId")
                         .HasColumnType("uniqueidentifier");
@@ -183,12 +196,20 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("FinancialBookId");
 
+                    b.HasIndex("FinancialBookId", "IdempotencyUserId", "IdempotencyKey")
+                        .IsUnique()
+                        .HasDatabaseName("UX_JournalEntries_Idempotency")
+                        .HasFilter("[IdempotencyKey] IS NOT NULL");
+
                     b.HasIndex("ReversesJournalEntryId")
                         .IsUnique()
                         .HasDatabaseName("UX_JournalEntries_ReversesJournalEntryId")
                         .HasFilter("[ReversesJournalEntryId] IS NOT NULL");
 
-                    b.ToTable("JournalEntries", (string)null);
+                    b.ToTable("JournalEntries", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_JournalEntries_IdempotencyMetadata_Consistent", "([IdempotencyKey] IS NULL AND [IdempotencyUserId] IS NULL AND [RequestHash] IS NULL) OR ([IdempotencyKey] IS NOT NULL AND [IdempotencyUserId] IS NOT NULL AND [RequestHash] IS NOT NULL)");
+                        });
                 });
 
             modelBuilder.Entity("ArtaFin.Domain.Security.AppRole", b =>
