@@ -1,4 +1,6 @@
 using System.Data;
+using System.Security.Cryptography;
+using System.Text;
 using ArtaFin.Application.Abstractions.Persistence;
 using ArtaFin.Application.Features.Accounts.CreateAccount;
 using ArtaFin.Application.Features.Accounts.DeleteAccount;
@@ -111,6 +113,24 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
             throw new PersistenceConcurrencyException(
                 "The record was changed by another operation. Reload it and retry.", exception);
         }
+    }
+
+    public async Task AcquireIdempotencyLockAsync(
+        Guid financialBookId,
+        Guid userId,
+        string idempotencyKey,
+        CancellationToken cancellationToken)
+    {
+        if (Database.CurrentTransaction is null)
+            throw new InvalidOperationException("An idempotency lock requires an active transaction.");
+
+        var lockIdentity = $"{financialBookId:N}:{userId:N}:{idempotencyKey}";
+        var lockHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(lockIdentity)));
+        var resource = $"ArtaFin:Idempotency:{lockHash}";
+
+        await Database.ExecuteSqlInterpolatedAsync(
+            $"DECLARE @result int; EXEC @result = sys.sp_getapplock @Resource = {resource}, @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = 10000; IF @result < 0 THROW 51000, 'Unable to acquire idempotency lock.', 1;",
+            cancellationToken);
     }
 
     public async Task ExecuteInTransactionAsync(
