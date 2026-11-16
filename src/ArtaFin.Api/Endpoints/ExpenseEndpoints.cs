@@ -30,9 +30,11 @@ internal static class ExpenseEndpoints
         Guid financialBookId,
         CreateExpenseRequest request,
         ISender sender,
+        HttpRequest httpRequest,
         CancellationToken cancellationToken)
     {
         var errors = new Dictionary<string, string[]>();
+        var idempotencyKey = IdempotencyKeyHeader.Read(httpRequest, errors);
 
         if (string.IsNullOrWhiteSpace(request.Description))
             errors["description"] = ["Description is required."];
@@ -76,7 +78,8 @@ internal static class ExpenseEndpoints
                 request.ExpenseAccountId,
                 request.PaymentAccountId,
                 request.Description!,
-                amount),
+                amount,
+                idempotencyKey),
             cancellationToken);
 
         var location = $"/api/financial-books/{financialBookId}/journal-entries/{entryId}";
