@@ -39,7 +39,7 @@ Account type and balance policy are separate concepts. Account type determines a
 - An Asset account that represents an overdraft-enabled bank account can opt into `AllowNegative`.
 - The policy is configurable on account creation and through the account update endpoint. Changing it does not rewrite or normalize historical ledger entries.
 - The ledger and account-balance reports always show the actual posted balance, including negative balances caused by historical data or policy changes. A read projection must never clamp a negative amount to zero.
-- A new posting that would make any `PreventNegative` account's normal balance negative is rejected with HTTP 409. The rule applies uniformly to manual journal entries, expenses, income deposits, transfers, and reversals.
+- A posting that would newly create or worsen a negative normal balance on a `PreventNegative` account is rejected with HTTP 409. If legacy history has already left an account negative, corrective postings that improve its balance are allowed. The rule applies uniformly to manual journal entries, expenses, income deposits, transfers, and reversals.
 - Reversals remain new immutable journal entries. They are subject to the same policy, so a reversal that would create a prohibited negative balance is rejected; users must first post an appropriate correction/reclassification or obtain an explicitly permitted policy change.
 - The policy check and journal insert execute in one SQL Server serializable transaction. Account rows are locked in deterministic ID order with update/hold locks until commit, preventing concurrent requests from consuming the same available balance.
 
