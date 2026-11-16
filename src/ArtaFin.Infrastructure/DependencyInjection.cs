@@ -15,15 +15,20 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("ArtaFin");
-        if (string.IsNullOrWhiteSpace(connectionString))
+        services.AddDbContext<ArtaFinDbContext>((provider, options) =>
         {
-            throw new InvalidOperationException(
-                "Connection string 'ArtaFin' was not configured.");
-        }
+            // Resolve configuration when the DbContext is created, not while
+            // services are registered, so host-specific providers can override it.
+            var connectionString = provider.GetRequiredService<IConfiguration>()
+                .GetConnectionString("ArtaFin");
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                throw new InvalidOperationException(
+                    "Connection string 'ArtaFin' was not configured.");
+            }
 
-        services.AddDbContext<ArtaFinDbContext>(options =>
-            options.UseSqlServer(connectionString));
+            options.UseSqlServer(connectionString);
+        });
 
         services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
         services.AddSingleton<IRefreshTokenService, RefreshTokenService>();
