@@ -70,6 +70,9 @@ public sealed class JournalEntry : AggregateRoot
 
     public Guid FinancialBookId { get; }
     public Guid? ReversesJournalEntryId { get; }
+    public Guid? IdempotencyUserId { get; }
+    public string? IdempotencyKey { get; }
+    public string? RequestHash { get; }
     public DateTimeOffset PostedAt { get; }
     public string Description { get; }
     public IReadOnlyList<JournalLine> Lines => _lines.AsReadOnly();
@@ -79,10 +82,16 @@ public sealed class JournalEntry : AggregateRoot
         Guid financialBookId,
         DateTimeOffset postedAt,
         string description,
-        Guid? reversesJournalEntryId = null) : base(id)
+        Guid? reversesJournalEntryId = null,
+        Guid? idempotencyUserId = null,
+        string? idempotencyKey = null,
+        string? requestHash = null) : base(id)
     {
         FinancialBookId = financialBookId;
         ReversesJournalEntryId = reversesJournalEntryId;
+        IdempotencyUserId = idempotencyUserId;
+        IdempotencyKey = idempotencyKey;
+        RequestHash = requestHash;
         PostedAt = postedAt;
         Description = description;
     }
@@ -92,8 +101,12 @@ public sealed class JournalEntry : AggregateRoot
         Guid financialBookId,
         DateTimeOffset postedAt,
         string description,
-        IEnumerable<JournalLine> lines) =>
-        CreatePosted(id, financialBookId, postedAt, description, lines, reversesJournalEntryId: null);
+        IEnumerable<JournalLine> lines,
+        Guid? idempotencyUserId = null,
+        string? idempotencyKey = null,
+        string? requestHash = null) =>
+        CreatePosted(id, financialBookId, postedAt, description, lines,
+            reversesJournalEntryId: null, idempotencyUserId, idempotencyKey, requestHash);
 
     /// <summary>
     /// Creates a new posted entry that reverses the accounting effect of an original entry.
@@ -133,7 +146,10 @@ public sealed class JournalEntry : AggregateRoot
         DateTimeOffset postedAt,
         string description,
         IEnumerable<JournalLine> lines,
-        Guid? reversesJournalEntryId)
+        Guid? reversesJournalEntryId,
+        Guid? idempotencyUserId = null,
+        string? idempotencyKey = null,
+        string? requestHash = null)
     {
         if (financialBookId == Guid.Empty)
             throw new ArgumentException("Financial book id cannot be empty.", nameof(financialBookId));
@@ -143,6 +159,17 @@ public sealed class JournalEntry : AggregateRoot
         var normalizedDescription = description.Trim();
         if (normalizedDescription.Length > MaxDescriptionLength)
             throw new ArgumentException($"Description cannot exceed {MaxDescriptionLength} characters.", nameof(description));
+
+        var hasIdempotencyMetadata = idempotencyUserId.HasValue ||
+            idempotencyKey is not null || requestHash is not null;
+        if (hasIdempotencyMetadata &&
+            (!idempotencyUserId.HasValue || idempotencyUserId == Guid.Empty ||
+             string.IsNullOrWhiteSpace(idempotencyKey) || idempotencyKey.Length > 128 ||
+             requestHash is null || requestHash.Length != 64 ||
+             !requestHash.All(Uri.IsHexDigit)))
+        {
+            throw new ArgumentException("Idempotency metadata is invalid.");
+        }
 
         ArgumentNullException.ThrowIfNull(lines);
         var snapshot = lines.ToArray();
@@ -159,7 +186,8 @@ public sealed class JournalEntry : AggregateRoot
             throw new DomainException("Journal entry debits must equal credits.");
 
         var entry = new JournalEntry(
-            id, financialBookId, postedAt, normalizedDescription, reversesJournalEntryId);
+            id, financialBookId, postedAt, normalizedDescription, reversesJournalEntryId,
+            idempotencyUserId, idempotencyKey, requestHash);
 
         for (var index = 0; index < snapshot.Length; index++)
             entry._lines.Add(JournalLine.CreateNumbered(snapshot[index], index + 1, financialBookId));
