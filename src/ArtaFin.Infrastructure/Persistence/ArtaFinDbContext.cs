@@ -157,9 +157,13 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
             if (lockedAccountId == Guid.Empty)
                 throw new InvalidOperationException("A journal line references an account that no longer exists.");
 
-            var account = await Accounts.SingleAsync(
-                item => item.FinancialBookId == financialBookId && item.Id == accountId,
-                cancellationToken);
+            // Read policy after acquiring the lock; a tracked account loaded by the
+            // command handler before the transaction may contain a stale policy.
+            var account = await Accounts
+                .AsNoTracking()
+                .Where(item => item.FinancialBookId == financialBookId && item.Id == accountId)
+                .Select(item => new { item.NormalBalance, item.BalancePolicy })
+                .SingleAsync(cancellationToken);
 
             if (account.BalancePolicy == AccountBalancePolicy.AllowNegative)
                 continue;
