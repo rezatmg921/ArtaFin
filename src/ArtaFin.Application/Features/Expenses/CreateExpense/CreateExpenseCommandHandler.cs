@@ -1,5 +1,7 @@
+using System.Globalization;
 using ArtaFin.Application.Abstractions.Persistence;
 using ArtaFin.Application.Abstractions.Security;
+using ArtaFin.Application.Features.Idempotency;
 using ArtaFin.Application.Features.JournalEntries.CreateJournalEntry;
 using ArtaFin.Domain.Finance;
 using MediatR;
@@ -42,6 +44,8 @@ public sealed class CreateExpenseCommandHandler(
                 $"Description cannot exceed {JournalEntry.MaxDescriptionLength} characters.",
                 nameof(command));
 
+        IdempotencyRequestHash.ValidateKey(command.IdempotencyKey);
+
         var financialBook = await financialBookRepository.GetByIdAsync(
             command.FinancialBookId,
             cancellationToken);
@@ -61,51 +65,79 @@ public sealed class CreateExpenseCommandHandler(
                 throw new JournalEntryAccessDeniedException();
         }
 
-        if (!StringComparer.Ordinal.Equals(
-                command.Amount.Currency,
-                financialBook.BaseCurrency.Code))
-        {
-            throw new JournalEntryBaseCurrencyMismatchException();
-        }
+        var requestHash = IdempotencyRequestHash.Compute(
+            "expense",
+            command.FinancialBookId.ToString("N"),
+            command.ExpenseAccountId.ToString("N"),
+            command.PaymentAccountId.ToString("N"),
+            command.Description.Trim(),
+            command.Amount.Amount.ToString("G29", CultureInfo.InvariantCulture),
+            command.Amount.Currency);
 
-        var expenseAccount = await accountRepository.GetByIdAsync(
-            financialBook.Id,
-            command.ExpenseAccountId,
-            cancellationToken);
-        var paymentAccount = await accountRepository.GetByIdAsync(
-            financialBook.Id,
-            command.PaymentAccountId,
-            cancellationToken);
-
-        if (expenseAccount is null || paymentAccount is null ||
-            expenseAccount.Status != AccountStatus.Active ||
-            paymentAccount.Status != AccountStatus.Active)
-        {
-            throw new JournalEntryAccountUnavailableException();
-        }
-
-        if (expenseAccount.Type != AccountType.Expense)
-            throw new ExpenseAccountTypeInvalidException();
-        if (paymentAccount.Type != AccountType.Asset)
-            throw new ExpensePaymentAccountTypeInvalidException();
-
-        var entry = JournalEntry.Post(
-            Guid.NewGuid(),
-            financialBook.Id,
-            now,
-            command.Description,
-            [
-                new JournalLine(expenseAccount.Id, PostingSide.Debit, command.Amount),
-                new JournalLine(paymentAccount.Id, PostingSide.Credit, command.Amount)
-            ]);
-
+        var entryId = Guid.Empty;
         await unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
+            if (command.IdempotencyKey is not null)
+            {
+                await unitOfWork.AcquireIdempotencyLockAsync(
+                    financialBook.Id, currentUser.UserId, command.IdempotencyKey, ct);
+
+                var existing = await journalEntryRepository.GetByIdempotencyKeyAsync(
+                    financialBook.Id, currentUser.UserId, command.IdempotencyKey, ct);
+
+                if (existing is not null)
+                {
+                    if (!StringComparer.Ordinal.Equals(existing.RequestHash, requestHash))
+                        throw new IdempotencyKeyConflictException();
+
+                    entryId = existing.Id;
+                    return;
+                }
+            }
+
+            if (!StringComparer.Ordinal.Equals(
+                    command.Amount.Currency,
+                    financialBook.BaseCurrency.Code))
+            {
+                throw new JournalEntryBaseCurrencyMismatchException();
+            }
+
+            var expenseAccount = await accountRepository.GetByIdAsync(
+                financialBook.Id, command.ExpenseAccountId, ct);
+            var paymentAccount = await accountRepository.GetByIdAsync(
+                financialBook.Id, command.PaymentAccountId, ct);
+
+            if (expenseAccount is null || paymentAccount is null ||
+                expenseAccount.Status != AccountStatus.Active ||
+                paymentAccount.Status != AccountStatus.Active)
+            {
+                throw new JournalEntryAccountUnavailableException();
+            }
+
+            if (expenseAccount.Type != AccountType.Expense)
+                throw new ExpenseAccountTypeInvalidException();
+            if (paymentAccount.Type != AccountType.Asset)
+                throw new ExpensePaymentAccountTypeInvalidException();
+
+            var entry = JournalEntry.Post(
+                Guid.NewGuid(),
+                financialBook.Id,
+                now,
+                command.Description,
+                [
+                    new JournalLine(expenseAccount.Id, PostingSide.Debit, command.Amount),
+                    new JournalLine(paymentAccount.Id, PostingSide.Credit, command.Amount)
+                ],
+                idempotencyUserId: command.IdempotencyKey is null ? null : currentUser.UserId,
+                idempotencyKey: command.IdempotencyKey,
+                requestHash: command.IdempotencyKey is null ? null : requestHash);
+
             await unitOfWork.EnsureCanPostAsync(financialBook.Id, entry.Lines, ct);
             await journalEntryRepository.AddAsync(entry, ct);
             await unitOfWork.SaveChangesAsync(ct);
+            entryId = entry.Id;
         }, cancellationToken);
 
-        return entry.Id;
+        return entryId;
     }
 }
