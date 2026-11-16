@@ -6,6 +6,7 @@ using ArtaFin.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace ArtaFin.Infrastructure;
 
@@ -15,6 +16,10 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        // Integration hosts may build a bare ServiceCollection; retain the
+        // supplied configuration as a fallback without overriding host config.
+        services.TryAddSingleton<IConfiguration>(configuration);
+
         services.AddDbContext<ArtaFinDbContext>((provider, options) =>
         {
             // Resolve configuration when the DbContext is created, not while
