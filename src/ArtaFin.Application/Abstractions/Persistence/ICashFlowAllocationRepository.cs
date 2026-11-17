@@ -12,6 +12,7 @@ public interface ICashFlowAllocationRepository
     Task<CashFlowAllocationSet?> GetFinalizedForSourceAsync(Guid journalEntryId, int lineNumber, CancellationToken cancellationToken);
     Task<int> GetNextVersionAsync(Guid journalEntryId, int lineNumber, CancellationToken cancellationToken);
     Task AddAsync(CashFlowAllocationSet allocationSet, CancellationToken cancellationToken);
+    void DeleteDraft(CashFlowAllocationSet allocationSet);
     Task SaveChangesAsync(CancellationToken cancellationToken);
 }
 
