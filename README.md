@@ -119,6 +119,7 @@ Example registration/login body:
 - [Trial balance report](docs/operations/trial-balance.md) — as-of debit and credit balances derived from posted journal lines.
 - [Income statement report](docs/operations/income-statement.md) — period revenue, expenses and net profit derived from posted journal lines.
 - [Balance sheet report](docs/operations/balance-sheet.md) — as-of assets, liabilities and equity including unclosed net income.
+- [Account ledger report](docs/operations/account-ledger.md) — paged account activity with opening and running balances.
 
 ## Development principles
 
