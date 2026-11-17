@@ -74,6 +74,11 @@ public sealed class CashFlowStatementReadRepositoryIntegrationTests : IAsyncLife
             new JournalLine(bank.Id, PostingSide.Debit, new Money(20m, "USD")),
             new JournalLine(cash.Id, PostingSide.Credit, new Money(20m, "USD"))
         ]);
+        var unclassified = JournalEntry.Post(Guid.NewGuid(), bookId, now.AddHours(-12), "Unclassified receipt",
+        [
+            new JournalLine(cash.Id, PostingSide.Debit, new Money(15m, "USD")),
+            new JournalLine(income.Id, PostingSide.Credit, new Money(15m, "USD"))
+        ]);
         var atExclusiveEnd = JournalEntry.Post(Guid.NewGuid(), bookId, now, "Late receipt",
         [
             new JournalLine(cash.Id, PostingSide.Debit, new Money(10m, "USD")),
@@ -93,13 +98,13 @@ public sealed class CashFlowStatementReadRepositoryIntegrationTests : IAsyncLife
         paymentSet.Finalize(ownerId, now.AddDays(-2).AddMinutes(1));
 
         var draftSet = CashFlowAllocationSet.Create(
-            Guid.NewGuid(), bookId, atExclusiveEnd.Id, 1, 10m, "USD", ownerId, now);
+            Guid.NewGuid(), bookId, unclassified.Id, 1, 15m, "USD", ownerId, now.AddHours(-12));
 
         await using (var write = new ArtaFinDbContext(_options))
         {
             write.FinancialBooks.Add(book);
             write.Accounts.AddRange(cash, bank, capital, expense, income);
-            write.JournalEntries.AddRange(contribution, payment, internalTransfer, atExclusiveEnd);
+            write.JournalEntries.AddRange(contribution, payment, internalTransfer, unclassified, atExclusiveEnd);
             write.CashFlowAllocationSets.AddRange(contributionSet, paymentSet, draftSet);
             await write.SaveChangesAsync();
         }
@@ -118,7 +123,7 @@ public sealed class CashFlowStatementReadRepositoryIntegrationTests : IAsyncLife
         var result = await repository.GetBeforeAsync(
             bookId, now, CancellationToken.None);
 
-        Assert.Equal(6, result.Lines.Count);
+        Assert.Equal(8, result.Lines.Count);
         Assert.Equal(2, result.FinalizedAllocations.Count);
         Assert.Single(result.Drafts);
         Assert.Contains(result.Lines, line =>
@@ -129,6 +134,7 @@ public sealed class CashFlowStatementReadRepositoryIntegrationTests : IAsyncLife
             line.JournalEntryId == payment.Id &&
             line.LineNumber == 1 &&
             line.AccountId == expense.Id);
+        Assert.Contains(result.Lines, line => line.JournalEntryId == unclassified.Id);
         Assert.DoesNotContain(result.Lines, line => line.JournalEntryId == atExclusiveEnd.Id);
         Assert.DoesNotContain(result.FinalizedAllocations, allocation =>
             allocation.JournalEntryId == internalTransfer.Id);
