@@ -203,6 +203,40 @@ internal static class AccountEndpoints
             balancePolicy = parsedPolicy;
         }
 
+        CashFlowAccountType? cashFlowAccountType = null;
+        if (request.CashFlowAccountType is not null)
+        {
+            if (!Enum.TryParse<CashFlowAccountType>(request.CashFlowAccountType, true, out var parsedCashFlowType) ||
+                !Enum.IsDefined(parsedCashFlowType))
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["cashFlowAccountType"] = ["Cash flow account type must be None, Cash, or CashEquivalent."]
+                });
+            }
+            cashFlowAccountType = parsedCashFlowType;
+        }
+
+        if (cashFlowAccountType == CashFlowAccountType.CashEquivalent &&
+            (request.CashEquivalentMaturityDays is null or < 0 or > 90 ||
+             request.CashEquivalentRiskInsignificant != true))
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["cashEquivalentMaturityDays"] = ["Cash equivalents require an acquisition maturity between 0 and 90 days."],
+                ["cashEquivalentRiskInsignificant"] = ["Confirm that the risk of changes in value is insignificant."]
+            });
+        }
+
+        if (cashFlowAccountType != CashFlowAccountType.CashEquivalent &&
+            (request.CashEquivalentMaturityDays.HasValue || request.CashEquivalentRiskInsignificant.HasValue))
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["cashEquivalentMaturityDays"] = ["Cash-equivalent assessment fields are only valid for CashEquivalent accounts."]
+            });
+        }
+
         if (string.IsNullOrWhiteSpace(ifMatch))
             return Results.Problem(
                 statusCode: StatusCodes.Status428PreconditionRequired,
@@ -261,7 +295,10 @@ internal static class AccountEndpoints
                 request.Name,
                 expectedVersions,
                 matchAny,
-                balancePolicy),
+                balancePolicy,
+                cashFlowAccountType,
+                request.CashEquivalentMaturityDays,
+                request.CashEquivalentRiskInsignificant),
             cancellationToken);
 
         if (snapshot is null)
@@ -447,13 +484,21 @@ internal static class AccountEndpoints
             account.Type.ToString(),
             account.NormalBalance.ToString(),
             account.BalancePolicy.ToString(),
+            account.CashFlowAccountType.ToString(),
+            account.CashEquivalentMaturityDays,
+            account.CashEquivalentRiskInsignificant,
             account.Status.ToString(),
             account.CreatedAt,
             account.DeactivatedAt);
 }
 
 internal sealed record CreateAccountRequest(string? Code, string? Name, string? Type, string? BalancePolicy = null);
-internal sealed record UpdateAccountRequest(string Name, string? BalancePolicy = null);
+internal sealed record UpdateAccountRequest(
+    string Name,
+    string? BalancePolicy = null,
+    string? CashFlowAccountType = null,
+    int? CashEquivalentMaturityDays = null,
+    bool? CashEquivalentRiskInsignificant = null);
 internal sealed record CreateAccountResponse(Guid Id);
 
 internal sealed record AccountResponse(
@@ -464,6 +509,9 @@ internal sealed record AccountResponse(
     string Type,
     string NormalBalance,
     string BalancePolicy,
+    string CashFlowAccountType,
+    int? CashEquivalentMaturityDays,
+    bool? CashEquivalentRiskInsignificant,
     string Status,
     DateTimeOffset CreatedAt,
     DateTimeOffset? DeactivatedAt);
