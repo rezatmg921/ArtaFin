@@ -135,13 +135,20 @@ public sealed class CashFlowAllocationService(
 
         await unitOfWork.ExecuteInTransactionAsync(async token =>
         {
-            await allocationRepository.LockAllocationSetAsync(financialBookId, allocationSetId, token);
+            var sourceSnapshot = await allocationRepository.GetByIdAsync(
+                financialBookId, allocationSetId, tracking: false, token)
+                ?? throw new CashFlowAllocationSetNotFoundException();
+
+            // Always acquire locks in source-entry then allocation-set order.
+            // This keeps revision and finalization paths from taking them in reverse order.
+            await allocationRepository.LockSourceEntryAsync(
+                financialBookId, sourceSnapshot.SourceJournalEntryId, token);
+            await allocationRepository.LockAllocationSetAsync(
+                financialBookId, allocationSetId, token);
+
             var set = await allocationRepository.GetByIdAsync(
                 financialBookId, allocationSetId, tracking: true, token)
                 ?? throw new CashFlowAllocationSetNotFoundException();
-
-            await allocationRepository.LockSourceEntryAsync(
-                financialBookId, set.SourceJournalEntryId, token);
 
             if (set.SupersedesAllocationSetId.HasValue)
             {
