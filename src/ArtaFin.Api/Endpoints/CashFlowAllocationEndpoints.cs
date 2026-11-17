@@ -51,6 +51,17 @@ internal static class CashFlowAllocationEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
 
+        endpoints.MapDelete(
+                "/api/financial-books/{financialBookId:guid}/cash-flow-allocations/{allocationSetId:guid}",
+                CancelDraftAsync)
+            .WithName("CancelCashFlowAllocationDraft")
+            .WithTags("CashFlowAllocations")
+            .RequireAuthorization()
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
         endpoints.MapPost(
                 "/api/financial-books/{financialBookId:guid}/cash-flow-allocations/{allocationSetId:guid}/finalize",
                 FinalizeAsync)
@@ -150,6 +161,16 @@ internal static class CashFlowAllocationEndpoints
         var result = await service.RemoveAllocationAsync(
             financialBookId, allocationSetId, allocationId, cancellationToken);
         return Results.Ok(result);
+    }
+
+    private static async Task<IResult> CancelDraftAsync(
+        Guid financialBookId,
+        Guid allocationSetId,
+        CashFlowAllocationService service,
+        CancellationToken cancellationToken)
+    {
+        await service.CancelDraftAsync(financialBookId, allocationSetId, cancellationToken);
+        return Results.NoContent();
     }
 
     private static async Task<IResult> FinalizeAsync(
