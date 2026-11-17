@@ -108,7 +108,7 @@ public sealed class CashFlowAllocationServiceIntegrationTests : IAsyncLifetime
         await service.AddAllocationAsync(
             bookId, draft.Id,
             new AddCashFlowAllocationInput(60m, CashFlowActivity.Operating,
-                "Customer receipts", 2, "Operating cash receipt"),
+                "CUSTOMER_RECEIPTS", 2, "Operating cash receipt"),
             CancellationToken.None);
 
         var incomplete = await service.GetAsync(bookId, draft.Id, CancellationToken.None);
@@ -121,7 +121,7 @@ public sealed class CashFlowAllocationServiceIntegrationTests : IAsyncLifetime
         await service.AddAllocationAsync(
             bookId, draft.Id,
             new AddCashFlowAllocationInput(40m, CashFlowActivity.Operating,
-                "Customer receipts", 2, null),
+                "CUSTOMER_RECEIPTS", 2, null),
             CancellationToken.None);
 
         var finalized = await service.FinalizeAsync(
@@ -136,7 +136,7 @@ public sealed class CashFlowAllocationServiceIntegrationTests : IAsyncLifetime
             service.AddAllocationAsync(
                 bookId, draft.Id,
                 new AddCashFlowAllocationInput(1m, CashFlowActivity.Operating,
-                    "Late edit", null, null),
+                    "LATE_EDIT", null, null),
                 CancellationToken.None));
 
         var revision = await service.CreateRevisionAsync(
@@ -148,7 +148,7 @@ public sealed class CashFlowAllocationServiceIntegrationTests : IAsyncLifetime
         await service.AddAllocationAsync(
             bookId, revision.Id,
             new AddCashFlowAllocationInput(100m, CashFlowActivity.Operating,
-                "Customer receipts", 2, "Reclassified"),
+                "CUSTOMER_RECEIPTS", 2, "RECLASSIFIED"),
             CancellationToken.None);
 
         var revised = await service.FinalizeAsync(
@@ -256,7 +256,7 @@ public sealed class CashFlowAllocationServiceIntegrationTests : IAsyncLifetime
             service.AddAllocationAsync(
                 bookId, draft.Id,
                 new AddCashFlowAllocationInput(50m, CashFlowActivity.Operating,
-                    "Internal transfer", 2, null),
+                    "INTERNAL_TRANSFER", 2, null),
                 CancellationToken.None));
     }
 
