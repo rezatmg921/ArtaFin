@@ -219,6 +219,10 @@ public sealed class CashFlowAllocationService(
                     throw new CashFlowAllocationRevisionConflictException();
 
                 previous.MarkSuperseded();
+
+                // Release the filtered unique index slot before promoting the
+                // replacement. Both saves remain inside the same SQL transaction.
+                await allocationRepository.SaveChangesAsync(token);
             }
             else if (await allocationRepository.GetFinalizedForSourceAsync(
                          set.SourceJournalEntryId, set.SourceLineNumber, token) is not null)
