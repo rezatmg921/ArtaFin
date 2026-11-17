@@ -72,6 +72,11 @@ public sealed class UpdateAccountCommandHandler(
         snapshot.Account.Rename(command.Name);
         if (command.BalancePolicy.HasValue)
             snapshot.Account.ChangeBalancePolicy(command.BalancePolicy.Value);
+        if (command.CashFlowAccountType.HasValue)
+            snapshot.Account.ConfigureCashFlowClassification(
+                command.CashFlowAccountType.Value,
+                command.CashEquivalentMaturityDays,
+                command.CashEquivalentRiskInsignificant);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
