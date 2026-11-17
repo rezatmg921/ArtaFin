@@ -87,7 +87,16 @@ public sealed class CashFlowAllocationService(
 
         await unitOfWork.ExecuteInTransactionAsync(async token =>
         {
-            await allocationRepository.LockAllocationSetAsync(financialBookId, allocationSetId, token);
+            var sourceSnapshot = await allocationRepository.GetByIdAsync(
+                financialBookId, allocationSetId, tracking: false, token)
+                ?? throw new CashFlowAllocationSetNotFoundException();
+
+            // Use the same source-entry then allocation-set lock order as finalization.
+            await allocationRepository.LockSourceEntryAsync(
+                financialBookId, sourceSnapshot.SourceJournalEntryId, token);
+            await allocationRepository.LockAllocationSetAsync(
+                financialBookId, allocationSetId, token);
+
             var set = await allocationRepository.GetByIdAsync(
                 financialBookId, allocationSetId, tracking: true, token)
                 ?? throw new CashFlowAllocationSetNotFoundException();
