@@ -122,7 +122,7 @@ Example registration/login body:
 - [Account ledger report](docs/operations/account-ledger.md) — paged account activity with opening and running balances.
 - [Cash flow account classification](docs/operations/cash-flow-account-classification.md) — identify cash and qualifying cash equivalents with IAS 7 eligibility safeguards.
 - [Cash-flow allocation design](docs/accounting/ADR-0007-cash-flow-allocation.md) — auditable, versioned line-level allocations for IAS 7 cash-flow reporting.
-- [Cash-flow allocation API](docs/operations/cash-flow-allocations.md) — Draft, Finalize, and versioned correction workflow for cash journal lines.
+- [Cash-flow allocation API](docs/operations/cash-flow-allocations.md) — Draft, Finalize, and versioned correction workflow for cash journal lines.\n- [Cash-flow statement report](docs/operations/cash-flow-statement.md) — IAS 7 direct-method receipts, payments, reconciliation, and classification exceptions.
 
 ## Development principles
 
