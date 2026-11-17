@@ -29,9 +29,11 @@ internal sealed class ApiExceptionHandler(
     {
         var (status, title, detail) = exception switch
         {
-            PersistenceConcurrencyException =>
+            PersistenceConcurrencyException concurrency =>
                 (StatusCodes.Status409Conflict, "Concurrency conflict",
-                    "The resource was modified by another operation. Please reload and try again."),
+                    concurrency.DiagnosticDetails is null
+                        ? "The resource was modified by another operation. Please reload and try again."
+                        : $"The resource was modified by another operation. Diagnostics: {concurrency.DiagnosticDetails}"),
             AccountHasJournalEntriesException =>
                 (StatusCodes.Status409Conflict, "Account has accounting history",
                     "The account is referenced by journal entries. Deactivate it instead of deleting it."),
