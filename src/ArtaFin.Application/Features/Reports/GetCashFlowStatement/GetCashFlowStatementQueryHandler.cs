@@ -59,7 +59,7 @@ public sealed class GetCashFlowStatementQueryHandler(
             snapshot.Lines
                 .Where(line =>
                     line.PostedAt < instant &&
-                    line.CashFlowAccountType is CashFlowAccountType.Cash or CashFlowAccountType.CashEquivalent &&
+                    (line.CashFlowAccountType is CashFlowAccountType.Cash or CashFlowAccountType.CashEquivalent) &&
                     StringComparer.Ordinal.Equals(line.Currency, book.BaseCurrency.Code))
                 .Sum(line => line.Side == PostingSide.Debit ? line.Amount : -line.Amount);
 
@@ -67,7 +67,7 @@ public sealed class GetCashFlowStatementQueryHandler(
         var closingCash = CashBalanceAt(query.To);
 
         foreach (var line in snapshot.Lines.Where(line =>
-                     line.CashFlowAccountType is CashFlowAccountType.Cash or CashFlowAccountType.CashEquivalent &&
+                     (line.CashFlowAccountType is CashFlowAccountType.Cash or CashFlowAccountType.CashEquivalent) &&
                      !StringComparer.Ordinal.Equals(line.Currency, book.BaseCurrency.Code)))
         {
             exceptions.Add(ToException(
