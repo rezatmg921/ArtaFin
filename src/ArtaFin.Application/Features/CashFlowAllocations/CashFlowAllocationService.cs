@@ -96,14 +96,10 @@ public sealed class CashFlowAllocationService(
                 throw new DomainException(
                     "Finalized cash-flow allocation sets are immutable. Create a new version to reclassify.");
 
-            if (!input.CounterpartLineNumber.HasValue)
-                throw new CashFlowSourceLineInvalidException(
-                    "A counterpart journal line is required to classify the cash movement.");
-
             var source = await allocationRepository.GetSourceLineAsync(
                 financialBookId, set.SourceJournalEntryId, set.SourceLineNumber, token);
             var counterpart = await allocationRepository.GetSourceLineAsync(
-                financialBookId, set.SourceJournalEntryId, input.CounterpartLineNumber.Value, token);
+                financialBookId, set.SourceJournalEntryId, input.CounterpartLineNumber, token);
 
             if (source is null || counterpart is null ||
                 source.Side == counterpart.Side)
