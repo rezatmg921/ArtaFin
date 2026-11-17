@@ -299,7 +299,7 @@ public sealed record CashFlowAllocationResult(
     string? Memo);
 
 public sealed class CashFlowSourceLineNotFoundException : Exception { }
-public sealed class CashFlowSourceLineInvalidException(string message) : DomainException(message);
+public sealed class CashFlowSourceLineInvalidException(string message) : Exception(message);
 public sealed class CashFlowAllocationSetNotFoundException : Exception { }
 public sealed class CashFlowAllocationDraftAlreadyExistsException : Exception { }
 public sealed class CashFlowAllocationRevisionConflictException : Exception { }
