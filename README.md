@@ -116,6 +116,7 @@ Example registration/login body:
 ## API behavior
 
 - [Idempotent financial write requests](docs/operations/idempotency.md) — retry-safe expense, income, and transfer creation with `Idempotency-Key`.
+- [Trial balance report](docs/operations/trial-balance.md) — as-of debit and credit balances derived from posted journal lines.
 
 ## Development principles
 
