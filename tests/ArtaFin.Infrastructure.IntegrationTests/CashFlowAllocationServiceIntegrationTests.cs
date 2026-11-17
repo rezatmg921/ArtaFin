@@ -206,6 +206,60 @@ public sealed class CashFlowAllocationServiceIntegrationTests : IAsyncLifetime
             service.CreateDraftAsync(bookId, entryId, 1, CancellationToken.None));
     }
 
+
+    [Fact]
+    public async Task AddAllocation_RejectsTransfersBetweenCashAndCashEquivalents()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var ownerId = Guid.NewGuid();
+        var bookId = Guid.NewGuid();
+        var cashId = Guid.NewGuid();
+        var savingsId = Guid.NewGuid();
+        var entryId = Guid.NewGuid();
+
+        var cash = Account.Create(cashId, bookId, "1000", "Cash", AccountType.Asset, now);
+        cash.ConfigureCashFlowClassification(CashFlowAccountType.Cash);
+        var savings = Account.Create(savingsId, bookId, "1010", "Savings", AccountType.Asset, now);
+        savings.ConfigureCashFlowClassification(CashFlowAccountType.Cash);
+
+        await using (var setup = new ArtaFinDbContext(_options))
+        {
+            setup.FinancialBooks.Add(FinancialBook.Create(bookId, ownerId, "Internal transfer test", "USD", now));
+            setup.Accounts.AddRange(cash, savings);
+            setup.JournalEntries.Add(JournalEntry.Post(
+                entryId, bookId, now, "Move cash to savings",
+                [
+                    new JournalLine(cashId, PostingSide.Debit, new Money(50m, "USD")),
+                    new JournalLine(savingsId, PostingSide.Credit, new Money(50m, "USD"))
+                ]));
+            await setup.SaveChangesAsync();
+        }
+
+        var services = new ServiceCollection();
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:ArtaFin"] = _connectionString
+            })
+            .Build();
+        services.AddApplication();
+        services.AddInfrastructure(configuration);
+        services.AddScoped<ICurrentUser>(_ => new TestCurrentUser(ownerId));
+
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+        var service = scope.ServiceProvider.GetRequiredService<CashFlowAllocationService>();
+
+        var draft = await service.CreateDraftAsync(bookId, entryId, 1, CancellationToken.None);
+
+        await Assert.ThrowsAsync<CashFlowSourceLineInvalidException>(() =>
+            service.AddAllocationAsync(
+                bookId, draft.Id,
+                new AddCashFlowAllocationInput(50m, CashFlowActivity.Operating,
+                    "Internal transfer", 2, null),
+                CancellationToken.None));
+    }
+
     public async Task DisposeAsync()
     {
         await using var context = new ArtaFinDbContext(_options);
