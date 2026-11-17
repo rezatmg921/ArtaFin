@@ -74,6 +74,30 @@ internal sealed class CashFlowAllocationRepository(ArtaFinDbContext dbContext)
         bool tracking,
         CancellationToken cancellationToken)
     {
+        if (tracking)
+        {
+            // A tracking query does not refresh an entity already present in the
+            // DbContext identity map. Allocation operations acquire the SQL row
+            // lock before calling this method, so refresh any previously tracked
+            // aggregate (including its shadow RowVersion) while that lock is held.
+            var tracked = dbContext.CashFlowAllocationSets.Local
+                .SingleOrDefault(set =>
+                    set.FinancialBookId == financialBookId &&
+                    set.Id == allocationSetId);
+
+            if (tracked is not null)
+            {
+                await dbContext.Entry(tracked).ReloadAsync(cancellationToken);
+
+                var allocations = dbContext.Entry(tracked)
+                    .Collection(set => set.Allocations);
+                allocations.IsLoaded = false;
+                await allocations.LoadAsync(cancellationToken);
+
+                return tracked;
+            }
+        }
+
         IQueryable<CashFlowAllocationSet> query = dbContext.CashFlowAllocationSets
             .Include(set => set.Allocations)
             .Where(set => set.FinancialBookId == financialBookId && set.Id == allocationSetId);
@@ -81,7 +105,7 @@ internal sealed class CashFlowAllocationRepository(ArtaFinDbContext dbContext)
         if (!tracking)
             query = query.AsNoTracking();
 
-        return query.SingleOrDefaultAsync(cancellationToken);
+        return await query.SingleOrDefaultAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<CashFlowAllocationSet>> GetBySourceAsync(
