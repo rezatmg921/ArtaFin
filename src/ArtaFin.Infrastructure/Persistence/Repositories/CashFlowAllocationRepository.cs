@@ -123,23 +123,39 @@ internal sealed class CashFlowAllocationRepository(ArtaFinDbContext dbContext)
 
     public async Task<decimal> GetAllocatedAmountForCounterpartAsync(
         Guid journalEntryId,
+        int sourceLineNumber,
         int counterpartLineNumber,
         CancellationToken cancellationToken)
     {
-        // During revision, the previous Finalized version remains active until
-        // the new Draft is finalized. Count only the highest non-superseded
-        // version for each source line so history is never double-counted.
-        var currentSets = await dbContext.CashFlowAllocationSets
+        // While a revision is Draft, the previous Finalized version remains
+        // authoritative for other source lines. For the line being edited,
+        // reserve the Draft's current allocations instead. This avoids both
+        // double-counting one line's old and new versions and freeing capacity
+        // before a revision is actually finalized.
+        var sets = await dbContext.CashFlowAllocationSets
             .AsNoTracking()
             .Include(set => set.Allocations)
             .Where(set => set.SourceJournalEntryId == journalEntryId &&
                           set.Status != CashFlowAllocationSetStatus.Superseded)
             .ToListAsync(cancellationToken);
 
-        return currentSets
+        var effectiveAllocations = sets
             .GroupBy(set => set.SourceLineNumber)
-            .Select(group => group.MaxBy(set => set.Version)!)
-            .SelectMany(set => set.Allocations)
+            .Select(group =>
+            {
+                var preferredStatus = group.Key == sourceLineNumber
+                    ? CashFlowAllocationSetStatus.Draft
+                    : CashFlowAllocationSetStatus.Finalized;
+
+                return group
+                    .Where(set => set.Status == preferredStatus)
+                    .OrderByDescending(set => set.Version)
+                    .FirstOrDefault()
+                    ?? group.OrderByDescending(set => set.Version).First();
+            })
+            .SelectMany(set => set.Allocations);
+
+        return effectiveAllocations
             .Where(allocation => allocation.CounterpartLineNumber == counterpartLineNumber)
             .Sum(allocation => allocation.Amount);
     }
