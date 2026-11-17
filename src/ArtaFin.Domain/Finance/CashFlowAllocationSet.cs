@@ -110,8 +110,9 @@ public sealed class CashFlowAllocationSet : Entity
         EnsureDraft();
         if (id == Guid.Empty)
             throw new ArgumentException("Allocation id cannot be empty.", nameof(id));
-        if (amount <= 0)
-            throw new ArgumentOutOfRangeException(nameof(amount));
+        if (amount <= 0 || amount > 999999999999999.9999m ||
+            decimal.Round(amount, 4) != amount)
+            throw new DomainException("Allocation amount must be positive and fit the supported 19,4 decimal precision.");
         if (!Enum.IsDefined(activity))
             throw new ArgumentOutOfRangeException(nameof(activity));
         if (string.IsNullOrWhiteSpace(category) || category.Trim().Length > MaxCategoryLength)
