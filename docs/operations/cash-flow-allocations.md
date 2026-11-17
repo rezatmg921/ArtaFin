@@ -8,7 +8,7 @@ Only journal lines belonging to accounts classified as `Cash` or `CashEquivalent
 
 1. Create a Draft for a cash or cash-equivalent journal line.
 2. Add one or more allocations. Each allocation has a positive amount, an IAS 7 activity (`Operating`, `Investing`, or `Financing`), a category, a required counterpart journal line on the opposite posting side, and optional memo details.
-3. The Draft can be edited by adding or removing allocations.
+3. The Draft can be edited by adding or removing allocations, or cancelled if it should be discarded.
 4. Finalize only when the allocated total exactly equals the source line amount.
 5. A Finalized set is immutable. To correct it, create a new revision. The previous version remains Finalized while the revision is a Draft; when the revision is finalized, the previous version is atomically marked Superseded.
 
@@ -22,6 +22,7 @@ All endpoints require authentication and an owner or active Accountant membershi
 |---|---|---|
 | POST | `/api/financial-books/{bookId}/journal-entries/{entryId}/lines/{lineNumber}/cash-flow-allocations` | Create the first Draft |
 | GET | `/api/financial-books/{bookId}/cash-flow-allocations/{setId}` | Read a set and its allocations |
+| DELETE | `/api/financial-books/{bookId}/cash-flow-allocations/{setId}` | Cancel and delete a Draft only |
 | POST | `/api/financial-books/{bookId}/cash-flow-allocations/{setId}/items` | Add an allocation |
 | DELETE | `/api/financial-books/{bookId}/cash-flow-allocations/{setId}/items/{allocationId}` | Remove a Draft allocation |
 | POST | `/api/financial-books/{bookId}/cash-flow-allocations/{setId}/finalize` | Finalize an exactly allocated set |
@@ -61,6 +62,7 @@ The Draft can be finalized only when the sum is exactly USD 100. Under-allocatio
 - The source amount and currency are copied from the posted journal line; clients cannot supply or change them.
 - The API rejects non-cash and non-cash-equivalent source accounts.
 - A finalized allocation is never edited in place; corrections preserve the previous version.
+- Drafts may be cancelled and deleted; finalized or superseded versions cannot be deleted.
 - Transfers between cash and cash equivalents are not operating, investing, or financing cash flows under IAS 7. The future statement projection must eliminate these internal movements rather than report them as external cash flows.
 - Non-cash investing and financing transactions are not represented as cash allocations; they require separate disclosure in the statement.
 - The current API establishes line-level classification and audit history. It does not yet produce the Cash Flow Statement. Statement calculation, opening/closing cash reconciliation, unclassified-line reporting, and accounting-policy versioning are subsequent work.
