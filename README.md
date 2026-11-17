@@ -120,6 +120,7 @@ Example registration/login body:
 - [Income statement report](docs/operations/income-statement.md) — period revenue, expenses and net profit derived from posted journal lines.
 - [Balance sheet report](docs/operations/balance-sheet.md) — as-of assets, liabilities and equity including unclosed net income.
 - [Account ledger report](docs/operations/account-ledger.md) — paged account activity with opening and running balances.
+- [Cash flow account classification](docs/operations/cash-flow-account-classification.md) — identify cash and qualifying cash equivalents with IAS 7 eligibility safeguards.
 
 ## Development principles
 
