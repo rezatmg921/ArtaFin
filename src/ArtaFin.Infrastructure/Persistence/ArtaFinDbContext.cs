@@ -39,6 +39,7 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
         modelBuilder.Entity<Account>();
         modelBuilder.Entity<JournalEntry>();
         modelBuilder.Entity<CashFlowAllocationSet>();
+        modelBuilder.Entity<CashFlowAllocation>();
         modelBuilder.Entity<AppUser>();
         modelBuilder.Entity<UserCredential>();
         modelBuilder.Entity<UserSession>();
@@ -50,6 +51,7 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
         modelBuilder.ApplyConfiguration(new AccountConfiguration());
         modelBuilder.ApplyConfiguration(new JournalEntryConfiguration());
         modelBuilder.ApplyConfiguration(new CashFlowAllocationSetConfiguration());
+        modelBuilder.ApplyConfiguration(new CashFlowAllocationConfiguration());
         modelBuilder.ApplyConfiguration(new AppUserConfiguration());
         modelBuilder.ApplyConfiguration(new UserCredentialConfiguration());
         modelBuilder.ApplyConfiguration(new UserSessionConfiguration());
