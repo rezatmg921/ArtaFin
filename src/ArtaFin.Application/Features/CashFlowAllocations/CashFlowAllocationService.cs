@@ -152,8 +152,9 @@ public sealed class CashFlowAllocationService(
                 throw new DomainException(
                     "Allocations referencing a counterpart line cannot exceed that journal line amount.");
 
-            set.AddAllocation(Guid.NewGuid(), input.Amount, input.Activity,
+            var allocation = set.AddAllocation(Guid.NewGuid(), input.Amount, input.Activity,
                 input.Category, input.CounterpartLineNumber, input.Memo);
+            allocationRepository.AddAllocation(allocation);
             await allocationRepository.SaveChangesAsync(token);
             updated = set;
         }, cancellationToken);
