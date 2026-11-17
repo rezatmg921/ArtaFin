@@ -335,7 +335,7 @@ public sealed record AddCashFlowAllocationInput(
     decimal Amount,
     CashFlowActivity Activity,
     string Category,
-    int? CounterpartLineNumber,
+    int CounterpartLineNumber,
     string? Memo);
 
 public sealed record CashFlowAllocationSetResult(
