@@ -8,6 +8,7 @@ public interface ICashFlowAllocationRepository
     Task LockAllocationSetAsync(Guid financialBookId, Guid allocationSetId, CancellationToken cancellationToken);
     Task<CashFlowSourceLine?> GetSourceLineAsync(Guid financialBookId, Guid journalEntryId, int lineNumber, CancellationToken cancellationToken);
     Task<CashFlowAllocationSet?> GetByIdAsync(Guid financialBookId, Guid allocationSetId, bool tracking, CancellationToken cancellationToken);
+    Task<IReadOnlyList<CashFlowAllocationSet>> GetBySourceAsync(Guid financialBookId, Guid journalEntryId, int lineNumber, CancellationToken cancellationToken);
     Task<CashFlowAllocationSet?> GetDraftForSourceAsync(Guid journalEntryId, int lineNumber, CancellationToken cancellationToken);
     Task<CashFlowAllocationSet?> GetFinalizedForSourceAsync(Guid journalEntryId, int lineNumber, CancellationToken cancellationToken);
     Task<int> GetNextVersionAsync(Guid journalEntryId, int lineNumber, CancellationToken cancellationToken);
