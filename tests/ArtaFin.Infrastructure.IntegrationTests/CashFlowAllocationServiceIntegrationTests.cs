@@ -260,6 +260,80 @@ public sealed class CashFlowAllocationServiceIntegrationTests : IAsyncLifetime
                 CancellationToken.None));
     }
 
+
+    [Fact]
+    public async Task ConcurrentAllocations_CannotOverAllocateOneSourceLine()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var ownerId = Guid.NewGuid();
+        var bookId = Guid.NewGuid();
+        var cashId = Guid.NewGuid();
+        var incomeId = Guid.NewGuid();
+        var entryId = Guid.NewGuid();
+
+        var cash = Account.Create(cashId, bookId, "1000", "Cash", AccountType.Asset, now);
+        cash.ConfigureCashFlowClassification(CashFlowAccountType.Cash);
+
+        await using (var setup = new ArtaFinDbContext(_options))
+        {
+            setup.FinancialBooks.Add(FinancialBook.Create(bookId, ownerId, "Concurrent allocation test", "USD", now));
+            setup.Accounts.AddRange(
+                cash,
+                Account.Create(incomeId, bookId, "4000", "Income", AccountType.Income, now));
+            setup.JournalEntries.Add(JournalEntry.Post(
+                entryId, bookId, now, "Receipt",
+                [
+                    new JournalLine(cashId, PostingSide.Debit, new Money(100m, "USD")),
+                    new JournalLine(incomeId, PostingSide.Credit, new Money(100m, "USD"))
+                ]));
+            await setup.SaveChangesAsync();
+        }
+
+        var services = new ServiceCollection();
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:ArtaFin"] = _connectionString
+            })
+            .Build();
+        services.AddApplication();
+        services.AddInfrastructure(configuration);
+        services.AddScoped<ICurrentUser>(_ => new TestCurrentUser(ownerId));
+
+        await using var provider = services.BuildServiceProvider();
+        await using var setupScope = provider.CreateAsyncScope();
+        var setupService = setupScope.ServiceProvider.GetRequiredService<CashFlowAllocationService>();
+        var draft = await setupService.CreateDraftAsync(bookId, entryId, 1, CancellationToken.None);
+
+        async Task<bool> TryAllocateAsync()
+        {
+            await using var scope = provider.CreateAsyncScope();
+            var service = scope.ServiceProvider.GetRequiredService<CashFlowAllocationService>();
+            try
+            {
+                await service.AddAllocationAsync(
+                    bookId, draft.Id,
+                    new AddCashFlowAllocationInput(60m, CashFlowActivity.Operating,
+                        "CUSTOMER_RECEIPTS", 2, null),
+                    CancellationToken.None);
+                return true;
+            }
+            catch (DomainException)
+            {
+                return false;
+            }
+        }
+
+        var outcomes = await Task.WhenAll(TryAllocateAsync(), TryAllocateAsync());
+
+        Assert.Single(outcomes.Where(succeeded => succeeded));
+        Assert.Single(outcomes.Where(succeeded => !succeeded));
+
+        var persisted = await setupService.GetAsync(bookId, draft.Id, CancellationToken.None);
+        Assert.Equal(60m, persisted.AllocatedAmount);
+        Assert.Equal(40m, persisted.RemainingAmount);
+    }
+
     public async Task DisposeAsync()
     {
         await using var context = new ArtaFinDbContext(_options);
