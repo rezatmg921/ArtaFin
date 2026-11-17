@@ -43,7 +43,7 @@ internal sealed class ApiExceptionHandler(
             AccountCodeAlreadyExistsException =>
                 (StatusCodes.Status409Conflict, "Account code already exists",
                     "An account with this code already exists in the financial book."),
-            FinancialBookManagementDeniedException or JournalEntryAccessDeniedException =>
+            FinancialBookAccessDeniedException or FinancialBookManagementDeniedException or JournalEntryAccessDeniedException =>
                 (StatusCodes.Status404NotFound, "Financial book not found",
                     "The financial book was not found or is not accessible."),
             CashFlowSourceLineNotFoundException or CashFlowAllocationSetNotFoundException =>
