@@ -6,8 +6,18 @@ namespace ArtaFin.Application.Abstractions.Persistence;
 /// </summary>
 public sealed class PersistenceConcurrencyException : Exception
 {
-    public PersistenceConcurrencyException(string message, Exception innerException)
+    public PersistenceConcurrencyException(
+        string message,
+        Exception innerException,
+        string? diagnosticDetails = null)
         : base(message, innerException)
     {
+        DiagnosticDetails = diagnosticDetails;
     }
+
+    /// <summary>
+    /// Safe persistence metadata to help identify the entity involved in a
+    /// concurrency failure without exposing database values or rowversion bytes.
+    /// </summary>
+    public string? DiagnosticDetails { get; }
 }
