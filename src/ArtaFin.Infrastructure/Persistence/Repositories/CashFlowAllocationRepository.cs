@@ -205,6 +205,14 @@ internal sealed class CashFlowAllocationRepository(ArtaFinDbContext dbContext)
         await dbContext.CashFlowAllocationSets.AddAsync(allocationSet, cancellationToken);
     }
 
+    public void AddAllocation(CashFlowAllocation allocation)
+    {
+        // The aggregate collection is intentionally exposed as IReadOnlyList.
+        // Explicitly mark the new dependent as Added so EF never interprets its
+        // client-generated Guid key as an existing row to update.
+        dbContext.Set<CashFlowAllocation>().Add(allocation);
+    }
+
     public void DeleteDraft(CashFlowAllocationSet allocationSet)
     {
         dbContext.CashFlowAllocationSets.Remove(allocationSet);
