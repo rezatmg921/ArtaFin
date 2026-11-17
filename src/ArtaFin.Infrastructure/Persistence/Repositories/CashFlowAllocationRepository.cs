@@ -123,8 +123,10 @@ internal sealed class CashFlowAllocationRepository(ArtaFinDbContext dbContext)
 
     public async Task AddAsync(
         CashFlowAllocationSet allocationSet,
-        CancellationToken cancellationToken) =>
+        CancellationToken cancellationToken)
+    {
         await dbContext.CashFlowAllocationSets.AddAsync(allocationSet, cancellationToken);
+    }
 
     public Task SaveChangesAsync(CancellationToken cancellationToken) =>
         dbContext.SaveChangesAsync(cancellationToken);
