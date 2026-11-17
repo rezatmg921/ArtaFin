@@ -124,7 +124,7 @@ public sealed class CashFlowAllocationService(
                     "Transfers between cash and cash equivalents are internal movements and must not be allocated as cash flows.");
 
             var alreadyAllocatedToCounterpart = await allocationRepository.GetAllocatedAmountForCounterpartAsync(
-                set.SourceJournalEntryId, input.CounterpartLineNumber, token);
+                set.SourceJournalEntryId, set.SourceLineNumber, input.CounterpartLineNumber, token);
             if (alreadyAllocatedToCounterpart + input.Amount > counterpart.Amount)
                 throw new DomainException(
                     "Allocations referencing a counterpart line cannot exceed that journal line amount.");
@@ -232,6 +232,29 @@ public sealed class CashFlowAllocationService(
                 !StringComparer.Ordinal.Equals(source.Currency, set.Currency))
                 throw new CashFlowSourceLineInvalidException(
                     "The source journal line no longer matches the cash-flow allocation source.");
+
+            if (set.Allocations.Any(allocation => !allocation.CounterpartLineNumber.HasValue))
+                throw new CashFlowSourceLineInvalidException(
+                    "Every allocation must reference a counterpart journal line.");
+
+            foreach (var counterpartGroup in set.Allocations.GroupBy(
+                         allocation => allocation.CounterpartLineNumber!.Value))
+            {
+                var counterpart = await allocationRepository.GetSourceLineAsync(
+                    financialBookId, set.SourceJournalEntryId, counterpartGroup.Key, token);
+
+                if (counterpart is null || counterpart.Side == source.Side ||
+                    counterpart.CashFlowAccountType is CashFlowAccountType.Cash or CashFlowAccountType.CashEquivalent)
+                    throw new CashFlowSourceLineInvalidException(
+                        "Every counterpart must remain an opposite-side non-cash journal line.");
+
+                var allocatedToCounterpart = await allocationRepository.GetAllocatedAmountForCounterpartAsync(
+                    set.SourceJournalEntryId, set.SourceLineNumber, counterpartGroup.Key, token);
+
+                if (allocatedToCounterpart > counterpart.Amount)
+                    throw new DomainException(
+                        "Allocations referencing a counterpart line cannot exceed that journal line amount.");
+            }
 
             if (set.SupersedesAllocationSetId.HasValue)
             {
