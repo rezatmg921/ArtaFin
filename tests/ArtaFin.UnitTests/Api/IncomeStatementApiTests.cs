@@ -66,7 +66,7 @@ public sealed class IncomeStatementApiTests
         using var response = await client.GetAsync(
             $"/api/financial-books/{book.Id}/reports/income-statement?from=2026-11-17T00:00:00Z&to=2026-11-17T00:00:00Z");
 
-        Assert.Equal(HttpStatusCode.ValidationProblem, response.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal(0, repository.Calls);
     }
 
