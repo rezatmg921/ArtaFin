@@ -198,7 +198,7 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                         t.HasCheckConstraint("CK_CashFlowAllocationSets_SourceAmount_Positive", "[SourceAmount] > 0");
                         t.HasCheckConstraint("CK_CashFlowAllocationSets_SourceLineNumber_Positive", "[SourceLineNumber] > 0");
                         t.HasCheckConstraint("CK_CashFlowAllocationSets_Version_Positive", "[Version] > 0");
-                        t.HasCheckConstraint("CK_CashFlowAllocationSets_Status_Valid", "[Status] IN (1, 2)");
+                        t.HasCheckConstraint("CK_CashFlowAllocationSets_Status_Valid", "[Status] IN (1, 2, 3)");
                         t.HasCheckConstraint("CK_CashFlowAllocationSets_Finalization_Consistent", "([Status] = 1 AND [FinalizedBy] IS NULL AND [FinalizedAt] IS NULL) OR ([Status] IN (2, 3) AND [FinalizedBy] IS NOT NULL AND [FinalizedAt] IS NOT NULL)");
                         t.HasCheckConstraint("CK_CashFlowAllocationSets_Supersedes_Consistent", "([Version] = 1 AND [SupersedesAllocationSetId] IS NULL) OR ([Version] > 1 AND [SupersedesAllocationSetId] IS NOT NULL)");
                     });
