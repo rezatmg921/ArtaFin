@@ -115,8 +115,18 @@ public sealed class CashFlowAllocationSet : Entity
             throw new DomainException("Allocation amount must be positive and fit the supported 19,4 decimal precision.");
         if (!Enum.IsDefined(activity))
             throw new ArgumentOutOfRangeException(nameof(activity));
-        if (string.IsNullOrWhiteSpace(category) || category.Trim().Length > MaxCategoryLength)
-            throw new ArgumentException($"Category is required and cannot exceed {MaxCategoryLength} characters.", nameof(category));
+        if (string.IsNullOrWhiteSpace(category))
+            throw new DomainException("A stable cash-flow category code is required.");
+
+        var categoryCode = category.Trim().ToUpperInvariant();
+        if (categoryCode.Length > MaxCategoryLength ||
+            categoryCode[0] is < 'A' or > 'Z' ||
+            categoryCode.Any(character =>
+                (character is < 'A' or > 'Z') &&
+                (character is < '0' or > '9') &&
+                character != '_'))
+            throw new DomainException(
+                $"Category must be a stable code containing only letters, digits, and underscores, up to {MaxCategoryLength} characters.");
         if (counterpartLineNumber is null or <= 0 || counterpartLineNumber == SourceLineNumber)
             throw new DomainException("Every cash-flow allocation must reference a different positive counterpart journal line.");
         if (memo?.Length > MaxMemoLength)
@@ -125,7 +135,7 @@ public sealed class CashFlowAllocationSet : Entity
             throw new DomainException("Allocations cannot exceed the source cash line amount.");
 
         _allocations.Add(new CashFlowAllocation(
-            id, Id, amount, activity, category.Trim(), counterpartLineNumber, memo?.Trim()));
+            id, Id, amount, activity, categoryCode, counterpartLineNumber, memo?.Trim()));
     }
 
     public void RemoveAllocation(Guid allocationId)
