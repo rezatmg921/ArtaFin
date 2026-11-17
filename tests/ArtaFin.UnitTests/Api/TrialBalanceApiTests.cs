@@ -29,7 +29,7 @@ public sealed class TrialBalanceApiTests
         var repository = new FakeTrialBalanceRepository(
         [
             new TrialBalanceAccountSnapshot(Guid.NewGuid(), "1000", "Cash", AccountType.Asset, 150m, 40m),
-            new TrialBalanceAccountSnapshot(Guid.NewGuid(), "4000", "Sales", AccountType.Income, 0m, 150m)
+            new TrialBalanceAccountSnapshot(Guid.NewGuid(), "4000", "Sales", AccountType.Income, 40m, 150m)
         ]);
         using var factory = new ApiFactory(book, repository);
         using var client = CreateAuthenticatedClient(factory, ownerId);
@@ -43,9 +43,9 @@ public sealed class TrialBalanceApiTests
         Assert.Equal("USD", payload.Currency);
         Assert.Equal(asOf, payload.AsOf);
         Assert.Equal(110m, payload.TotalDebitBalance);
-        Assert.Equal(150m, payload.TotalCreditBalance);
+        Assert.Equal(110m, payload.TotalCreditBalance);
         Assert.Equal(110m, payload.Items[0].DebitBalance);
-        Assert.Equal(150m, payload.Items[1].CreditBalance);
+        Assert.Equal(110m, payload.Items[1].CreditBalance);
         Assert.Equal(asOf, repository.LastAsOf);
     }
 
