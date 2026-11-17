@@ -102,8 +102,10 @@ public sealed class CashFlowAllocationService(
                 ?? throw new CashFlowAllocationSetNotFoundException();
 
             if (set.Status != CashFlowAllocationSetStatus.Draft)
-                throw new DomainException(
-                    "Finalized cash-flow allocation sets are immutable. Create a new version to reclassify.");
+                throw new CashFlowAllocationStateConflictException();
+
+            if (set.Status != CashFlowAllocationSetStatus.Draft)
+                throw new CashFlowAllocationStateConflictException();
 
             var source = await allocationRepository.GetSourceLineAsync(
                 financialBookId, set.SourceJournalEntryId, set.SourceLineNumber, token);
@@ -156,6 +158,9 @@ public sealed class CashFlowAllocationService(
                 financialBookId, allocationSetId, tracking: true, token)
                 ?? throw new CashFlowAllocationSetNotFoundException();
 
+            if (set.Status != CashFlowAllocationSetStatus.Draft)
+                throw new CashFlowAllocationStateConflictException();
+
             set.RemoveAllocation(allocationId);
             await allocationRepository.SaveChangesAsync(token);
             updated = set;
@@ -187,7 +192,7 @@ public sealed class CashFlowAllocationService(
                 ?? throw new CashFlowAllocationSetNotFoundException();
 
             if (set.Status != CashFlowAllocationSetStatus.Draft)
-                throw new DomainException("Only a Draft cash-flow allocation set can be cancelled.");
+                throw new CashFlowAllocationStateConflictException();
 
             allocationRepository.DeleteDraft(set);
             await allocationRepository.SaveChangesAsync(token);
@@ -403,3 +408,4 @@ public sealed class CashFlowSourceLineInvalidException(string message) : Excepti
 public sealed class CashFlowAllocationSetNotFoundException : Exception { }
 public sealed class CashFlowAllocationDraftAlreadyExistsException : Exception { }
 public sealed class CashFlowAllocationRevisionConflictException : Exception { }
+public sealed class CashFlowAllocationStateConflictException : Exception { }
