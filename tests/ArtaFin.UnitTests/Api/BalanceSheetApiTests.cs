@@ -51,7 +51,7 @@ public sealed class BalanceSheetApiTests
         Assert.Equal(150m, payload.TotalEquity);
         Assert.Equal(200m, payload.TotalLiabilitiesAndEquity);
         Assert.Equal(0m, payload.Difference);
-        Assert.Equal(1, payload.Assets.Count);
+        Assert.Single(payload.Assets);
         Assert.Equal(asOf, repository.LastAsOf);
     }
 
