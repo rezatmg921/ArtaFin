@@ -29,7 +29,7 @@ public sealed class AccountConfiguration : IEntityTypeConfiguration<Account>
         builder.Property(account => account.Name).HasMaxLength(Account.MaxNameLength).IsRequired();
         builder.Property(account => account.Type).HasConversion<byte>().HasColumnType("tinyint").IsRequired();
         builder.Property(account => account.NormalBalance).HasConversion<byte>().HasColumnType("tinyint").IsRequired();
-        builder.Property(account => account.BalancePolicy).HasConversion<byte>().HasColumnType("tinyint").HasDefaultValue(AccountBalancePolicy.PreventNegative).IsRequired();
+        builder.Property(account => account.BalancePolicy).HasConversion<byte>().HasColumnType("tinyint").HasDefaultValue(AccountBalancePolicy.PreventNegative).HasSentinel((AccountBalancePolicy)0).IsRequired();
         builder.Property(account => account.Status).HasConversion<byte>().HasColumnType("tinyint").IsRequired();
         builder.Property(account => account.CashFlowAccountType).HasConversion<byte>().HasColumnType("tinyint").HasDefaultValue(CashFlowAccountType.None).IsRequired();
         builder.Property(account => account.CashEquivalentMaturityDays).HasColumnType("int");
