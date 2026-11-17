@@ -82,13 +82,16 @@ builder.Services.AddOpenApi(options =>
             });
         }
 
-        var relativePath = context.Description.RelativePath;
+        // Identify these operations by their stable endpoint names rather than
+        // matching ApiDescription.RelativePath, which can vary with route formatting.
+        var endpointName = context.Description.ActionDescriptor.EndpointMetadata
+            .OfType<IEndpointNameMetadata>()
+            .Select(metadata => metadata.EndpointName)
+            .FirstOrDefault();
+
         var supportsIdempotencyKey =
             context.Description.HttpMethod == "POST" &&
-            relativePath is
-                "api/financial-books/{financialBookId}/expenses" or
-                "api/financial-books/{financialBookId}/income" or
-                "api/financial-books/{financialBookId}/transfers";
+            endpointName is "CreateExpense" or "CreateIncome" or "CreateTransfer";
 
         if (supportsIdempotencyKey)
         {
