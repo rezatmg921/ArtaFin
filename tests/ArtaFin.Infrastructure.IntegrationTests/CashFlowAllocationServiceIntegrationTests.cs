@@ -120,8 +120,8 @@ public sealed class CashFlowAllocationServiceIntegrationTests : IAsyncLifetime
 
         await service.AddAllocationAsync(
             bookId, draft.Id,
-            new AddCashFlowAllocationInput(40m, CashFlowActivity.Financing,
-                "Owner contribution", 2, null),
+            new AddCashFlowAllocationInput(40m, CashFlowActivity.Operating,
+                "Customer receipts", 2, null),
             CancellationToken.None);
 
         var finalized = await service.FinalizeAsync(
