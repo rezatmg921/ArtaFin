@@ -182,6 +182,7 @@ app.MapAccountEndpoints();
 app.MapAccountListEndpoints();
 app.MapAccountLedgerEndpoints();
 app.MapAccountBalancesEndpoints();
+app.MapTrialBalanceEndpoints();
 app.MapFinancialBookMemberEndpoints();
 app.MapJournalEntryEndpoints();
 app.MapJournalEntryListEndpoints();
