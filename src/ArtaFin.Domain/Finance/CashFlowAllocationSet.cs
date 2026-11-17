@@ -12,7 +12,8 @@ public enum CashFlowActivity : byte
 public enum CashFlowAllocationSetStatus : byte
 {
     Draft = 1,
-    Finalized = 2
+    Finalized = 2,
+    Superseded = 3
 }
 
 /// <summary>
@@ -146,6 +147,13 @@ public sealed class CashFlowAllocationSet : Entity
         Status = CashFlowAllocationSetStatus.Finalized;
         FinalizedBy = actorId;
         FinalizedAt = finalizedAt;
+    }
+
+    public void MarkSuperseded()
+    {
+        if (Status != CashFlowAllocationSetStatus.Finalized)
+            throw new DomainException("Only a finalized allocation set can be superseded.");
+        Status = CashFlowAllocationSetStatus.Superseded;
     }
 
     private void EnsureDraft()
