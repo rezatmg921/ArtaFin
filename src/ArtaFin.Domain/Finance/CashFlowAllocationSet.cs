@@ -116,8 +116,8 @@ public sealed class CashFlowAllocationSet : Entity
             throw new ArgumentOutOfRangeException(nameof(activity));
         if (string.IsNullOrWhiteSpace(category) || category.Trim().Length > MaxCategoryLength)
             throw new ArgumentException($"Category is required and cannot exceed {MaxCategoryLength} characters.", nameof(category));
-        if (counterpartLineNumber is <= 0 || counterpartLineNumber == SourceLineNumber)
-            throw new ArgumentException("Counterpart must be a different positive line number.", nameof(counterpartLineNumber));
+        if (counterpartLineNumber is null or <= 0 || counterpartLineNumber == SourceLineNumber)
+            throw new DomainException("Every cash-flow allocation must reference a different positive counterpart journal line.");
         if (memo?.Length > MaxMemoLength)
             throw new ArgumentException($"Memo cannot exceed {MaxMemoLength} characters.", nameof(memo));
         if (amount > RemainingAmount)
