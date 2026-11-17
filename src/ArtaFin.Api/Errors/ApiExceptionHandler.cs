@@ -47,9 +47,9 @@ internal sealed class ApiExceptionHandler(
             CashFlowSourceLineNotFoundException or CashFlowAllocationSetNotFoundException =>
                 (StatusCodes.Status404NotFound, "Cash-flow allocation source not found",
                     "The source journal line or allocation set was not found in this financial book."),
-            CashFlowAllocationDraftAlreadyExistsException or CashFlowAllocationRevisionConflictException =>
+            CashFlowAllocationDraftAlreadyExistsException or CashFlowAllocationRevisionConflictException or CashFlowAllocationStateConflictException =>
                 (StatusCodes.Status409Conflict, "Cash-flow allocation conflict",
-                    "An active draft already exists or the allocation set can no longer be revised in this state."),
+                    "An active draft already exists or the allocation set cannot transition from its current state."),
             AccountLedgerNotFoundException =>
                 (StatusCodes.Status404NotFound, "Account not found",
                     "The account was not found in this financial book."),
