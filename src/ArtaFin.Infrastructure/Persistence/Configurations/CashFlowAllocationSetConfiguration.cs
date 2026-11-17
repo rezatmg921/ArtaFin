@@ -50,12 +50,15 @@ public sealed class CashFlowAllocationSetConfiguration : IEntityTypeConfiguratio
         builder.Ignore(set => set.AllocatedAmount);
         builder.Ignore(set => set.RemainingAmount);
 
-        builder.HasMany(set => set.Allocations)
+        // Configure the navigation by its model name explicitly. The CLR
+        // collection is exposed as IReadOnlyList and backed by a private field,
+        // so expression-based discovery can fail when EF builds the model.
+        builder.HasMany<CashFlowAllocation>("Allocations")
             .WithOne()
             .HasForeignKey(allocation => allocation.AllocationSetId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.Navigation(set => set.Allocations)
+        builder.Navigation("Allocations")
             .HasField("_allocations")
             .UsePropertyAccessMode(PropertyAccessMode.Field);
     }
