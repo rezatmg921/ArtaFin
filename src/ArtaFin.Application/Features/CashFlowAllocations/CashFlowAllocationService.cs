@@ -92,6 +92,10 @@ public sealed class CashFlowAllocationService(
                 financialBookId, allocationSetId, tracking: true, token)
                 ?? throw new CashFlowAllocationSetNotFoundException();
 
+            if (set.Status != CashFlowAllocationSetStatus.Draft)
+                throw new DomainException(
+                    "Finalized cash-flow allocation sets are immutable. Create a new version to reclassify.");
+
             if (!input.CounterpartLineNumber.HasValue)
                 throw new CashFlowSourceLineInvalidException(
                     "A counterpart journal line is required to classify the cash movement.");
