@@ -68,8 +68,10 @@ internal sealed class ApiExceptionHandler(
             AccountNegativeBalanceException =>
                 (StatusCodes.Status409Conflict, "Insufficient account balance",
                     "The posting would make an account with PreventNegative policy have a negative balance. Review the account balance or change its policy if overdraft is permitted."),
+            CashFlowSourceLineInvalidException =>
+                (StatusCodes.Status400BadRequest, "Invalid cash-flow source line", exception.Message),
             DomainException =>
-                (StatusCodes.Status400BadRequest, "Invalid journal entry", exception.Message),
+                (StatusCodes.Status400BadRequest, "Invalid accounting operation", exception.Message),
             JournalEntryAccountUnavailableException =>
                 (StatusCodes.Status400BadRequest, "Journal entry account unavailable",
                     "One or more accounts are unavailable in this financial book."),
