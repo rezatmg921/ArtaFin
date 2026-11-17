@@ -66,13 +66,14 @@ Reconcile opening and closing balances for each equity component, separately ide
 ## Implementation sequence
 
 1. Establish explicit accounting/reporting policies and effective dates.
-2. Add cash/cash-equivalent account attributes and cash-flow line classifications with migration, validation, API support, and auditability.
-3. Implement the direct cash-flow statement with reconciliation and exception reporting.
-4. Add non-cash investing/financing disclosures and financing-liability movement reconciliation.
-5. Add indirect-method operating cash flows only after working-capital and non-cash adjustment data are sufficient.
-6. Implement the statement of changes in equity and comparative financial statements.
-7. Add accounting-period close, locked periods, controlled reopening, and audit evidence.
-8. Expand into tax, inventory, fixed assets, leases, foreign currency, and other standards according to product scope.
+2. Add cash/cash-equivalent account attributes and validate their IAS 7 eligibility.
+3. Persist auditable, versioned cash-flow allocation sets for individual cash journal lines; support split classifications, exact finalization, immutable history, and concurrency control. See [ADR-0007: Auditable Cash-Flow Allocation](ADR-0007-cash-flow-allocation.md).
+4. Implement the IAS 7 direct-method cash-flow statement with internal-transfer elimination, opening/closing reconciliation, and explicit unclassified exceptions.
+5. Add non-cash investing/financing disclosures and financing-liability movement reconciliation.
+6. Add indirect-method operating cash flows only after working-capital and non-cash adjustment data are sufficient.
+7. Implement the statement of changes in equity and comparative financial statements.
+8. Add accounting-period close, locked periods, controlled reopening, and audit evidence.
+9. Expand into tax, inventory, fixed assets, leases, foreign currency, and other standards according to product scope.
 
 ## Standards and applicability
 
