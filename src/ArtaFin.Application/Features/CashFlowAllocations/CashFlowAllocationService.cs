@@ -282,6 +282,16 @@ public sealed class CashFlowAllocationService(
             if (original.Status != CashFlowAllocationSetStatus.Finalized)
                 throw new CashFlowAllocationRevisionConflictException();
 
+            var source = await allocationRepository.GetSourceLineAsync(
+                financialBookId, original.SourceJournalEntryId, original.SourceLineNumber, token);
+            if (source is null ||
+                source.AccountType != AccountType.Asset ||
+                source.CashFlowAccountType is not CashFlowAccountType.Cash and not CashFlowAccountType.CashEquivalent ||
+                source.Amount != original.SourceAmount ||
+                !StringComparer.Ordinal.Equals(source.Currency, original.Currency))
+                throw new CashFlowSourceLineInvalidException(
+                    "The source journal line no longer matches the cash-flow allocation source.");
+
             if (await allocationRepository.GetDraftForSourceAsync(
                     original.SourceJournalEntryId, original.SourceLineNumber, token) is not null)
                 throw new CashFlowAllocationDraftAlreadyExistsException();
