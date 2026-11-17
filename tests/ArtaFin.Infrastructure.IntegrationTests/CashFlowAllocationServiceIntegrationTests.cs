@@ -160,6 +160,12 @@ public sealed class CashFlowAllocationServiceIntegrationTests : IAsyncLifetime
         var oldVersion = await service.GetAsync(bookId, draft.Id, CancellationToken.None);
         Assert.Equal("Superseded", oldVersion.Status);
         Assert.Equal(2, oldVersion.Allocations.Count);
+
+        var history = await service.GetHistoryAsync(
+            bookId, journalEntryId, 1, CancellationToken.None);
+        Assert.Equal(2, history.Count);
+        Assert.Equal(new[] { "Superseded", "Finalized" },
+            history.Select(version => version.Status).ToArray());
     }
 
     [Fact]
