@@ -60,7 +60,8 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                     b.Property<byte>("BalancePolicy")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint")
-                        .HasDefaultValue((byte)1);
+                        .HasDefaultValue((byte)1)
+                        .HasSentinel((byte)0);
 
                     b.Property<byte>("CashFlowAccountType")
                         .ValueGeneratedOnAdd()
@@ -94,7 +95,7 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("CK_Accounts_BalancePolicy_Valid", "[BalancePolicy] IN (1, 2)");
 
-                            t.HasCheckConstraint("CK_Accounts_Status_Valid", "[Status] IN (1, 2, 3)");
+                            t.HasCheckConstraint("CK_Accounts_Status_Valid", "[Status] IN (1, 2)");
 
                             t.HasCheckConstraint("CK_Accounts_Type_Valid", "[Type] IN (1, 2, 3, 4, 5)");
 
