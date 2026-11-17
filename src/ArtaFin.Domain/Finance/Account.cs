@@ -34,6 +34,17 @@ public enum AccountBalancePolicy
 }
 
 /// <summary>
+/// Identifies accounts included in cash and cash equivalents for IAS 7 reporting.
+/// Cash equivalents require separately evidenced qualifying characteristics.
+/// </summary>
+public enum CashFlowAccountType
+{
+    None = 0,
+    Cash = 1,
+    CashEquivalent = 2
+}
+
+/// <summary>
 /// A ledger account owned by one financial book.
 /// Its balance is derived from posted journal entries and is never stored here.
 /// </summary>
@@ -51,6 +62,9 @@ public sealed class Account : AggregateRoot
     public AccountStatus Status { get; private set; }
     public DateTimeOffset CreatedAt { get; }
     public DateTimeOffset? DeactivatedAt { get; private set; }
+    public CashFlowAccountType CashFlowAccountType { get; private set; }
+    public int? CashEquivalentMaturityDays { get; private set; }
+    public bool? CashEquivalentRiskInsignificant { get; private set; }
 
     private Account(
         Guid id,
@@ -133,6 +147,45 @@ public sealed class Account : AggregateRoot
             throw new ArgumentOutOfRangeException(nameof(balancePolicy));
 
         BalancePolicy = balancePolicy;
+    }
+
+    /// <summary>
+    /// Configures whether this asset account forms part of cash and cash equivalents.
+    /// A cash equivalent must have an acquisition maturity of at most 90 days and
+    /// an explicitly confirmed insignificant risk of changes in value.
+    /// </summary>
+    public void ConfigureCashFlowClassification(
+        CashFlowAccountType accountType,
+        int? cashEquivalentMaturityDays = null,
+        bool? cashEquivalentRiskInsignificant = null)
+    {
+        if (!Enum.IsDefined(accountType))
+            throw new ArgumentOutOfRangeException(nameof(accountType));
+
+        if (accountType != CashFlowAccountType.None && Type != AccountType.Asset)
+            throw new DomainException("Only asset accounts can be classified as cash or cash equivalents.");
+
+        if (accountType == CashFlowAccountType.Cash)
+        {
+            if (cashEquivalentMaturityDays.HasValue || cashEquivalentRiskInsignificant.HasValue)
+                throw new DomainException("Cash accounts must not contain cash-equivalent assessment fields.");
+        }
+        else if (accountType == CashFlowAccountType.CashEquivalent)
+        {
+            if (!cashEquivalentMaturityDays.HasValue ||
+                cashEquivalentMaturityDays.Value is < 0 or > 90)
+                throw new DomainException("Cash equivalents must have an acquisition maturity between 0 and 90 days.");
+            if (cashEquivalentRiskInsignificant != true)
+                throw new DomainException("Cash equivalents require confirmation that the risk of changes in value is insignificant.");
+        }
+        else if (cashEquivalentMaturityDays.HasValue || cashEquivalentRiskInsignificant.HasValue)
+        {
+            throw new DomainException("Accounts not classified as cash equivalents must not contain cash-equivalent assessment fields.");
+        }
+
+        CashFlowAccountType = accountType;
+        CashEquivalentMaturityDays = cashEquivalentMaturityDays;
+        CashEquivalentRiskInsignificant = cashEquivalentRiskInsignificant;
     }
 
     public void Deactivate(DateTimeOffset deactivatedAt)
