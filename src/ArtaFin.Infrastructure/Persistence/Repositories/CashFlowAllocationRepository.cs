@@ -121,6 +121,29 @@ internal sealed class CashFlowAllocationRepository(ArtaFinDbContext dbContext)
         return (latestVersion ?? 0) + 1;
     }
 
+    public async Task<decimal> GetAllocatedAmountForCounterpartAsync(
+        Guid journalEntryId,
+        int counterpartLineNumber,
+        CancellationToken cancellationToken)
+    {
+        // During revision, the previous Finalized version remains active until
+        // the new Draft is finalized. Count only the highest non-superseded
+        // version for each source line so history is never double-counted.
+        var currentSets = await dbContext.CashFlowAllocationSets
+            .AsNoTracking()
+            .Include(set => set.Allocations)
+            .Where(set => set.SourceJournalEntryId == journalEntryId &&
+                          set.Status != CashFlowAllocationSetStatus.Superseded)
+            .ToListAsync(cancellationToken);
+
+        return currentSets
+            .GroupBy(set => set.SourceLineNumber)
+            .Select(group => group.MaxBy(set => set.Version)!)
+            .SelectMany(set => set.Allocations)
+            .Where(allocation => allocation.CounterpartLineNumber == counterpartLineNumber)
+            .Sum(allocation => allocation.Amount);
+    }
+
     public async Task AddAsync(
         CashFlowAllocationSet allocationSet,
         CancellationToken cancellationToken)
