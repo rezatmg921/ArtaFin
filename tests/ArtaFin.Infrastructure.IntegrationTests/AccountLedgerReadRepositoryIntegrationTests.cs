@@ -128,11 +128,22 @@ public sealed class AccountLedgerReadRepositoryIntegrationTests : IAsyncLifetime
 
         var dateFiltered = await repository.GetPageAsync(
             bookId, cashId, AccountNormalBalance.Debit,
-            from: now.AddDays(-2), to: null, page: 1, pageSize: 10, CancellationToken.None);
+            from: now.AddDays(-2), to: now.AddDays(-1),
+            page: 1, pageSize: 10, CancellationToken.None);
 
-        Assert.Equal(2, dateFiltered.TotalCount);
+        // The upper bound is exclusive: the transfer posted exactly at To is excluded.
+        Assert.Equal(1, dateFiltered.TotalCount);
         Assert.Equal(100m, dateFiltered.OpeningBalance);
-        Assert.Equal(70m, dateFiltered.Items[0].BalanceAfter);
+        Assert.Equal(70m, Assert.Single(dateFiltered.Items).BalanceAfter);
+
+        var emptyPeriod = await repository.GetPageAsync(
+            bookId, cashId, AccountNormalBalance.Debit,
+            from: now.AddDays(1), to: now.AddDays(2),
+            page: 1, pageSize: 10, CancellationToken.None);
+
+        Assert.Empty(emptyPeriod.Items);
+        Assert.Equal(0, emptyPeriod.TotalCount);
+        Assert.Equal(60m, emptyPeriod.OpeningBalance);
     }
 
     public async Task DisposeAsync()
