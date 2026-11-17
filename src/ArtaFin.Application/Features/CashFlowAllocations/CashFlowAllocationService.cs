@@ -44,8 +44,8 @@ public sealed class CashFlowAllocationService(
             var version = await allocationRepository.GetNextVersionAsync(
                 journalEntryId, lineNumber, token);
 
-            var previous = await allocationRepository.GetFinalizedForSourceAsync(
-                journalEntryId, lineNumber, token);
+            if (version != 1)
+                throw new CashFlowAllocationRevisionConflictException();
 
             created = CashFlowAllocationSet.Create(
                 Guid.NewGuid(),
@@ -55,10 +55,7 @@ public sealed class CashFlowAllocationService(
                 source.Amount,
                 source.Currency,
                 currentUser.UserId,
-                timeProvider.GetUtcNow(),
-                version,
-                version > 1 ? previous?.Id ?? await GetSupersededVersionIdAsync(
-                    journalEntryId, lineNumber, version, token) : null);
+                timeProvider.GetUtcNow());
 
             await allocationRepository.AddAsync(created, token);
             await allocationRepository.SaveChangesAsync(token);
@@ -221,15 +218,6 @@ public sealed class CashFlowAllocationService(
         return ToResult(created!);
     }
 
-    private async Task<Guid> GetSupersededVersionIdAsync(
-        Guid journalEntryId,
-        int lineNumber,
-        int version,
-        CancellationToken cancellationToken)
-    {
-        throw new CashFlowAllocationRevisionConflictException();
-    }
-
     private async Task EnsureCanManageAsync(
         Guid financialBookId,
         CancellationToken cancellationToken)
@@ -310,8 +298,8 @@ public sealed record CashFlowAllocationResult(
     int? CounterpartLineNumber,
     string? Memo);
 
-public sealed class CashFlowSourceLineNotFoundException : Exception;
+public sealed class CashFlowSourceLineNotFoundException : Exception { }
 public sealed class CashFlowSourceLineInvalidException(string message) : DomainException(message);
-public sealed class CashFlowAllocationSetNotFoundException : Exception;
-public sealed class CashFlowAllocationDraftAlreadyExistsException : Exception;
-public sealed class CashFlowAllocationRevisionConflictException : Exception;
+public sealed class CashFlowAllocationSetNotFoundException : Exception { }
+public sealed class CashFlowAllocationDraftAlreadyExistsException : Exception { }
+public sealed class CashFlowAllocationRevisionConflictException : Exception { }
