@@ -62,7 +62,7 @@ public sealed class CashFlowAllocationSetTests
     public void Finalize_RequiresExactAmount_AndMakesSetImmutable()
     {
         var set = CreateSet();
-        set.AddAllocation(Guid.NewGuid(), 80m, CashFlowActivity.Financing, "LOAN_PRINCIPAL");
+        set.AddAllocation(Guid.NewGuid(), 80m, CashFlowActivity.Financing, "LOAN_PRINCIPAL", 2);
         set.AddAllocation(Guid.NewGuid(), 20m, CashFlowActivity.Operating, "INTEREST_PAID", 2);
 
         var finalizedAt = Now.AddMinutes(1);
@@ -89,7 +89,7 @@ public sealed class CashFlowAllocationSetTests
         Assert.Equal(100m, set.AllocatedAmount);
         Assert.Equal(ActorId, set.FinalizedBy);
         Assert.Throws<DomainException>(() =>
-            set.AddAllocation(Guid.NewGuid(), 1m, CashFlowActivity.Operating, "OTHER"));
+            set.AddAllocation(Guid.NewGuid(), 1m, CashFlowActivity.Operating, "OTHER", 2));
     }
 
     [Fact]
