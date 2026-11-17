@@ -77,6 +77,22 @@ public sealed class CashFlowAllocationSetTests
     }
 
     [Fact]
+    public void FinalizedSet_CanBeMarkedSuperseded_WithoutChangingItsAllocations()
+    {
+        var set = CreateSet();
+        set.AddAllocation(Guid.NewGuid(), 100m, CashFlowActivity.Operating, "CUSTOMER_RECEIPT");
+        set.Finalize(ActorId, Now.AddMinutes(1));
+
+        set.MarkSuperseded();
+
+        Assert.Equal(CashFlowAllocationSetStatus.Superseded, set.Status);
+        Assert.Equal(100m, set.AllocatedAmount);
+        Assert.Equal(ActorId, set.FinalizedBy);
+        Assert.Throws<DomainException>(() =>
+            set.AddAllocation(Guid.NewGuid(), 1m, CashFlowActivity.Operating, "OTHER"));
+    }
+
+    [Fact]
     public void RemoveAllocation_IsAllowedOnlyWhileDraft()
     {
         var set = CreateSet();
