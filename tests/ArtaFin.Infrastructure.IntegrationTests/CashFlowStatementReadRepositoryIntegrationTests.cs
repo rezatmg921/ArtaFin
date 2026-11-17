@@ -105,6 +105,10 @@ public sealed class CashFlowStatementReadRepositoryIntegrationTests : IAsyncLife
             write.FinancialBooks.Add(book);
             write.Accounts.AddRange(cash, bank, capital, expense, income);
             write.JournalEntries.AddRange(contribution, payment, internalTransfer, unclassified, atExclusiveEnd);
+            await write.SaveChangesAsync();
+
+            // The composite source-line FK is enforced by SQL Server but is
+            // intentionally not part of the EF model, so persist source entries first.
             write.CashFlowAllocationSets.AddRange(contributionSet, paymentSet, draftSet);
             await write.SaveChangesAsync();
         }
