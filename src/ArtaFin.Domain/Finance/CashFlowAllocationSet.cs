@@ -99,7 +99,7 @@ public sealed class CashFlowAllocationSet : Entity
             supersedesAllocationSetId, createdBy, createdAt);
     }
 
-    public void AddAllocation(
+    public CashFlowAllocation AddAllocation(
         Guid id,
         decimal amount,
         CashFlowActivity activity,
@@ -134,8 +134,10 @@ public sealed class CashFlowAllocationSet : Entity
         if (amount > RemainingAmount)
             throw new DomainException("Allocations cannot exceed the source cash line amount.");
 
-        _allocations.Add(new CashFlowAllocation(
-            id, Id, amount, activity, categoryCode, counterpartLineNumber, memo?.Trim()));
+        var allocation = new CashFlowAllocation(
+            id, Id, amount, activity, categoryCode, counterpartLineNumber, memo?.Trim());
+        _allocations.Add(allocation);
+        return allocation;
     }
 
     public void RemoveAllocation(Guid allocationId)
