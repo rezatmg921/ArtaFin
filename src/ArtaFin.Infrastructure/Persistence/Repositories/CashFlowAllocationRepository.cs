@@ -87,14 +87,14 @@ internal sealed class CashFlowAllocationRepository(ArtaFinDbContext dbContext)
 
             if (tracked is not null)
             {
-                await dbContext.Entry(tracked).ReloadAsync(cancellationToken);
+                // A set created earlier in the same request scope may still be
+                // tracked with a stale shadow RowVersion. Detach the whole
+                // aggregate graph and materialize a fresh tracked instance from
+                // the database after the SQL row lock has been acquired.
+                foreach (var allocation in tracked.Allocations)
+                    dbContext.Entry(allocation).State = EntityState.Detached;
 
-                var allocations = dbContext.Entry(tracked)
-                    .Collection(set => set.Allocations);
-                allocations.IsLoaded = false;
-                await allocations.LoadAsync(cancellationToken);
-
-                return tracked;
+                dbContext.Entry(tracked).State = EntityState.Detached;
             }
         }
 
