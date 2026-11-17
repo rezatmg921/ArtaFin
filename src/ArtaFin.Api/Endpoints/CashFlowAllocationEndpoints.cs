@@ -133,7 +133,7 @@ internal static class CashFlowAllocationEndpoints
         if (string.IsNullOrWhiteSpace(request.Category) ||
             request.Category.Trim().Length > CashFlowAllocationSet.MaxCategoryLength)
             errors["category"] = [$"Category is required and cannot exceed {CashFlowAllocationSet.MaxCategoryLength} characters."];
-        if (request.CounterpartLineNumber is null or <= 0)
+        if (request.CounterpartLineNumber <= 0)
             errors["counterpartLineNumber"] = ["A positive counterpart line number is required."];
         if (request.Memo?.Length > CashFlowAllocationSet.MaxMemoLength)
             errors["memo"] = [$"Memo cannot exceed {CashFlowAllocationSet.MaxMemoLength} characters."];
