@@ -154,6 +154,36 @@ public sealed class CashFlowAllocationService(
         return ToResult(updated!);
     }
 
+    public async Task CancelDraftAsync(
+        Guid financialBookId,
+        Guid allocationSetId,
+        CancellationToken cancellationToken)
+    {
+        await EnsureCanManageAsync(financialBookId, cancellationToken);
+
+        await unitOfWork.ExecuteInTransactionAsync(async token =>
+        {
+            var sourceSnapshot = await allocationRepository.GetByIdAsync(
+                financialBookId, allocationSetId, tracking: false, token)
+                ?? throw new CashFlowAllocationSetNotFoundException();
+
+            await allocationRepository.LockSourceEntryAsync(
+                financialBookId, sourceSnapshot.SourceJournalEntryId, token);
+            await allocationRepository.LockAllocationSetAsync(
+                financialBookId, allocationSetId, token);
+
+            var set = await allocationRepository.GetByIdAsync(
+                financialBookId, allocationSetId, tracking: true, token)
+                ?? throw new CashFlowAllocationSetNotFoundException();
+
+            if (set.Status != CashFlowAllocationSetStatus.Draft)
+                throw new DomainException("Only a Draft cash-flow allocation set can be cancelled.");
+
+            allocationRepository.DeleteDraft(set);
+            await allocationRepository.SaveChangesAsync(token);
+        }, cancellationToken);
+    }
+
     public async Task<CashFlowAllocationSetResult> FinalizeAsync(
         Guid financialBookId,
         Guid allocationSetId,
