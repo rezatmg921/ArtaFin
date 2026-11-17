@@ -75,6 +75,28 @@ public sealed class CashFlowAllocationService(
         return set is null ? throw new CashFlowAllocationSetNotFoundException() : ToResult(set);
     }
 
+    public async Task<IReadOnlyList<CashFlowAllocationSetResult>> GetHistoryAsync(
+        Guid financialBookId,
+        Guid journalEntryId,
+        int lineNumber,
+        CancellationToken cancellationToken)
+    {
+        await EnsureCanManageAsync(financialBookId, cancellationToken);
+
+        if (lineNumber <= 0)
+            throw new ArgumentOutOfRangeException(nameof(lineNumber));
+
+        var source = await allocationRepository.GetSourceLineAsync(
+            financialBookId, journalEntryId, lineNumber, cancellationToken);
+        if (source is null)
+            throw new CashFlowSourceLineNotFoundException();
+
+        var versions = await allocationRepository.GetBySourceAsync(
+            financialBookId, journalEntryId, lineNumber, cancellationToken);
+
+        return versions.Select(ToResult).ToArray();
+    }
+
     public async Task<CashFlowAllocationSetResult> AddAllocationAsync(
         Guid financialBookId,
         Guid allocationSetId,
