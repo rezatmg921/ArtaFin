@@ -68,7 +68,7 @@ internal sealed class CashFlowAllocationRepository(ArtaFinDbContext dbContext)
         return query.SingleOrDefaultAsync(cancellationToken);
     }
 
-    public Task<CashFlowAllocationSet?> GetByIdAsync(
+    public async Task<CashFlowAllocationSet?> GetByIdAsync(
         Guid financialBookId,
         Guid allocationSetId,
         bool tracking,
