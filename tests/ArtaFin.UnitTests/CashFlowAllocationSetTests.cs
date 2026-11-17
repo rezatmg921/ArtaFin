@@ -40,6 +40,17 @@ public sealed class CashFlowAllocationSetTests
     }
 
     [Fact]
+    public void AddAllocation_RequiresCounterpartAndSupportedPrecision()
+    {
+        var set = CreateSet();
+
+        Assert.Throws<DomainException>(() =>
+            set.AddAllocation(Guid.NewGuid(), 10m, CashFlowActivity.Operating, "CUSTOMER_RECEIPT"));
+        Assert.Throws<DomainException>(() =>
+            set.AddAllocation(Guid.NewGuid(), 10.12345m, CashFlowActivity.Operating, "CUSTOMER_RECEIPT", 2));
+    }
+
+    [Fact]
     public void AddAllocation_RejectsOverAllocation()
     {
         var set = CreateSet();
