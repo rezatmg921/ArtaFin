@@ -86,6 +86,23 @@ public sealed class AccountLedgerApiTests
         Assert.Equal(0, repository.Calls);
     }
 
+    [Fact]
+    public async Task GetAccountLedger_WhenFromEqualsTo_ReturnsValidationProblem()
+    {
+        var ownerId = Guid.NewGuid();
+        var book = CreateBook(ownerId);
+        var account = CreateCashAccount(book.Id);
+        var repository = new FakeAccountLedgerReadRepository(new AccountLedgerPage([], 0, 0m));
+        using var factory = new AccountLedgerApiFactory(book, account, repository);
+        using var client = CreateAuthenticatedClient(factory, ownerId);
+
+        using var response = await client.GetAsync(
+            $"/api/financial-books/{book.Id}/accounts/{account.Id}/ledger?from=2026-11-16T00:00:00Z&to=2026-11-16T00:00:00Z");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(0, repository.Calls);
+    }
+
     private static FinancialBook CreateBook(Guid ownerId) =>
         FinancialBook.Create(Guid.NewGuid(), ownerId, "Account ledger API test", "USD", DateTimeOffset.UtcNow);
 
