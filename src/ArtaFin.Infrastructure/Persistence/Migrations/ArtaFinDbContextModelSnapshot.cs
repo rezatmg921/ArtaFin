@@ -172,6 +172,56 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("ArtaFin.Domain.Finance.CashFlowAllocationSet", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uniqueidentifier");
+                    b.Property<Guid>("FinancialBookId").HasColumnType("uniqueidentifier");
+                    b.Property<Guid>("SourceJournalEntryId").HasColumnType("uniqueidentifier");
+                    b.Property<int>("SourceLineNumber").HasColumnType("int");
+                    b.Property<decimal>("SourceAmount").HasPrecision(19, 4).HasColumnType("decimal(19,4)");
+                    b.Property<string>("Currency").IsRequired().HasMaxLength(3).IsUnicode(false).IsFixedLength().HasColumnType("char(3)");
+                    b.Property<int>("Version").HasColumnType("int");
+                    b.Property<Guid?>("SupersedesAllocationSetId").HasColumnType("uniqueidentifier");
+                    b.Property<byte>("Status").HasColumnType("tinyint");
+                    b.Property<Guid>("CreatedBy").HasColumnType("uniqueidentifier");
+                    b.Property<DateTimeOffset>("CreatedAt").HasColumnType("datetimeoffset(7)");
+                    b.Property<Guid?>("FinalizedBy").HasColumnType("uniqueidentifier");
+                    b.Property<DateTimeOffset?>("FinalizedAt").HasColumnType("datetimeoffset(7)");
+                    b.Property<byte[]>("RowVersion").IsConcurrencyToken().IsRequired().ValueGeneratedOnAddOrUpdate().HasColumnType("rowversion");
+                    b.HasKey("Id");
+                    b.HasIndex("FinancialBookId");
+                    b.HasIndex("SourceJournalEntryId", "SourceLineNumber").IsUnique().HasFilter("[Status] = 2").HasDatabaseName("UX_CashFlowAllocationSets_CurrentFinalized");
+                    b.HasIndex("SourceJournalEntryId", "SourceLineNumber", "Version").IsUnique().HasDatabaseName("UX_CashFlowAllocationSets_Source_Version");
+                    b.HasIndex("SupersedesAllocationSetId");
+                    b.ToTable("CashFlowAllocationSets", null, t =>
+                    {
+                        t.HasCheckConstraint("CK_CashFlowAllocationSets_SourceAmount_Positive", "[SourceAmount] > 0");
+                        t.HasCheckConstraint("CK_CashFlowAllocationSets_SourceLineNumber_Positive", "[SourceLineNumber] > 0");
+                        t.HasCheckConstraint("CK_CashFlowAllocationSets_Version_Positive", "[Version] > 0");
+                        t.HasCheckConstraint("CK_CashFlowAllocationSets_Status_Valid", "[Status] IN (1, 2)");
+                        t.HasCheckConstraint("CK_CashFlowAllocationSets_Finalization_Consistent", "([Status] = 1 AND [FinalizedBy] IS NULL AND [FinalizedAt] IS NULL) OR ([Status] = 2 AND [FinalizedBy] IS NOT NULL AND [FinalizedAt] IS NOT NULL)");
+                        t.HasCheckConstraint("CK_CashFlowAllocationSets_Supersedes_Consistent", "([Version] = 1 AND [SupersedesAllocationSetId] IS NULL) OR ([Version] > 1 AND [SupersedesAllocationSetId] IS NOT NULL)");
+                    });
+                });
+
+            modelBuilder.Entity("ArtaFin.Domain.Finance.CashFlowAllocation", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uniqueidentifier");
+                    b.Property<Guid>("AllocationSetId").HasColumnType("uniqueidentifier");
+                    b.Property<decimal>("Amount").HasPrecision(19, 4).HasColumnType("decimal(19,4)");
+                    b.Property<byte>("Activity").HasColumnType("tinyint");
+                    b.Property<string>("Category").IsRequired().HasMaxLength(64).HasColumnType("nvarchar(64)");
+                    b.Property<int?>("CounterpartLineNumber").HasColumnType("int");
+                    b.Property<string>("Memo").HasMaxLength(500).HasColumnType("nvarchar(500)");
+                    b.HasKey("Id");
+                    b.HasIndex("AllocationSetId");
+                    b.ToTable("CashFlowAllocations", null, t =>
+                    {
+                        t.HasCheckConstraint("CK_CashFlowAllocations_Amount_Positive", "[Amount] > 0");
+                        t.HasCheckConstraint("CK_CashFlowAllocations_Activity_Valid", "[Activity] IN (1, 2, 3)");
+                    });
+                });
+
             modelBuilder.Entity("ArtaFin.Domain.Finance.JournalEntry", b =>
                 {
                     b.Property<string>("Description")
@@ -293,6 +343,19 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                         {
                             t.HasCheckConstraint("CK_Users_DisabledState_Consistent", "([IsActive] = 1 AND [DisabledAt] IS NULL) OR ([IsActive] = 0 AND [DisabledAt] IS NOT NULL)");
                         });
+                });
+
+            modelBuilder.Entity("ArtaFin.Domain.Finance.CashFlowAllocationSet", b =>
+                {
+                    b.HasOne("ArtaFin.Domain.Finance.FinancialBook", null).WithMany().HasForeignKey("FinancialBookId").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.HasOne("ArtaFin.Domain.Finance.JournalEntry", null).WithMany().HasForeignKey("SourceJournalEntryId").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.HasOne("ArtaFin.Domain.Finance.CashFlowAllocationSet", null).WithMany().HasForeignKey("SupersedesAllocationSetId").OnDelete(DeleteBehavior.Restrict);
+                    b.Navigation("Allocations");
+                });
+
+            modelBuilder.Entity("ArtaFin.Domain.Finance.CashFlowAllocation", b =>
+                {
+                    b.HasOne("ArtaFin.Domain.Finance.CashFlowAllocationSet", null).WithMany("Allocations").HasForeignKey("AllocationSetId").OnDelete(DeleteBehavior.Cascade).IsRequired();
                 });
 
             modelBuilder.Entity("ArtaFin.Domain.Security.UserCredential", b =>
