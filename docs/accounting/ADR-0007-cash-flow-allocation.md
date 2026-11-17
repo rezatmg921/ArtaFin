@@ -33,18 +33,18 @@ Each allocation row contains:
 - positive Amount in the source line currency;
 - Activity: Operating, Investing, or Financing;
 - a stable presentation Category code (not a free-form label);
-- optional counterpart journal line identity within the same posted journal entry;
+- required counterpart journal line identity within the same posted journal entry, on the opposite posting side;
 - optional memo/reference;
 - audit metadata.
 
-Multiple rows may split one cash line across activities/categories. If counterpart lines are supplied, they must be valid lines in the same journal entry and the allocations must not exceed the counterpart line's amount. This supports mixed payments such as loan principal and interest.
+Multiple rows may split one cash line across activities/categories. Counterpart lines must exist in the same journal entry, be on the opposite posting side, and must not belong to Cash/CashEquivalent accounts. Allocations referencing a counterpart line must not exceed that counterpart line's amount. This also prevents internal cash-to-cash-equivalent transfers from being classified as external cash flows. This supports mixed payments such as loan principal and interest.
 
 ### Lifecycle and invariants
 
 - Draft sets may be edited; their total allocation must never exceed the source cash line amount.
 - Finalization is allowed only when allocated amount equals the source cash line amount exactly. A partially allocated line remains an explicit exception and is not included in classified activity totals.
 - Finalized sets and rows are immutable. Reclassification creates a new version linked to the superseded version; history is retained.
-- Finalization and writes use a transaction plus a source-line scoped database lock/optimistic concurrency so concurrent requests cannot over-allocate.
+- Finalization and writes use a transaction plus a source-journal-entry scoped database lock and set-level lock so concurrent requests cannot over-allocate.
 - A unique filtered constraint permits at most one current finalized version per source cash line.
 - Amounts use the journal line's currency and the existing 4-decimal persistence precision. No cross-currency allocation or implicit FX conversion is permitted.
 - Authorization is checked against the financial book on every read and write.
