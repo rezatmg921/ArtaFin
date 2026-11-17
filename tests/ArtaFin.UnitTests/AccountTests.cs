@@ -138,6 +138,58 @@ public sealed class AccountTests
         Assert.Throws<DomainException>(() => account.Reactivate(CreatedAt.AddDays(1)));
     }
 
+    [Fact]
+    public void ConfigureCashFlowClassification_AllowsCashAsset()
+    {
+        var account = CreateAccount();
+
+        account.ConfigureCashFlowClassification(CashFlowAccountType.Cash);
+
+        Assert.Equal(CashFlowAccountType.Cash, account.CashFlowAccountType);
+        Assert.Null(account.CashEquivalentMaturityDays);
+        Assert.Null(account.CashEquivalentRiskInsignificant);
+    }
+
+    [Fact]
+    public void ConfigureCashFlowClassification_RequiresQualifyingCashEquivalentEvidence()
+    {
+        var account = CreateAccount();
+
+        Assert.Throws<DomainException>(() =>
+            account.ConfigureCashFlowClassification(CashFlowAccountType.CashEquivalent, 91, true));
+        Assert.Throws<DomainException>(() =>
+            account.ConfigureCashFlowClassification(CashFlowAccountType.CashEquivalent, 30, false));
+
+        account.ConfigureCashFlowClassification(CashFlowAccountType.CashEquivalent, 30, true);
+
+        Assert.Equal(CashFlowAccountType.CashEquivalent, account.CashFlowAccountType);
+        Assert.Equal(30, account.CashEquivalentMaturityDays);
+        Assert.True(account.CashEquivalentRiskInsignificant);
+    }
+
+    [Fact]
+    public void ConfigureCashFlowClassification_RejectsNonAssetAccounts()
+    {
+        var income = Account.Create(
+            Guid.NewGuid(), BookId, "4000", "Service income", AccountType.Income, CreatedAt);
+
+        Assert.Throws<DomainException>(() =>
+            income.ConfigureCashFlowClassification(CashFlowAccountType.Cash));
+    }
+
+    [Fact]
+    public void ConfigureCashFlowClassification_CanRemoveClassification()
+    {
+        var account = CreateAccount();
+        account.ConfigureCashFlowClassification(CashFlowAccountType.CashEquivalent, 30, true);
+
+        account.ConfigureCashFlowClassification(CashFlowAccountType.None);
+
+        Assert.Equal(CashFlowAccountType.None, account.CashFlowAccountType);
+        Assert.Null(account.CashEquivalentMaturityDays);
+        Assert.Null(account.CashEquivalentRiskInsignificant);
+    }
+
     private static Account CreateAccount() => Account.Create(
         Guid.NewGuid(), BookId, "1000", "Main Bank", AccountType.Asset, CreatedAt);
     [Fact]
