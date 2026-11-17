@@ -121,6 +121,7 @@ Example registration/login body:
 - [Balance sheet report](docs/operations/balance-sheet.md) — as-of assets, liabilities and equity including unclosed net income.
 - [Account ledger report](docs/operations/account-ledger.md) — paged account activity with opening and running balances.
 - [Cash flow account classification](docs/operations/cash-flow-account-classification.md) — identify cash and qualifying cash equivalents with IAS 7 eligibility safeguards.
+- [Cash-flow allocation design](docs/accounting/ADR-0007-cash-flow-allocation.md) — auditable, versioned line-level allocations for IAS 7 cash-flow reporting.
 
 ## Development principles
 
