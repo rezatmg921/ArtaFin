@@ -104,9 +104,6 @@ public sealed class CashFlowAllocationService(
             if (set.Status != CashFlowAllocationSetStatus.Draft)
                 throw new CashFlowAllocationStateConflictException();
 
-            if (set.Status != CashFlowAllocationSetStatus.Draft)
-                throw new CashFlowAllocationStateConflictException();
-
             var source = await allocationRepository.GetSourceLineAsync(
                 financialBookId, set.SourceJournalEntryId, set.SourceLineNumber, token);
             var counterpart = await allocationRepository.GetSourceLineAsync(
@@ -223,6 +220,9 @@ public sealed class CashFlowAllocationService(
             var set = await allocationRepository.GetByIdAsync(
                 financialBookId, allocationSetId, tracking: true, token)
                 ?? throw new CashFlowAllocationSetNotFoundException();
+
+            if (set.Status != CashFlowAllocationSetStatus.Draft)
+                throw new CashFlowAllocationStateConflictException();
 
             var source = await allocationRepository.GetSourceLineAsync(
                 financialBookId, set.SourceJournalEntryId, set.SourceLineNumber, token);
