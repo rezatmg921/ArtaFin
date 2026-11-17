@@ -110,8 +110,13 @@ public sealed class CashFlowAllocationService(
             var counterpart = await allocationRepository.GetSourceLineAsync(
                 financialBookId, set.SourceJournalEntryId, input.CounterpartLineNumber, token);
 
-            if (source is null || counterpart is null ||
-                source.Side == counterpart.Side)
+            if (source is null ||
+                source.AccountType != AccountType.Asset ||
+                source.CashFlowAccountType is not CashFlowAccountType.Cash and not CashFlowAccountType.CashEquivalent)
+                throw new CashFlowSourceLineInvalidException(
+                    "The source journal line must still belong to an account classified as Cash or CashEquivalent.");
+
+            if (counterpart is null || source.Side == counterpart.Side)
                 throw new CashFlowSourceLineInvalidException(
                     "The counterpart must be a different, existing journal line on the opposite posting side.");
 
@@ -213,6 +218,16 @@ public sealed class CashFlowAllocationService(
             var set = await allocationRepository.GetByIdAsync(
                 financialBookId, allocationSetId, tracking: true, token)
                 ?? throw new CashFlowAllocationSetNotFoundException();
+
+            var source = await allocationRepository.GetSourceLineAsync(
+                financialBookId, set.SourceJournalEntryId, set.SourceLineNumber, token);
+            if (source is null ||
+                source.AccountType != AccountType.Asset ||
+                source.CashFlowAccountType is not CashFlowAccountType.Cash and not CashFlowAccountType.CashEquivalent ||
+                source.Amount != set.SourceAmount ||
+                !StringComparer.Ordinal.Equals(source.Currency, set.Currency))
+                throw new CashFlowSourceLineInvalidException(
+                    "The source journal line no longer matches the cash-flow allocation source.");
 
             if (set.SupersedesAllocationSetId.HasValue)
             {
