@@ -202,6 +202,8 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                         t.HasCheckConstraint("CK_CashFlowAllocationSets_Finalization_Consistent", "([Status] = 1 AND [FinalizedBy] IS NULL AND [FinalizedAt] IS NULL) OR ([Status] IN (2, 3) AND [FinalizedBy] IS NOT NULL AND [FinalizedAt] IS NOT NULL)");
                         t.HasCheckConstraint("CK_CashFlowAllocationSets_Supersedes_Consistent", "([Version] = 1 AND [SupersedesAllocationSetId] IS NULL) OR ([Version] > 1 AND [SupersedesAllocationSetId] IS NOT NULL)");
                     });
+
+                    b.Navigation("Allocations");
                 });
 
             modelBuilder.Entity("ArtaFin.Domain.Finance.CashFlowAllocation", b =>
@@ -350,7 +352,6 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                     b.HasOne("ArtaFin.Domain.Finance.FinancialBook", null).WithMany().HasForeignKey("FinancialBookId").OnDelete(DeleteBehavior.Restrict).IsRequired();
                     b.HasOne("ArtaFin.Domain.Finance.JournalEntry", null).WithMany().HasForeignKey("SourceJournalEntryId").OnDelete(DeleteBehavior.Restrict).IsRequired();
                     b.HasOne("ArtaFin.Domain.Finance.CashFlowAllocationSet", null).WithMany().HasForeignKey("SupersedesAllocationSetId").OnDelete(DeleteBehavior.Restrict);
-                    b.Navigation("Allocations");
                 });
 
             modelBuilder.Entity("ArtaFin.Domain.Finance.CashFlowAllocation", b =>
