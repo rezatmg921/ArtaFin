@@ -132,7 +132,7 @@ public sealed class CashFlowAllocationServiceIntegrationTests : IAsyncLifetime
         Assert.Equal(0m, finalized.RemainingAmount);
         Assert.Equal(2, finalized.Allocations.Count);
 
-        await Assert.ThrowsAsync<DomainException>(() =>
+        await Assert.ThrowsAsync<CashFlowAllocationStateConflictException>(() =>
             service.AddAllocationAsync(
                 bookId, draft.Id,
                 new AddCashFlowAllocationInput(1m, CashFlowActivity.Operating,
