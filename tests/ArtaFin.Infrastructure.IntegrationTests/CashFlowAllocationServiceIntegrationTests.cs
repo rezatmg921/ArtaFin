@@ -332,8 +332,8 @@ public sealed class CashFlowAllocationServiceIntegrationTests : IAsyncLifetime
 
         var outcomes = await Task.WhenAll(TryAllocateAsync(), TryAllocateAsync());
 
-        Assert.Single(outcomes.Where(succeeded => succeeded));
-        Assert.Single(outcomes.Where(succeeded => !succeeded));
+        Assert.Single(outcomes, succeeded => succeeded);
+        Assert.Single(outcomes, succeeded => !succeeded);
 
         var persisted = await setupService.GetAsync(bookId, draft.Id, CancellationToken.None);
         Assert.Equal(60m, persisted.AllocatedAmount);
