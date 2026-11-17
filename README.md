@@ -8,7 +8,7 @@ A production-minded personal and household finance platform inspired by common p
 
 - Start with a **Modular Monolith**; do not introduce microservices before operational or scaling needs justify them.
 - Apply **DDD** to model financial invariants and bounded contexts.
-- Use **CQRS** for clear write workflows and purpose-built read projections; separate databases are not required.
+- Use **CQRS** for clear use cases and purpose-built read projections; separate databases are not required.
 - Keep money movement and ledger posting atomic within a well-defined transaction boundary.
 - Use ASP.NET Core Identity for local user accounts and JWT Bearer for API authentication.
 - Enforce book-level authorization and tenant isolation in every data access path.
@@ -118,6 +118,7 @@ Example registration/login body:
 - [Idempotent financial write requests](docs/operations/idempotency.md) — retry-safe expense, income, and transfer creation with `Idempotency-Key`.
 - [Trial balance report](docs/operations/trial-balance.md) — as-of debit and credit balances derived from posted journal lines.
 - [Income statement report](docs/operations/income-statement.md) — period revenue, expenses and net profit derived from posted journal lines.
+- [Balance sheet report](docs/operations/balance-sheet.md) — as-of assets, liabilities and equity including unclosed net income.
 
 ## Development principles
 
