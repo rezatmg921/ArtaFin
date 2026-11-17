@@ -130,9 +130,8 @@ internal static class CashFlowAllocationEndpoints
         if (!Enum.TryParse<CashFlowActivity>(request.Activity, true, out var activity) ||
             !Enum.IsDefined(activity))
             errors["activity"] = ["Activity must be Operating, Investing, or Financing."];
-        if (string.IsNullOrWhiteSpace(request.Category) ||
-            request.Category.Trim().Length > CashFlowAllocationSet.MaxCategoryLength)
-            errors["category"] = [$"Category is required and cannot exceed {CashFlowAllocationSet.MaxCategoryLength} characters."];
+        if (!IsCategoryCode(request.Category))
+            errors["category"] = [$"Category must be a stable code containing only letters, digits, and underscores, up to {CashFlowAllocationSet.MaxCategoryLength} characters."];
         if (request.CounterpartLineNumber <= 0)
             errors["counterpartLineNumber"] = ["A positive counterpart line number is required."];
         if (request.Memo?.Length > CashFlowAllocationSet.MaxMemoLength)
@@ -149,6 +148,25 @@ internal static class CashFlowAllocationEndpoints
             cancellationToken);
 
         return Results.Ok(result);
+    }
+
+    private static bool IsCategoryCode(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return false;
+
+        var category = value.Trim();
+        if (category.Length > CashFlowAllocationSet.MaxCategoryLength)
+            return false;
+
+        static bool IsAsciiLetter(char character) =>
+            character is >= 'A' and <= 'Z' or >= 'a' and <= 'z';
+
+        return IsAsciiLetter(category[0]) &&
+               category.All(character =>
+                   IsAsciiLetter(character) ||
+                   character is >= '0' and <= '9' ||
+                   character == '_');
     }
 
     private static async Task<IResult> RemoveAllocationAsync(
