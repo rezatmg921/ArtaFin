@@ -11,10 +11,13 @@ using ArtaFin.Domain.Security;
 using ArtaFin.Infrastructure.Persistence.Configurations;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace ArtaFin.Infrastructure.Persistence;
 
-public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
+public sealed class ArtaFinDbContext(
+    DbContextOptions<ArtaFinDbContext> options,
+    ILogger<ArtaFinDbContext>? logger = null)
     : DbContext(options), IUnitOfWork
 {
     private const string AccountCodeUniqueIndexName = "UX_Accounts_FinancialBookId_Code";
@@ -83,6 +86,7 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
         }
         catch (DbUpdateConcurrencyException exception)
         {
+            LogConcurrencyConflict(exception);
             throw new PersistenceConcurrencyException(
                 "The record was changed by another operation. Reload it and retry.", exception);
         }
@@ -115,6 +119,7 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
         }
         catch (DbUpdateConcurrencyException exception)
         {
+            LogConcurrencyConflict(exception);
             throw new PersistenceConcurrencyException(
                 "The record was changed by another operation. Reload it and retry.", exception);
         }
@@ -249,6 +254,38 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
                 throw new AccountNegativeBalanceException(accountId, projectedBalance);
         }
     }
+
+    private void LogConcurrencyConflict(DbUpdateConcurrencyException exception)
+    {
+        if (logger is null)
+            return;
+
+        var entries = exception.Entries.Select(entry =>
+        {
+            var key = entry.Properties
+                .Where(property => property.Metadata.IsPrimaryKey())
+                .Select(property => $"{property.Metadata.Name}={property.CurrentValue ?? property.OriginalValue}");
+            var tokens = entry.Properties
+                .Where(property => property.Metadata.IsConcurrencyToken)
+                .Select(property =>
+                    $"{property.Metadata.Name}(original={FormatConcurrencyValue(property.OriginalValue)}, current={FormatConcurrencyValue(property.CurrentValue)})");
+
+            return $"{entry.Metadata.ClrType.Name} state={entry.State}; key=[{string.Join(", ", key)}]; tokens=[{string.Join(", ", tokens)}]";
+        });
+
+        logger.LogError(
+            exception,
+            "EF Core optimistic concurrency conflict. Affected entries: {ConcurrencyEntries}",
+            string.Join(" | ", entries));
+    }
+
+    private static string FormatConcurrencyValue(object? value) =>
+        value switch
+        {
+            null => "<null>",
+            byte[] bytes => Convert.ToHexString(bytes),
+            _ => value.ToString() ?? "<null>"
+        };
 
     private void EnsurePostedJournalEntriesAreImmutable()
     {
