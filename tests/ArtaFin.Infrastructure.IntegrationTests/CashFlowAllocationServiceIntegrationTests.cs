@@ -136,7 +136,7 @@ public sealed class CashFlowAllocationServiceIntegrationTests : IAsyncLifetime
             service.AddAllocationAsync(
                 bookId, draft.Id,
                 new AddCashFlowAllocationInput(1m, CashFlowActivity.Operating,
-                    "LATE_EDIT", null, null),
+                    "LATE_EDIT", 2, null),
                 CancellationToken.None));
 
         var revision = await service.CreateRevisionAsync(
