@@ -106,15 +106,17 @@ public sealed class CashFlowAllocationService(
     {
         ArgumentNullException.ThrowIfNull(input);
         await EnsureCanManageAsync(financialBookId, cancellationToken);
+        var sourceSnapshot = await allocationRepository.GetByIdAsync(
+            financialBookId, allocationSetId, tracking: false, cancellationToken)
+            ?? throw new CashFlowAllocationSetNotFoundException();
         CashFlowAllocationSet? updated = null;
 
         await unitOfWork.ExecuteInTransactionAsync(async token =>
         {
-            var sourceSnapshot = await allocationRepository.GetByIdAsync(
-                financialBookId, allocationSetId, tracking: false, token)
-                ?? throw new CashFlowAllocationSetNotFoundException();
-
-            // Use the same source-entry then allocation-set lock order as finalization.
+            // Read the immutable source-entry identity before the transaction, then
+            // acquire the source-entry lock before taking any allocation-set lock.
+            // A Serializable read of the set inside the transaction here would
+            // retain a shared lock and can deadlock concurrent writers upgrading it.
             await allocationRepository.LockSourceEntryAsync(
                 financialBookId, sourceSnapshot.SourceJournalEntryId, token);
             await allocationRepository.LockAllocationSetAsync(
@@ -195,13 +197,12 @@ public sealed class CashFlowAllocationService(
         CancellationToken cancellationToken)
     {
         await EnsureCanManageAsync(financialBookId, cancellationToken);
+        var sourceSnapshot = await allocationRepository.GetByIdAsync(
+            financialBookId, allocationSetId, tracking: false, cancellationToken)
+            ?? throw new CashFlowAllocationSetNotFoundException();
 
         await unitOfWork.ExecuteInTransactionAsync(async token =>
         {
-            var sourceSnapshot = await allocationRepository.GetByIdAsync(
-                financialBookId, allocationSetId, tracking: false, token)
-                ?? throw new CashFlowAllocationSetNotFoundException();
-
             await allocationRepository.LockSourceEntryAsync(
                 financialBookId, sourceSnapshot.SourceJournalEntryId, token);
             await allocationRepository.LockAllocationSetAsync(
@@ -225,14 +226,13 @@ public sealed class CashFlowAllocationService(
         CancellationToken cancellationToken)
     {
         await EnsureCanManageAsync(financialBookId, cancellationToken);
+        var sourceSnapshot = await allocationRepository.GetByIdAsync(
+            financialBookId, allocationSetId, tracking: false, cancellationToken)
+            ?? throw new CashFlowAllocationSetNotFoundException();
         CashFlowAllocationSet? finalized = null;
 
         await unitOfWork.ExecuteInTransactionAsync(async token =>
         {
-            var sourceSnapshot = await allocationRepository.GetByIdAsync(
-                financialBookId, allocationSetId, tracking: false, token)
-                ?? throw new CashFlowAllocationSetNotFoundException();
-
             // Always acquire locks in source-entry then allocation-set order.
             // This keeps revision and finalization paths from taking them in reverse order.
             await allocationRepository.LockSourceEntryAsync(
@@ -315,19 +315,20 @@ public sealed class CashFlowAllocationService(
         CancellationToken cancellationToken)
     {
         await EnsureCanManageAsync(financialBookId, cancellationToken);
+        var originalSnapshot = await allocationRepository.GetByIdAsync(
+            financialBookId, allocationSetId, tracking: false, cancellationToken)
+            ?? throw new CashFlowAllocationSetNotFoundException();
         CashFlowAllocationSet? created = null;
 
         await unitOfWork.ExecuteInTransactionAsync(async token =>
         {
-            var original = await allocationRepository.GetByIdAsync(
-                financialBookId, allocationSetId, tracking: false, token)
-                ?? throw new CashFlowAllocationSetNotFoundException();
-
             await allocationRepository.LockSourceEntryAsync(
-                financialBookId, original.SourceJournalEntryId, token);
+                financialBookId, originalSnapshot.SourceJournalEntryId, token);
+            await allocationRepository.LockAllocationSetAsync(
+                financialBookId, allocationSetId, token);
 
-            original = await allocationRepository.GetByIdAsync(
-                financialBookId, allocationSetId, tracking: false, token)
+            var original = await allocationRepository.GetByIdAsync(
+                financialBookId, allocationSetId, tracking: true, token)
                 ?? throw new CashFlowAllocationSetNotFoundException();
 
             if (original.Status != CashFlowAllocationSetStatus.Finalized)
