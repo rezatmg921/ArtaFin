@@ -39,8 +39,8 @@ internal static class AccountLedgerEndpoints
             errors["pageSize"] = ["Page size must be between 1 and 100."];
         if (page > 0 && pageSize > 0 && page > int.MaxValue / pageSize)
             errors["page"] = ["Requested page is too large."];
-        if (from.HasValue && to.HasValue && from > to)
-            errors["to"] = ["To date must be greater than or equal to From date."];
+        if (from.HasValue && to.HasValue && from >= to)
+            errors["to"] = ["To date must be later than From date; the range is inclusive at From and exclusive at To."];
 
         if (errors.Count > 0)
             return Results.ValidationProblem(errors);
