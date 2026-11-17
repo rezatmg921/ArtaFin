@@ -50,10 +50,22 @@ public sealed class CashFlowAllocationSetConfiguration : IEntityTypeConfiguratio
         builder.Ignore(set => set.AllocatedAmount);
         builder.Ignore(set => set.RemainingAmount);
 
-        builder.HasMany(set => set.Allocations)
+        var allocations = builder.HasMany(set => set.Allocations)
             .WithOne()
             .HasForeignKey(allocation => allocation.AllocationSetId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        allocations.ToTable("CashFlowAllocations", table =>
+        {
+            table.HasCheckConstraint("CK_CashFlowAllocations_Amount_Positive", "[Amount] > 0");
+            table.HasCheckConstraint("CK_CashFlowAllocations_Activity_Valid", "[Activity] IN (1, 2, 3)");
+        });
+        allocations.HasKey(allocation => allocation.Id);
+        allocations.Property(allocation => allocation.Amount).HasPrecision(19, 4).IsRequired();
+        allocations.Property(allocation => allocation.Activity).HasConversion<byte>().HasColumnType("tinyint").IsRequired();
+        allocations.Property(allocation => allocation.Category).HasMaxLength(CashFlowAllocationSet.MaxCategoryLength).IsRequired();
+        allocations.Property(allocation => allocation.CounterpartLineNumber);
+        allocations.Property(allocation => allocation.Memo).HasMaxLength(CashFlowAllocationSet.MaxMemoLength);
 
         builder.Navigation(set => set.Allocations)
             .HasField("_allocations")
