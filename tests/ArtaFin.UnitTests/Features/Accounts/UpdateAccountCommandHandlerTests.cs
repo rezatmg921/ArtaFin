@@ -40,6 +40,32 @@ public sealed class UpdateAccountCommandHandlerTests
     }
 
     [Fact]
+    public async Task Handle_WhenCashFlowClassificationIsSupplied_UpdatesAccountAndPersists()
+    {
+        var ownerId = Guid.NewGuid();
+        var book = CreateBook(ownerId);
+        var account = CreateAccount(book.Id);
+        var accounts = new FakeAccountRepository(
+            new AccountReadSnapshot(account, [1, 2, 3, 4, 5, 6, 7, 8]),
+            new AccountReadSnapshot(account, [2, 3, 4, 5, 6, 7, 8, 9]));
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = CreateHandler(ownerId, book, accounts, unitOfWork);
+
+        await handler.Handle(
+            new UpdateAccountCommand(
+                book.Id, account.Id, "Cash reserve", null, MatchAny: true,
+                CashFlowAccountType: CashFlowAccountType.CashEquivalent,
+                CashEquivalentMaturityDays: 60,
+                CashEquivalentRiskInsignificant: true),
+            CancellationToken.None);
+
+        Assert.Equal(CashFlowAccountType.CashEquivalent, account.CashFlowAccountType);
+        Assert.Equal(60, account.CashEquivalentMaturityDays);
+        Assert.True(account.CashEquivalentRiskInsignificant);
+        Assert.Equal(1, unitOfWork.SaveChangesCalls);
+    }
+
+    [Fact]
     public async Task Handle_WhenStrongVersionDoesNotMatch_ThrowsPreconditionFailed()
     {
         var ownerId = Guid.NewGuid();
