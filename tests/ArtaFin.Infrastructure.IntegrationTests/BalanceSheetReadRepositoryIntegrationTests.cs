@@ -98,15 +98,28 @@ public sealed class BalanceSheetReadRepositoryIntegrationTests : IAsyncLifetime
 
         var result = await repository.GetAsOfAsync(bookId, asOf.AddHours(3), CancellationToken.None);
 
-        Assert.Equal(5, result.Count);
-        var cashRow = Assert.Single(result, item => item.AccountId == cash.Id);
-        Assert.Equal(120m, cashRow.TotalDebits);
-        Assert.Equal(25m, cashRow.TotalCredits);
-        var payableRow = Assert.Single(result, item => item.AccountId == payable.Id);
-        Assert.Equal(20m, payableRow.TotalCredits);
-        var incomeRow = Assert.Single(result, item => item.AccountId == income.Id);
-        Assert.Equal(100m, incomeRow.TotalCredits);
-        Assert.DoesNotContain(result, item => item.TotalDebits == 50m && item.TotalCredits == 50m);
+        // Assert.Collection verifies that exactly the five expected accounts
+        // are returned, in the repository's account-code order.
+        Assert.Collection(
+            result,
+            cashRow =>
+            {
+                Assert.Equal(cash.Id, cashRow.AccountId);
+                Assert.Equal(120m, cashRow.TotalDebits);
+                Assert.Equal(25m, cashRow.TotalCredits);
+            },
+            payableRow =>
+            {
+                Assert.Equal(payable.Id, payableRow.AccountId);
+                Assert.Equal(20m, payableRow.TotalCredits);
+            },
+            capitalRow => Assert.Equal(capital.Id, capitalRow.AccountId),
+            incomeRow =>
+            {
+                Assert.Equal(income.Id, incomeRow.AccountId);
+                Assert.Equal(100m, incomeRow.TotalCredits);
+            },
+            expenseRow => Assert.Equal(expense.Id, expenseRow.AccountId));
     }
 
     public async Task DisposeAsync()
