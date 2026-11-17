@@ -1,5 +1,6 @@
 using ArtaFin.Application.Abstractions.Persistence;
 using ArtaFin.Application.Abstractions.Security;
+using ArtaFin.Application.Features.JournalEntries.CreateJournalEntry;
 using ArtaFin.Domain.Common;
 using ArtaFin.Domain.Finance;
 
