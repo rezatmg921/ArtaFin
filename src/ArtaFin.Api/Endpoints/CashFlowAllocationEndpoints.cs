@@ -201,5 +201,5 @@ internal sealed record AddCashFlowAllocationRequest(
     decimal Amount,
     string? Activity,
     string? Category,
-    int? CounterpartLineNumber,
+    int CounterpartLineNumber,
     string? Memo);
