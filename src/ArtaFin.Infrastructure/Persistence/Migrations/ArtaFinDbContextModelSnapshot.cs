@@ -62,6 +62,17 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                         .HasColumnType("tinyint")
                         .HasDefaultValue((byte)1);
 
+                    b.Property<byte>("CashFlowAccountType")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint")
+                        .HasDefaultValue((byte)0);
+
+                    b.Property<int?>("CashEquivalentMaturityDays")
+                        .HasColumnType("int");
+
+                    b.Property<bool?>("CashEquivalentRiskInsignificant")
+                        .HasColumnType("bit");
+
                     b.Property<byte>("Status")
                         .HasColumnType("tinyint");
 
@@ -86,6 +97,10 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("CK_Accounts_Status_Valid", "[Status] IN (1, 2)");
 
                             t.HasCheckConstraint("CK_Accounts_Type_Valid", "[Type] IN (1, 2, 3, 4, 5)");
+
+                            t.HasCheckConstraint("CK_Accounts_CashFlowClassification_Valid", "([CashFlowAccountType] = 0 AND [CashEquivalentMaturityDays] IS NULL AND [CashEquivalentRiskInsignificant] IS NULL) OR ([CashFlowAccountType] = 1 AND [CashEquivalentMaturityDays] IS NULL AND [CashEquivalentRiskInsignificant] IS NULL) OR ([CashFlowAccountType] = 2 AND [CashEquivalentMaturityDays] BETWEEN 0 AND 90 AND [CashEquivalentRiskInsignificant] = 1)");
+
+                            t.HasCheckConstraint("CK_Accounts_CashFlowClassification_AssetOnly", "[CashFlowAccountType] = 0 OR [Type] = 1");
                         });
                 });
 
