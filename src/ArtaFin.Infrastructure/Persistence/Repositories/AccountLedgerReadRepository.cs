@@ -51,7 +51,7 @@ internal sealed class AccountLedgerReadRepository(ArtaFinDbContext dbContext)
         if (from.HasValue)
             filteredLines = filteredLines.Where(line => line.PostedAt >= from.Value);
         if (to.HasValue)
-            filteredLines = filteredLines.Where(line => line.PostedAt <= to.Value);
+            filteredLines = filteredLines.Where(line => line.PostedAt < to.Value);
 
         var totalCount = await filteredLines.CountAsync(cancellationToken);
         var rows = await filteredLines
@@ -63,7 +63,18 @@ internal sealed class AccountLedgerReadRepository(ArtaFinDbContext dbContext)
             .ToListAsync(cancellationToken);
 
         if (rows.Count == 0)
-            return new AccountLedgerPage([], totalCount, 0m);
+        {
+            // An empty period still has an opening balance. This is important for
+            // accounts with no activity during the selected range.
+            var emptyPeriodOpeningBalance = from.HasValue
+                ? await allLines
+                    .Where(line => line.PostedAt < from.Value)
+                    .Select(line => line.Side == normalSide ? line.Amount : -line.Amount)
+                    .SumAsync(cancellationToken)
+                : 0m;
+
+            return new AccountLedgerPage([], totalCount, emptyPeriodOpeningBalance);
+        }
 
         var first = rows[0];
         var openingBalance = await allLines
