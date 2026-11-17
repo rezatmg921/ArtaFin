@@ -86,9 +86,12 @@ public sealed class ArtaFinDbContext(
         }
         catch (DbUpdateConcurrencyException exception)
         {
-            LogConcurrencyConflict(exception);
+            var diagnostics = DescribeConcurrencyConflict(exception);
+            LogConcurrencyConflict(exception, diagnostics);
             throw new PersistenceConcurrencyException(
-                "The record was changed by another operation. Reload it and retry.", exception);
+                "The record was changed by another operation. Reload it and retry.",
+                exception,
+                diagnostics);
         }
     }
 
@@ -119,9 +122,12 @@ public sealed class ArtaFinDbContext(
         }
         catch (DbUpdateConcurrencyException exception)
         {
-            LogConcurrencyConflict(exception);
+            var diagnostics = DescribeConcurrencyConflict(exception);
+            LogConcurrencyConflict(exception, diagnostics);
             throw new PersistenceConcurrencyException(
-                "The record was changed by another operation. Reload it and retry.", exception);
+                "The record was changed by another operation. Reload it and retry.",
+                exception,
+                diagnostics);
         }
     }
 
@@ -255,37 +261,28 @@ public sealed class ArtaFinDbContext(
         }
     }
 
-    private void LogConcurrencyConflict(DbUpdateConcurrencyException exception)
-    {
-        if (logger is null)
-            return;
-
-        var entries = exception.Entries.Select(entry =>
+    private static string DescribeConcurrencyConflict(DbUpdateConcurrencyException exception) =>
+        string.Join(" | ", exception.Entries.Select(entry =>
         {
             var key = entry.Properties
                 .Where(property => property.Metadata.IsPrimaryKey())
                 .Select(property => $"{property.Metadata.Name}={property.CurrentValue ?? property.OriginalValue}");
             var tokens = entry.Properties
                 .Where(property => property.Metadata.IsConcurrencyToken)
-                .Select(property =>
-                    $"{property.Metadata.Name}(original={FormatConcurrencyValue(property.OriginalValue)}, current={FormatConcurrencyValue(property.CurrentValue)})");
+                .Select(property => property.Metadata.Name);
 
-            return $"{entry.Metadata.ClrType.Name} state={entry.State}; key=[{string.Join(", ", key)}]; tokens=[{string.Join(", ", tokens)}]";
-        });
+            return $"{entry.Metadata.ClrType.Name} state={entry.State}; key=[{string.Join(", ", key)}]; concurrencyTokens=[{string.Join(", ", tokens)}]";
+        }));
 
-        logger.LogError(
+    private void LogConcurrencyConflict(
+        DbUpdateConcurrencyException exception,
+        string diagnostics)
+    {
+        logger?.LogError(
             exception,
             "EF Core optimistic concurrency conflict. Affected entries: {ConcurrencyEntries}",
-            string.Join(" | ", entries));
+            diagnostics);
     }
-
-    private static string FormatConcurrencyValue(object? value) =>
-        value switch
-        {
-            null => "<null>",
-            byte[] bytes => Convert.ToHexString(bytes),
-            _ => value.ToString() ?? "<null>"
-        };
 
     private void EnsurePostedJournalEntriesAreImmutable()
     {
