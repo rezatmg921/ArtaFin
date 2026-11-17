@@ -376,7 +376,7 @@ public sealed class CashFlowAllocationService(
 
         var book = await financialBookRepository.GetByIdAsync(financialBookId, cancellationToken);
         if (book is null)
-            throw new FinancialBookAccessDeniedException();
+            throw new JournalEntryAccessDeniedException();
 
         if (book.IsOwnedBy(currentUser.UserId))
             return;
@@ -385,7 +385,7 @@ public sealed class CashFlowAllocationService(
             financialBookId, currentUser.UserId, cancellationToken);
 
         if (member is null || !member.CanPostJournalEntriesAt(timeProvider.GetUtcNow()))
-            throw new FinancialBookAccessDeniedException();
+            throw new JournalEntryAccessDeniedException();
     }
 
     private static CashFlowAllocationSetResult ToResult(CashFlowAllocationSet set) =>
