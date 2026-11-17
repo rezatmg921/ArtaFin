@@ -185,6 +185,7 @@ app.MapAccountBalancesEndpoints();
 app.MapTrialBalanceEndpoints();
 app.MapIncomeStatementEndpoints();
 app.MapBalanceSheetEndpoints();
+app.MapCashFlowAllocationEndpoints();
 app.MapFinancialBookMemberEndpoints();
 app.MapJournalEntryEndpoints();
 app.MapJournalEntryListEndpoints();
