@@ -117,6 +117,7 @@ Example registration/login body:
 
 - [Idempotent financial write requests](docs/operations/idempotency.md) — retry-safe expense, income, and transfer creation with `Idempotency-Key`.
 - [Trial balance report](docs/operations/trial-balance.md) — as-of debit and credit balances derived from posted journal lines.
+- [Income statement report](docs/operations/income-statement.md) — period revenue, expenses and net profit derived from posted journal lines.
 
 ## Development principles
 
