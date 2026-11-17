@@ -20,6 +20,7 @@ All endpoints require authentication and an owner or active Accountant membershi
 
 | Method | Route | Purpose |
 |---|---|---|
+| GET | `/api/financial-books/{bookId}/journal-entries/{entryId}/lines/{lineNumber}/cash-flow-allocations` | Read all allocation versions for a source line |
 | POST | `/api/financial-books/{bookId}/journal-entries/{entryId}/lines/{lineNumber}/cash-flow-allocations` | Create the first Draft |
 | GET | `/api/financial-books/{bookId}/cash-flow-allocations/{setId}` | Read a set and its allocations |
 | DELETE | `/api/financial-books/{bookId}/cash-flow-allocations/{setId}` | Cancel and delete a Draft only |
