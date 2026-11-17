@@ -82,6 +82,31 @@ builder.Services.AddOpenApi(options =>
             });
         }
 
+        var relativePath = context.Description.RelativePath;
+        var supportsIdempotencyKey =
+            context.Description.HttpMethod == "POST" &&
+            relativePath is
+                "api/financial-books/{financialBookId}/expenses" or
+                "api/financial-books/{financialBookId}/income" or
+                "api/financial-books/{financialBookId}/transfers";
+
+        if (supportsIdempotencyKey)
+        {
+            operation.Parameters ??= [];
+            operation.Parameters.Add(new OpenApiParameter
+            {
+                Name = "Idempotency-Key",
+                In = ParameterLocation.Header,
+                Required = false,
+                Description = "Optional key used to safely retry this financial operation. Reusing the same key with the same request returns the original result; using it with different request data returns 409 Conflict.",
+                Schema = new OpenApiSchema
+                {
+                    Type = JsonSchemaType.String,
+                    MaxLength = 128
+                }
+            });
+        }
+
         return Task.CompletedTask;
     });
 });
