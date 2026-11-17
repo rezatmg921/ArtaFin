@@ -92,6 +92,24 @@ public sealed class CashFlowAllocationService(
                 financialBookId, allocationSetId, tracking: true, token)
                 ?? throw new CashFlowAllocationSetNotFoundException();
 
+            if (!input.CounterpartLineNumber.HasValue)
+                throw new CashFlowSourceLineInvalidException(
+                    "A counterpart journal line is required to classify the cash movement.");
+
+            var source = await allocationRepository.GetSourceLineAsync(
+                financialBookId, set.SourceJournalEntryId, set.SourceLineNumber, token);
+            var counterpart = await allocationRepository.GetSourceLineAsync(
+                financialBookId, set.SourceJournalEntryId, input.CounterpartLineNumber.Value, token);
+
+            if (source is null || counterpart is null ||
+                source.Side == counterpart.Side)
+                throw new CashFlowSourceLineInvalidException(
+                    "The counterpart must be a different, existing journal line on the opposite posting side.");
+
+            if (counterpart.CashFlowAccountType is CashFlowAccountType.Cash or CashFlowAccountType.CashEquivalent)
+                throw new CashFlowSourceLineInvalidException(
+                    "Transfers between cash and cash equivalents are internal movements and must not be allocated as cash flows.");
+
             set.AddAllocation(Guid.NewGuid(), input.Amount, input.Activity,
                 input.Category, input.CounterpartLineNumber, input.Memo);
             await allocationRepository.SaveChangesAsync(token);
