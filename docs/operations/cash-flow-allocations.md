@@ -7,7 +7,7 @@ Only journal lines belonging to accounts classified as `Cash` or `CashEquivalent
 ## Lifecycle
 
 1. Create a Draft for a cash or cash-equivalent journal line.
-2. Add one or more allocations. Each allocation has a positive amount, an IAS 7 activity (`Operating`, `Investing`, or `Financing`), a category, and optional counterpart-line and memo details.
+2. Add one or more allocations. Each allocation has a positive amount, an IAS 7 activity (`Operating`, `Investing`, or `Financing`), a category, a required counterpart journal line on the opposite posting side, and optional memo details.
 3. The Draft can be edited by adding or removing allocations.
 4. Finalize only when the allocated total exactly equals the source line amount.
 5. A Finalized set is immutable. To correct it, create a new revision. The previous version remains Finalized while the revision is a Draft; when the revision is finalized, the previous version is atomically marked Superseded.
