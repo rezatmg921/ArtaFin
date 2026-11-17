@@ -8,6 +8,15 @@ internal static class CashFlowAllocationEndpoints
     public static IEndpointRouteBuilder MapCashFlowAllocationEndpoints(
         this IEndpointRouteBuilder endpoints)
     {
+        endpoints.MapGet(
+                "/api/financial-books/{financialBookId:guid}/journal-entries/{journalEntryId:guid}/lines/{lineNumber:int}/cash-flow-allocations",
+                GetHistoryAsync)
+            .WithName("GetCashFlowAllocationHistory")
+            .WithTags("CashFlowAllocations")
+            .RequireAuthorization()
+            .Produces<IReadOnlyList<CashFlowAllocationSetResult>>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
         endpoints.MapPost(
                 "/api/financial-books/{financialBookId:guid}/journal-entries/{journalEntryId:guid}/lines/{lineNumber:int}/cash-flow-allocations",
                 CreateDraftAsync)
@@ -85,6 +94,24 @@ internal static class CashFlowAllocationEndpoints
             .ProducesProblem(StatusCodes.Status409Conflict);
 
         return endpoints;
+    }
+
+    private static async Task<IResult> GetHistoryAsync(
+        Guid financialBookId,
+        Guid journalEntryId,
+        int lineNumber,
+        CashFlowAllocationService service,
+        CancellationToken cancellationToken)
+    {
+        if (lineNumber <= 0)
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["lineNumber"] = ["Line number must be greater than zero."]
+            });
+
+        var history = await service.GetHistoryAsync(
+            financialBookId, journalEntryId, lineNumber, cancellationToken);
+        return Results.Ok(history);
     }
 
     private static async Task<IResult> CreateDraftAsync(
