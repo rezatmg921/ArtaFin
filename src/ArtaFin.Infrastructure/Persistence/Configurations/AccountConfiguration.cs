@@ -14,6 +14,10 @@ public sealed class AccountConfiguration : IEntityTypeConfiguration<Account>
             table.HasCheckConstraint("CK_Accounts_NormalBalance_Valid", "[NormalBalance] IN (1, 2)");
             table.HasCheckConstraint("CK_Accounts_Status_Valid", "[Status] IN (1, 2)");
             table.HasCheckConstraint("CK_Accounts_BalancePolicy_Valid", "[BalancePolicy] IN (1, 2)");
+            table.HasCheckConstraint("CK_Accounts_CashFlowClassification_Valid",
+                "([CashFlowAccountType] = 0 AND [CashEquivalentMaturityDays] IS NULL AND [CashEquivalentRiskInsignificant] IS NULL) OR ([CashFlowAccountType] = 1 AND [CashEquivalentMaturityDays] IS NULL AND [CashEquivalentRiskInsignificant] IS NULL) OR ([CashFlowAccountType] = 2 AND [CashEquivalentMaturityDays] BETWEEN 0 AND 90 AND [CashEquivalentRiskInsignificant] = 1)");
+            table.HasCheckConstraint("CK_Accounts_CashFlowClassification_AssetOnly",
+                "[CashFlowAccountType] = 0 OR [Type] = 1");
         });
 
         builder.HasKey(account => account.Id);
@@ -27,6 +31,9 @@ public sealed class AccountConfiguration : IEntityTypeConfiguration<Account>
         builder.Property(account => account.NormalBalance).HasConversion<byte>().HasColumnType("tinyint").IsRequired();
         builder.Property(account => account.BalancePolicy).HasConversion<byte>().HasColumnType("tinyint").HasDefaultValue(AccountBalancePolicy.PreventNegative).IsRequired();
         builder.Property(account => account.Status).HasConversion<byte>().HasColumnType("tinyint").IsRequired();
+        builder.Property(account => account.CashFlowAccountType).HasConversion<byte>().HasColumnType("tinyint").HasDefaultValue(CashFlowAccountType.None).IsRequired();
+        builder.Property(account => account.CashEquivalentMaturityDays).HasColumnType("int");
+        builder.Property(account => account.CashEquivalentRiskInsignificant).HasColumnType("bit");
         builder.Property(account => account.CreatedAt).HasColumnType("datetimeoffset(7)").IsRequired();
         builder.Property(account => account.DeactivatedAt).HasColumnType("datetimeoffset(7)");
 
