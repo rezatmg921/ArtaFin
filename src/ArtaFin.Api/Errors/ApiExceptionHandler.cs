@@ -1,5 +1,6 @@
 using ArtaFin.Application.Abstractions.Persistence;
 using ArtaFin.Application.Features.Accounts.CreateAccount;
+using ArtaFin.Application.Features.CashFlowAllocations;
 using ArtaFin.Application.Features.Accounts.DeleteAccount;
 using ArtaFin.Application.Features.Accounts.GetAccountLedger;
 using ArtaFin.Application.Features.Accounts.UpdateAccount;
@@ -43,6 +44,12 @@ internal sealed class ApiExceptionHandler(
             FinancialBookAccessDeniedException or FinancialBookManagementDeniedException or JournalEntryAccessDeniedException =>
                 (StatusCodes.Status404NotFound, "Financial book not found",
                     "The financial book was not found or is not accessible."),
+            CashFlowSourceLineNotFoundException or CashFlowAllocationSetNotFoundException =>
+                (StatusCodes.Status404NotFound, "Cash-flow allocation source not found",
+                    "The source journal line or allocation set was not found in this financial book."),
+            CashFlowAllocationDraftAlreadyExistsException or CashFlowAllocationRevisionConflictException =>
+                (StatusCodes.Status409Conflict, "Cash-flow allocation conflict",
+                    "An active draft already exists or the allocation set can no longer be revised in this state."),
             AccountLedgerNotFoundException =>
                 (StatusCodes.Status404NotFound, "Account not found",
                     "The account was not found in this financial book."),
