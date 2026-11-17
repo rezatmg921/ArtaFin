@@ -11,4 +11,7 @@ public sealed record UpdateAccountCommand(
     string Name,
     IReadOnlyList<byte[]>? ExpectedRowVersions,
     bool MatchAny,
-    AccountBalancePolicy? BalancePolicy = null) : IRequest<AccountReadSnapshot?>;
+    AccountBalancePolicy? BalancePolicy = null,
+    CashFlowAccountType? CashFlowAccountType = null,
+    int? CashEquivalentMaturityDays = null,
+    bool? CashEquivalentRiskInsignificant = null) : IRequest<AccountReadSnapshot?>;
