@@ -25,6 +25,7 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
     public DbSet<FinancialBookMember> FinancialBookMembers => Set<FinancialBookMember>();
     public DbSet<Account> Accounts => Set<Account>();
     public DbSet<JournalEntry> JournalEntries => Set<JournalEntry>();
+    public DbSet<CashFlowAllocationSet> CashFlowAllocationSets => Set<CashFlowAllocationSet>();
     public DbSet<AppUser> Users => Set<AppUser>();
     public DbSet<UserCredential> UserCredentials => Set<UserCredential>();
     public DbSet<UserSession> UserSessions => Set<UserSession>();
@@ -37,6 +38,7 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
         modelBuilder.Entity<FinancialBookMember>();
         modelBuilder.Entity<Account>();
         modelBuilder.Entity<JournalEntry>();
+        modelBuilder.Entity<CashFlowAllocationSet>();
         modelBuilder.Entity<AppUser>();
         modelBuilder.Entity<UserCredential>();
         modelBuilder.Entity<UserSession>();
@@ -47,6 +49,7 @@ public sealed class ArtaFinDbContext(DbContextOptions<ArtaFinDbContext> options)
         modelBuilder.ApplyConfiguration(new FinancialBookMemberConfiguration());
         modelBuilder.ApplyConfiguration(new AccountConfiguration());
         modelBuilder.ApplyConfiguration(new JournalEntryConfiguration());
+        modelBuilder.ApplyConfiguration(new CashFlowAllocationSetConfiguration());
         modelBuilder.ApplyConfiguration(new AppUserConfiguration());
         modelBuilder.ApplyConfiguration(new UserCredentialConfiguration());
         modelBuilder.ApplyConfiguration(new UserSessionConfiguration());
