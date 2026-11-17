@@ -110,6 +110,13 @@ public sealed class CashFlowAllocationService(
                 throw new CashFlowSourceLineInvalidException(
                     "Transfers between cash and cash equivalents are internal movements and must not be allocated as cash flows.");
 
+            var alreadyAllocatedToCounterpart = set.Allocations
+                .Where(item => item.CounterpartLineNumber == input.CounterpartLineNumber)
+                .Sum(item => item.Amount);
+            if (alreadyAllocatedToCounterpart + input.Amount > counterpart.Amount)
+                throw new DomainException(
+                    "Allocations referencing a counterpart line cannot exceed that journal line amount.");
+
             set.AddAllocation(Guid.NewGuid(), input.Amount, input.Activity,
                 input.Category, input.CounterpartLineNumber, input.Memo);
             await allocationRepository.SaveChangesAsync(token);
