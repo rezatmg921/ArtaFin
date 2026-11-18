@@ -48,7 +48,7 @@ public sealed class AddLeaseContracts : Migration
                     x => new { x.FinancialBookId, x.PaymentAccountId },
                     "Accounts", new[] { "FinancialBookId", "Id" }, onDelete: ReferentialAction.Restrict);
                 table.CheckConstraint("CK_LeaseContracts_InitialLiability_Positive", "[InitialLiabilityAmount] > 0");
-                table.CheckConstraint("CK_LeaseContracts_EffectivePeriodicRate_NonNegative", "[EffectivePeriodicRate] >= 0");
+                table.CheckConstraint("CK_LeaseContracts_EffectivePeriodicRate_Valid", "[EffectivePeriodicRate] BETWEEN 0 AND 999999999.9999999999");
                 table.CheckConstraint("CK_LeaseContracts_PaymentFrequency_Valid", "[PaymentFrequency] IN (1, 3, 6, 12)");
                 table.CheckConstraint("CK_LeaseContracts_PaymentTiming_Valid", "[PaymentTiming] IN (1, 2)");
                 table.CheckConstraint("CK_LeaseContracts_Status_Valid", "[Status] IN (1, 2, 3)");

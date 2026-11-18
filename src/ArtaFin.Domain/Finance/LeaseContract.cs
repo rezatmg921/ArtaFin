@@ -32,6 +32,7 @@ public sealed class LeaseContract : AggregateRoot
 {
     public const int MaxContractNumberLength = 100;
     public const int MaxDescriptionLength = 500;
+    public const decimal MaxEffectivePeriodicRate = 999999999.9999999999m;
 
     public Guid FinancialBookId { get; private set; }
     public string ContractNumber { get; private set; }
@@ -119,8 +120,8 @@ public sealed class LeaseContract : AggregateRoot
         if (initialLiability.Amount <= 0m)
             throw new ArgumentOutOfRangeException(nameof(initialLiability), "Initial lease liability must be positive.");
 
-        if (effectivePeriodicRate < 0m)
-            throw new ArgumentOutOfRangeException(nameof(effectivePeriodicRate), "Effective periodic rate cannot be negative.");
+        if (effectivePeriodicRate < 0m || effectivePeriodicRate > MaxEffectivePeriodicRate)
+            throw new ArgumentOutOfRangeException(nameof(effectivePeriodicRate), "Effective periodic rate must fit decimal(19,10) and cannot be negative.");
 
         if (!Enum.IsDefined(paymentFrequency))
             throw new ArgumentOutOfRangeException(nameof(paymentFrequency));

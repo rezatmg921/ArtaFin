@@ -2,6 +2,7 @@ using ArtaFin.Application.Abstractions.Persistence;
 using ArtaFin.Application.Features.Accounts.CreateAccount;
 using ArtaFin.Application.Features.CashFlowAllocations;
 using ArtaFin.Application.Features.CashFlowNonCashDisclosures;
+using ArtaFin.Application.Features.LeaseAccounting;
 using ArtaFin.Application.Features.Accounts.DeleteAccount;
 using ArtaFin.Application.Features.Accounts.GetAccountLedger;
 using ArtaFin.Application.Features.Accounts.UpdateAccount;
@@ -77,6 +78,11 @@ internal sealed class ApiExceptionHandler(
             CashFlowNonCashDisclosureAlreadyExistsException =>
                 (StatusCodes.Status409Conflict, "Non-cash disclosure already exists",
                     "This journal line already has a non-cash disclosure."),
+            LeaseContractNumberAlreadyExistsException =>
+                (StatusCodes.Status409Conflict, "Lease contract number already exists",
+                    "A lease contract with this number already exists in the financial book."),
+            LeaseContractAccountInvalidException =>
+                (StatusCodes.Status400BadRequest, "Invalid lease contract accounts", exception.Message),
             CashFlowNonCashDisclosureSourceInvalidException =>
                 (StatusCodes.Status400BadRequest, "Invalid non-cash disclosure source", exception.Message),
             CashFlowSourceLineInvalidException =>
