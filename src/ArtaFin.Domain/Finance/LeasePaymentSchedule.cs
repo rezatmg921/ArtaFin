@@ -142,4 +142,21 @@ public sealed class LeasePaymentScheduleLine : Entity
     public DateOnly PaymentDate { get; private set; }
     public decimal PaymentAmount { get; private set; }
     public decimal EffectivePeriodicRate { get; private set; }
+    public bool IsPaid { get; private set; }
+    public Guid? JournalEntryId { get; private set; }
+    public Guid? PaidBy { get; private set; }
+    public DateTimeOffset? PaidAt { get; private set; }
+
+    public void MarkPaid(Guid journalEntryId, Guid actorId, DateTimeOffset paidAt)
+    {
+        if (journalEntryId == Guid.Empty || actorId == Guid.Empty)
+            throw new ArgumentException("Journal entry and payment actor identifiers are required.");
+        if (IsPaid)
+            throw new DomainException("This lease installment has already been paid.");
+
+        IsPaid = true;
+        JournalEntryId = journalEntryId;
+        PaidBy = actorId;
+        PaidAt = paidAt;
+    }
 }
