@@ -651,7 +651,7 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                     b.HasOne("ArtaFin.Domain.Finance.FinancialBook", null).WithMany().HasForeignKey("FinancialBookId").OnDelete(DeleteBehavior.Restrict).IsRequired();
                     b.HasOne("ArtaFin.Domain.Finance.LeaseContract", null).WithMany().HasForeignKey("FinancialBookId", "LeaseContractId").HasPrincipalKey("FinancialBookId", "Id").OnDelete(DeleteBehavior.Restrict).IsRequired();
                     b.HasOne("ArtaFin.Domain.Finance.LeasePaymentSchedule", null).WithMany().HasForeignKey("SupersedesScheduleId").OnDelete(DeleteBehavior.Restrict);
-                    b.HasMany("Payments").WithOne().HasForeignKey("ScheduleId").OnDelete(DeleteBehavior.Cascade).IsRequired();
+                    b.HasMany("ArtaFin.Domain.Finance.LeasePaymentScheduleLine", "Payments").WithOne().HasForeignKey("ScheduleId").OnDelete(DeleteBehavior.Cascade).IsRequired();
                     b.Navigation("Payments");
                 });
 
