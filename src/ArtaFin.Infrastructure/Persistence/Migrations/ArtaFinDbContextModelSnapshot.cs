@@ -22,15 +22,6 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("ArtaFin.Domain.Finance.LeasePaymentSchedule", b =>
-                {
-                    b.HasOne("ArtaFin.Domain.Finance.FinancialBook", null).WithMany().HasForeignKey("FinancialBookId").OnDelete(DeleteBehavior.Restrict).IsRequired();
-                    b.HasOne("ArtaFin.Domain.Finance.LeaseContract", null).WithMany().HasForeignKey("FinancialBookId", "LeaseContractId").HasPrincipalKey("FinancialBookId", "Id").OnDelete(DeleteBehavior.Restrict).IsRequired();
-                    b.HasOne("ArtaFin.Domain.Finance.LeasePaymentSchedule", null).WithMany().HasForeignKey("SupersedesScheduleId").OnDelete(DeleteBehavior.Restrict);
-                    b.HasMany("Payments").WithOne().HasForeignKey("ScheduleId").OnDelete(DeleteBehavior.Cascade).IsRequired();
-                    b.Navigation("Payments");
-                });
-
             modelBuilder.Entity("ArtaFin.Domain.Finance.Account", b =>
                 {
                     b.Property<Guid>("Id")
@@ -652,6 +643,16 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                     b.HasOne("ArtaFin.Domain.Finance.Account", null).WithMany().HasForeignKey("FinancialBookId", "LeaseLiabilityAccountId").HasPrincipalKey("FinancialBookId", "Id").OnDelete(DeleteBehavior.Restrict).IsRequired();
                     b.HasOne("ArtaFin.Domain.Finance.Account", null).WithMany().HasForeignKey("FinancialBookId", "InterestExpenseAccountId").HasPrincipalKey("FinancialBookId", "Id").OnDelete(DeleteBehavior.Restrict).IsRequired();
                     b.HasOne("ArtaFin.Domain.Finance.Account", null).WithMany().HasForeignKey("FinancialBookId", "PaymentAccountId").HasPrincipalKey("FinancialBookId", "Id").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                });
+
+
+            modelBuilder.Entity("ArtaFin.Domain.Finance.LeasePaymentSchedule", b =>
+                {
+                    b.HasOne("ArtaFin.Domain.Finance.FinancialBook", null).WithMany().HasForeignKey("FinancialBookId").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.HasOne("ArtaFin.Domain.Finance.LeaseContract", null).WithMany().HasForeignKey("FinancialBookId", "LeaseContractId").HasPrincipalKey("FinancialBookId", "Id").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.HasOne("ArtaFin.Domain.Finance.LeasePaymentSchedule", null).WithMany().HasForeignKey("SupersedesScheduleId").OnDelete(DeleteBehavior.Restrict);
+                    b.HasMany("Payments").WithOne().HasForeignKey("ScheduleId").OnDelete(DeleteBehavior.Cascade).IsRequired();
+                    b.Navigation("Payments");
                 });
 
             modelBuilder.Entity("ArtaFin.Domain.Finance.Account", b =>
