@@ -59,7 +59,7 @@ internal static class CashFlowNonCashDisclosureEndpoints
         if (string.IsNullOrWhiteSpace(request.Currency) ||
             request.Currency.Trim().Length != 3 ||
             !request.Currency.Trim().All(char.IsAsciiLetter))
-            errors["currency"] = ["Currency must be a three-letter ISO currency code."];
+            errors["currency"] = ["Currency must be a three-letter currency code."];
 
         if (!Enum.TryParse<CashFlowActivity>(request.Activity, true, out var activity) ||
             !Enum.IsDefined(activity) ||
