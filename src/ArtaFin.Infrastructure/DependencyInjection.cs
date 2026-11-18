@@ -62,6 +62,7 @@ public static class DependencyInjection
         services.AddScoped<IFinancialBookWriter, FinancialBookRepository>();
         services.AddScoped<ICashFlowAllocationRepository, CashFlowAllocationRepository>();
         services.AddScoped<ICashFlowNonCashDisclosureRepository, CashFlowNonCashDisclosureRepository>();
+        services.AddScoped<IFinancingLiabilitiesReconciliationReadRepository, FinancingLiabilitiesReconciliationReadRepository>();
 
         return services;
     }
