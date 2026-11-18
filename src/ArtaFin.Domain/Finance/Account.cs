@@ -45,6 +45,18 @@ public enum CashFlowAccountType
 }
 
 /// <summary>
+/// Explicitly identifies liabilities arising from financing activities for IAS 7.44A.
+/// Ordinary trade and operating liabilities remain None unless specifically designated.
+/// </summary>
+public enum FinancingLiabilityType : byte
+{
+    None = 0,
+    Borrowings = 1,
+    LeaseLiabilities = 2,
+    OtherFinancingLiabilities = 3
+}
+
+/// <summary>
 /// A ledger account owned by one financial book.
 /// Its balance is derived from posted journal entries and is never stored here.
 /// </summary>
@@ -65,6 +77,7 @@ public sealed class Account : AggregateRoot
     public CashFlowAccountType CashFlowAccountType { get; private set; }
     public int? CashEquivalentMaturityDays { get; private set; }
     public bool? CashEquivalentRiskInsignificant { get; private set; }
+    public FinancingLiabilityType FinancingLiabilityType { get; private set; }
 
     private Account(
         Guid id,
@@ -186,6 +199,19 @@ public sealed class Account : AggregateRoot
         CashFlowAccountType = accountType;
         CashEquivalentMaturityDays = cashEquivalentMaturityDays;
         CashEquivalentRiskInsignificant = cashEquivalentRiskInsignificant;
+    }
+
+    /// <summary>
+    /// Explicitly scopes this liability account into the IAS 7.44A financing-liability reconciliation.
+    /// </summary>
+    public void ConfigureFinancingLiabilityClassification(FinancingLiabilityType liabilityType)
+    {
+        if (!Enum.IsDefined(liabilityType))
+            throw new ArgumentOutOfRangeException(nameof(liabilityType));
+        if (liabilityType != FinancingLiabilityType.None && Type != AccountType.Liability)
+            throw new DomainException("Only liability accounts can be classified as financing liabilities.");
+
+        FinancingLiabilityType = liabilityType;
     }
 
     public void Deactivate(DateTimeOffset deactivatedAt)
