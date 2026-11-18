@@ -70,6 +70,7 @@ public sealed class ArtaFinDbContext(
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
         EnsurePostedJournalEntriesAreImmutable();
+        EnsureNonCashDisclosuresAreImmutable();
 
         try
         {
@@ -285,6 +286,20 @@ public sealed class ArtaFinDbContext(
             exception,
             "EF Core optimistic concurrency conflict. Affected entries: {ConcurrencyEntries}",
             diagnostics);
+    }
+
+    private void EnsureNonCashDisclosuresAreImmutable()
+    {
+        ChangeTracker.DetectChanges();
+
+        var hasModifiedOrDeletedDisclosure = ChangeTracker.Entries<CashFlowNonCashDisclosure>()
+            .Any(entry => entry.State is EntityState.Modified or EntityState.Deleted);
+
+        if (hasModifiedOrDeletedDisclosure)
+        {
+            throw new InvalidOperationException(
+                "Non-cash disclosures are immutable and cannot be modified or deleted.");
+        }
     }
 
     private void EnsurePostedJournalEntriesAreImmutable()
