@@ -28,8 +28,6 @@ internal sealed class CashFlowStatementReadRepository(ArtaFinDbContext dbContext
             .Distinct()
             .ToListAsync(cancellationToken);
 
-        if (entryIds.Count == 0)
-            return new CashFlowStatementReadSnapshot([], [], []);
 
         // Include every counterpart line from entries that contain cash so the
         // application layer can verify that finalized allocations reference
@@ -85,6 +83,28 @@ internal sealed class CashFlowStatementReadRepository(ArtaFinDbContext dbContext
                 set.SourceJournalEntryId, set.SourceLineNumber))
             .ToArray();
 
-        return new CashFlowStatementReadSnapshot(lines, finalized, drafts);
+        // Read disclosures independently: a non-cash transaction may have no cash-classified line.
+        var nonCashDisclosures = await (
+            from disclosure in dbContext.CashFlowNonCashDisclosures.AsNoTracking()
+            join entry in dbContext.JournalEntries.AsNoTracking()
+                on disclosure.JournalEntryId equals entry.Id
+            where disclosure.FinancialBookId == financialBookId &&
+                  entry.FinancialBookId == financialBookId &&
+                  entry.PostedAt < to
+            orderby entry.PostedAt, disclosure.SourceLineNumber
+            select new CashFlowNonCashDisclosureSnapshot(
+                disclosure.Id,
+                entry.Id,
+                disclosure.SourceLineNumber,
+                entry.PostedAt,
+                entry.Description,
+                disclosure.Amount,
+                disclosure.Currency,
+                disclosure.Activity,
+                disclosure.Category,
+                disclosure.Memo))
+            .ToListAsync(cancellationToken);
+
+        return new CashFlowStatementReadSnapshot(lines, finalized, drafts, nonCashDisclosures);
     }
 }
