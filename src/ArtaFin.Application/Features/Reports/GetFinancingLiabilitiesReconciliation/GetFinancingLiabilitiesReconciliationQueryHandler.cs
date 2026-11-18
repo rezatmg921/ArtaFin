@@ -100,9 +100,9 @@ public sealed class GetFinancingLiabilitiesReconciliationQueryHandler(
                         var sourceLine = entries[line.JournalEntryId]
                             .SingleOrDefault(candidate => candidate.LineNumber == allocation.SourceLineNumber);
                         return sourceLine is not null &&
-                               sourceLine.CashFlowAccountType is CashFlowAccountType.Cash or CashFlowAccountType.CashEquivalent;
+                               (sourceLine.CashFlowAccountType is CashFlowAccountType.Cash or CashFlowAccountType.CashEquivalent);
                     }).ToArray()
-                    : [];
+                    : Array.Empty<FinancingLiabilityCashAllocationSnapshot>();
 
                 var cashAmount = linkedCashAllocations.Sum(item => item.Amount);
                 var hasDisclosure = disclosures.TryGetValue(key, out var disclosure);
