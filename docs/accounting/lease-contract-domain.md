@@ -31,3 +31,20 @@ persistence, authorization, idempotent posting, and reconciliation are subsequen
 slices. A contract cannot yet be used to create or post a payment. Existing ledger
 data does not contain sufficient executed contract terms to populate a real contract
 without user-supplied evidence.
+
+## Persistence
+
+The `LeaseContracts` table stores the initial liability amount and ISO currency
+separately, together with the effective periodic rate at decimal(19,10) precision.
+The contract number is unique within a financial book.
+
+The database enforces foreign keys from all three account roles to accounts with
+the same `FinancialBookId`. This prevents cross-book account references even if
+a caller bypasses application validation. Account *types* and the lease-liability
+classification still require application-level validation before a contract is
+created.
+
+Migration: `20261118150000_AddLeaseContracts`.
+
+The EF model snapshot is updated with the migration so subsequent migrations can
+diff the lease contract mapping correctly.
