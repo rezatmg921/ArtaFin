@@ -25,6 +25,18 @@ public sealed record CashFlowStatementExceptionResult(
     decimal Amount,
     string Currency);
 
+public sealed record CashFlowNonCashDisclosureResult(
+    Guid Id,
+    Guid JournalEntryId,
+    int SourceLineNumber,
+    DateTimeOffset PostedAt,
+    string Description,
+    decimal Amount,
+    string Currency,
+    CashFlowActivity Activity,
+    string Category,
+    string? Memo);
+
 public sealed record CashFlowStatementResult(
     DateTimeOffset From,
     DateTimeOffset To,
@@ -36,4 +48,5 @@ public sealed record CashFlowStatementResult(
     decimal ClosingCashAndCashEquivalents,
     decimal ReconciliationDifference,
     bool IsReconciled,
-    IReadOnlyList<CashFlowStatementExceptionResult> Exceptions);
+    IReadOnlyList<CashFlowStatementExceptionResult> Exceptions,
+    IReadOnlyList<CashFlowNonCashDisclosureResult> NonCashDisclosures);
