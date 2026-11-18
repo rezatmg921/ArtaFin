@@ -1,5 +1,6 @@
 using ArtaFin.Application.Features.Accounts.CreateAccount;
 using ArtaFin.Application.Features.CashFlowAllocations;
+using ArtaFin.Application.Features.CashFlowNonCashDisclosures;
 using ArtaFin.Application.Features.Authentication;
 using ArtaFin.Application.Features.FinancialBooks.CreateFinancialBook;
 using ArtaFin.Application.Features.FinancialBooks.InviteMember;
@@ -22,6 +23,7 @@ public static class DependencyInjection
 
         services.AddScoped<CreateAccountCommandHandler>();
         services.AddScoped<CashFlowAllocationService>();
+        services.AddScoped<CashFlowNonCashDisclosureService>();
         services.AddScoped<CreateFinancialBookCommandHandler>();
         services.AddScoped<AuthenticationService>();
         services.AddScoped<InviteFinancialBookMemberCommandHandler>();
