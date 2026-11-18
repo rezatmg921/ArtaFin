@@ -304,12 +304,32 @@ public sealed class ArtaFinDbContext(
     {
         ChangeTracker.DetectChanges();
 
-        var hasModifiedOrDeletedPayment = ChangeTracker.Entries<LeasePaymentScheduleLine>()
-            .Any(entry => entry.State is EntityState.Modified or EntityState.Deleted);
+        foreach (var paymentEntry in ChangeTracker.Entries<LeasePaymentScheduleLine>())
+        {
+            if (paymentEntry.State == EntityState.Deleted)
+                throw new InvalidOperationException("Lease payment schedule rows cannot be deleted.");
 
-        if (hasModifiedOrDeletedPayment)
-            throw new InvalidOperationException(
-                "Lease payment schedule rows are immutable; create a new schedule version instead.");
+            if (paymentEntry.State != EntityState.Modified)
+                continue;
+
+            var changedProperties = paymentEntry.Properties
+                .Where(property => property.IsModified)
+                .Select(property => property.Metadata.Name)
+                .ToArray();
+
+            var isAllowedPaymentTransition =
+                paymentEntry.Property(nameof(LeasePaymentScheduleLine.IsPaid)).OriginalValue is false &&
+                paymentEntry.Property(nameof(LeasePaymentScheduleLine.IsPaid)).CurrentValue is true &&
+                changedProperties.Length == 4 &&
+                changedProperties.Contains(nameof(LeasePaymentScheduleLine.IsPaid)) &&
+                changedProperties.Contains(nameof(LeasePaymentScheduleLine.JournalEntryId)) &&
+                changedProperties.Contains(nameof(LeasePaymentScheduleLine.PaidBy)) &&
+                changedProperties.Contains(nameof(LeasePaymentScheduleLine.PaidAt));
+
+            if (!isAllowedPaymentTransition)
+                throw new InvalidOperationException(
+                    "Lease payment schedule terms are immutable; only an unpaid installment may transition to paid.");
+        }
 
         foreach (var entry in ChangeTracker.Entries<LeasePaymentSchedule>())
         {
