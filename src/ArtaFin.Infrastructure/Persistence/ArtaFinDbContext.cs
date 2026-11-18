@@ -107,6 +107,7 @@ public sealed class ArtaFinDbContext(
         CancellationToken cancellationToken = default)
     {
         EnsurePostedJournalEntriesAreImmutable();
+        EnsureNonCashDisclosuresAreImmutable();
 
         try
         {
