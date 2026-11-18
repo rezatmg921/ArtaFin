@@ -186,6 +186,7 @@ app.MapTrialBalanceEndpoints();
 app.MapIncomeStatementEndpoints();
 app.MapBalanceSheetEndpoints();
 app.MapCashFlowStatementEndpoints();
+app.MapFinancingLiabilitiesReconciliationEndpoints();
 app.MapCashFlowAllocationEndpoints();
 app.MapCashFlowNonCashDisclosureEndpoints();
 app.MapFinancialBookMemberEndpoints();
