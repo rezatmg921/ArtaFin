@@ -25,9 +25,9 @@ public sealed class LeasePaymentScheduleConfiguration : IEntityTypeConfiguration
         builder.Property(schedule => schedule.SupersedesScheduleId);
         builder.Property(schedule => schedule.Status).HasConversion<byte>().HasColumnType("tinyint").IsRequired();
         builder.Property(schedule => schedule.CreatedBy).IsRequired();
-        builder.Property(schedule => schedule.CreatedAt).IsRequired();
+        builder.Property(schedule => schedule.CreatedAt).HasColumnType("datetimeoffset(7)").IsRequired();
         builder.Property(schedule => schedule.FinalizedBy);
-        builder.Property(schedule => schedule.FinalizedAt);
+        builder.Property(schedule => schedule.FinalizedAt).HasColumnType("datetimeoffset(7)");
 
         builder.HasOne<FinancialBook>().WithMany()
             .HasForeignKey(schedule => schedule.FinancialBookId)
