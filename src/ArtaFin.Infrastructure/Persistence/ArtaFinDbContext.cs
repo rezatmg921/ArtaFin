@@ -118,6 +118,7 @@ public sealed class ArtaFinDbContext(
     {
         EnsurePostedJournalEntriesAreImmutable();
         EnsureNonCashDisclosuresAreImmutable();
+        EnsureLeasePaymentSchedulesAreImmutable();
 
         try
         {
@@ -326,15 +327,15 @@ public sealed class ArtaFinDbContext(
             var originalStatus = entry.Property(nameof(LeasePaymentSchedule.Status)).OriginalValue;
             var currentStatus = entry.Property(nameof(LeasePaymentSchedule.Status)).CurrentValue;
             var isAllowedFinalization =
-                originalStatus == LeasePaymentScheduleStatus.Draft &&
-                currentStatus == LeasePaymentScheduleStatus.Finalized &&
+                originalStatus is LeasePaymentScheduleStatus.Draft &&
+                currentStatus is LeasePaymentScheduleStatus.Finalized &&
                 changedProperties.Length == 3 &&
                 changedProperties.Contains(nameof(LeasePaymentSchedule.Status)) &&
                 changedProperties.Contains(nameof(LeasePaymentSchedule.FinalizedBy)) &&
                 changedProperties.Contains(nameof(LeasePaymentSchedule.FinalizedAt));
             var isAllowedSupersession =
-                originalStatus == LeasePaymentScheduleStatus.Finalized &&
-                currentStatus == LeasePaymentScheduleStatus.Superseded &&
+                originalStatus is LeasePaymentScheduleStatus.Finalized &&
+                currentStatus is LeasePaymentScheduleStatus.Superseded &&
                 changedProperties.Length == 1 &&
                 changedProperties[0] == nameof(LeasePaymentSchedule.Status);
 
