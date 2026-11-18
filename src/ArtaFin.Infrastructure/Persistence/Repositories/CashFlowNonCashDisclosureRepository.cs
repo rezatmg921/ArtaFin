@@ -40,8 +40,10 @@ internal sealed class CashFlowNonCashDisclosureRepository(ArtaFinDbContext dbCon
 
     public async Task AddAsync(
         CashFlowNonCashDisclosure disclosure,
-        CancellationToken cancellationToken) =>
+        CancellationToken cancellationToken)
+    {
         await dbContext.CashFlowNonCashDisclosures.AddAsync(disclosure, cancellationToken);
+    }
 
     public async Task<IReadOnlyList<CashFlowNonCashDisclosure>> GetByJournalEntryAsync(
         Guid financialBookId,
