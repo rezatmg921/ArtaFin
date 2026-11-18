@@ -1,3 +1,4 @@
+using ArtaFin.Domain.Common;
 using ArtaFin.Domain.Finance;
 using Xunit;
 
