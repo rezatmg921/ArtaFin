@@ -1,6 +1,7 @@
 using ArtaFin.Application.Abstractions.Persistence;
 using ArtaFin.Application.Features.Accounts.CreateAccount;
 using ArtaFin.Application.Features.CashFlowAllocations;
+using ArtaFin.Application.Features.CashFlowNonCashDisclosures;
 using ArtaFin.Application.Features.Accounts.DeleteAccount;
 using ArtaFin.Application.Features.Accounts.GetAccountLedger;
 using ArtaFin.Application.Features.Accounts.UpdateAccount;
@@ -70,6 +71,14 @@ internal sealed class ApiExceptionHandler(
             AccountNegativeBalanceException =>
                 (StatusCodes.Status409Conflict, "Insufficient account balance",
                     "The posting would make an account with PreventNegative policy have a negative balance. Review the account balance or change its policy if overdraft is permitted."),
+            CashFlowNonCashDisclosureSourceNotFoundException =>
+                (StatusCodes.Status404NotFound, "Non-cash disclosure source not found",
+                    "The source journal line was not found in this financial book."),
+            CashFlowNonCashDisclosureAlreadyExistsException =>
+                (StatusCodes.Status409Conflict, "Non-cash disclosure already exists",
+                    "This journal line already has a non-cash disclosure."),
+            CashFlowNonCashDisclosureSourceInvalidException =>
+                (StatusCodes.Status400BadRequest, "Invalid non-cash disclosure source", exception.Message),
             CashFlowSourceLineInvalidException =>
                 (StatusCodes.Status400BadRequest, "Invalid cash-flow source line", exception.Message),
             DomainException =>
