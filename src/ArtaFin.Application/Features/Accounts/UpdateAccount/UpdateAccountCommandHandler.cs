@@ -77,6 +77,8 @@ public sealed class UpdateAccountCommandHandler(
                 command.CashFlowAccountType.Value,
                 command.CashEquivalentMaturityDays,
                 command.CashEquivalentRiskInsignificant);
+        if (command.FinancingLiabilityType.HasValue)
+            snapshot.Account.ConfigureFinancingLiabilityClassification(command.FinancingLiabilityType.Value);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
