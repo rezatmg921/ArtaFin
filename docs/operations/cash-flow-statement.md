@@ -17,6 +17,7 @@ The report returns:
 - Closing cash and cash equivalents immediately before `To`.
 - Reconciliation difference and an `IsReconciled` indicator.
 - Explicit exceptions for cash movements that cannot be safely included.
+- A separate `NonCashDisclosures` collection for non-cash investing and financing transactions, with source journal entry/line, posting date, amount, currency, activity, category, and memo.
 
 Cash inflows are derived from debit-side cash/cash-equivalent lines; outflows are derived from credit-side lines. Their finalized allocations provide the activity and category. A split source line contributes to each category according to its allocation amount.
 
@@ -29,11 +30,12 @@ Cash inflows are derived from debit-side cash/cash-equivalent lines; outflows ar
 - Cash lines in mixed cash/non-cash entries require explicit finalized allocation. Missing or Draft-only allocations are returned as exceptions and are not silently classified as Operating.
 - Finalized allocations are checked again for a valid opposite-side, non-cash counterpart.
 - Amounts in a currency other than the financial book base currency are not converted or added to base-currency totals. They are returned as `UNSUPPORTED_CURRENCY` exceptions; FX translation is not implemented.
+- Non-cash disclosures are loaded independently of cash-classified journal entries and filtered by the linked entry's `PostedAt` in the same half-open period. They never affect cash receipts, payments, net cash flow, or reconciliation.
 - Opening and closing balances are derived from posted journal lines and are not stored.
 - The report is considered reconciled only when there are no exceptions and the closing-minus-opening cash movement equals the net cash flows.
 
 ## Scope and limitations
 
-This is the first IAS 7 direct-method projection. It uses the current account-level cash/cash-equivalent classification and finalized line allocations. Historical effective dating of account classification, configurable interest/dividend policies, non-cash investing/financing disclosures, financing-liability movement disclosures (IAS 7.44A), and indirect-method adjustments are subsequent capabilities. Category codes are reported as supplied; the API does not yet enforce a versioned category catalogue or entity-specific accounting policy.
+This is the first IAS 7 direct-method projection. It uses the current account-level cash/cash-equivalent classification and finalized line allocations. Historical effective dating of account classification, configurable interest/dividend policies, financing-liability movement disclosures (IAS 7.44A), and indirect-method adjustments are subsequent capabilities. Category codes are reported as supplied; the API does not yet enforce a versioned category catalogue or entity-specific accounting policy.
 
 The report does not claim full IFRS compliance by itself. The reporting framework and jurisdiction must be selected for the financial book and reviewed by the entity's accounting professional.
