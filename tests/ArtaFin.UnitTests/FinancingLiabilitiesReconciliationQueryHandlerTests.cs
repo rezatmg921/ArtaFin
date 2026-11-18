@@ -1,4 +1,5 @@
 using ArtaFin.Application.Abstractions.Persistence;
+using ArtaFin.Domain.Common;
 using ArtaFin.Application.Abstractions.Security;
 using ArtaFin.Application.Features.Reports.GetFinancingLiabilitiesReconciliation;
 using ArtaFin.Domain.Finance;
@@ -22,10 +23,10 @@ public sealed class FinancingLiabilitiesReconciliationQueryHandlerTests
         var leaseRecognition = new[]
         {
             Line(leaseRecognitionId, from.AddDays(1), 1, Guid.NewGuid(), "1501", "Equipment",
-                FinancingLiabilityType.None, CashFlowAccountType.None, AccountType.Asset,
+                FinancingLiabilityType.None, CashFlowAccountType.None,
                 PostingSide.Debit, 80_000_000m, "IRR"),
-            Line(leaseRecognitionId, from.AddDays(1), 2, Guid.NewGuid(), "2301", "Lease liability",
-                FinancingLiabilityType.LeaseLiabilities, CashFlowAccountType.None, AccountType.Liability,
+            Line(leaseRecognitionId, from.AddDays(1), 2, liabilityAccountId, "2301", "Lease liability",
+                FinancingLiabilityType.LeaseLiabilities, CashFlowAccountType.None,
                 PostingSide.Credit, 80_000_000m, "IRR")
         };
 
@@ -33,10 +34,10 @@ public sealed class FinancingLiabilitiesReconciliationQueryHandlerTests
         var repayment = new[]
         {
             Line(repaymentId, from.AddDays(2), 1, liabilityAccountId, "2301", "Lease liability",
-                FinancingLiabilityType.LeaseLiabilities, CashFlowAccountType.None, AccountType.Liability,
+                FinancingLiabilityType.LeaseLiabilities, CashFlowAccountType.None,
                 PostingSide.Debit, 10_000_000m, "IRR"),
             Line(repaymentId, from.AddDays(2), 2, Guid.NewGuid(), "1001", "Bank",
-                FinancingLiabilityType.None, CashFlowAccountType.Cash, AccountType.Asset,
+                FinancingLiabilityType.None, CashFlowAccountType.Cash,
                 PostingSide.Credit, 10_000_000m, "IRR")
         };
 
@@ -90,7 +91,6 @@ public sealed class FinancingLiabilitiesReconciliationQueryHandlerTests
         string name,
         FinancingLiabilityType financingType,
         CashFlowAccountType cashType,
-        AccountType accountType,
         PostingSide side,
         decimal amount,
         string currency) =>
