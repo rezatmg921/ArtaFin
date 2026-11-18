@@ -22,6 +22,15 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("ArtaFin.Domain.Finance.LeasePaymentSchedule", b =>
+                {
+                    b.HasOne("ArtaFin.Domain.Finance.FinancialBook", null).WithMany().HasForeignKey("FinancialBookId").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.HasOne("ArtaFin.Domain.Finance.LeaseContract", null).WithMany().HasForeignKey("FinancialBookId", "LeaseContractId").HasPrincipalKey("FinancialBookId", "Id").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.HasOne("ArtaFin.Domain.Finance.LeasePaymentSchedule", null).WithMany().HasForeignKey("SupersedesScheduleId").OnDelete(DeleteBehavior.Restrict);
+                    b.HasMany("Payments").WithOne().HasForeignKey("ScheduleId").OnDelete(DeleteBehavior.Cascade).IsRequired();
+                    b.Navigation("Payments");
+                });
+
             modelBuilder.Entity("ArtaFin.Domain.Finance.Account", b =>
                 {
                     b.Property<Guid>("Id")
@@ -133,6 +142,7 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("PaymentAccountId").HasColumnType("uniqueidentifier");
                     b.Property<byte>("Status").HasColumnType("tinyint");
                     b.HasKey("Id");
+                    b.HasAlternateKey("FinancialBookId", "Id").HasName("AK_LeaseContracts_FinancialBookId_Id");
                     b.HasIndex("FinancialBookId", "ContractNumber").IsUnique().HasDatabaseName("UX_LeaseContracts_Book_ContractNumber");
                     b.HasIndex("FinancialBookId", "Status", "ContractEndDate").HasDatabaseName("IX_LeaseContracts_Book_Status_EndDate");
                     b.HasIndex("FinancialBookId", "LeaseLiabilityAccountId");
@@ -148,6 +158,50 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                         t.HasCheckConstraint("CK_LeaseContracts_PaymentDates_Valid", "([PaymentTiming] = 1 AND [FirstPaymentDate] >= [CommencementDate]) OR ([PaymentTiming] = 2 AND [FirstPaymentDate] > [CommencementDate])");
                         t.HasCheckConstraint("CK_LeaseContracts_EndDate_Valid", "[ContractEndDate] >= [FirstPaymentDate]");
                         t.HasCheckConstraint("CK_LeaseContracts_Accounts_Distinct", "[LeaseLiabilityAccountId] <> [InterestExpenseAccountId] AND [LeaseLiabilityAccountId] <> [PaymentAccountId] AND [InterestExpenseAccountId] <> [PaymentAccountId]");
+                    });
+                });
+
+            modelBuilder.Entity("ArtaFin.Domain.Finance.LeasePaymentSchedule", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uniqueidentifier");
+                    b.Property<Guid>("FinancialBookId").HasColumnType("uniqueidentifier");
+                    b.Property<Guid>("LeaseContractId").HasColumnType("uniqueidentifier");
+                    b.Property<int>("Version").HasColumnType("int");
+                    b.Property<Guid?>("SupersedesScheduleId").HasColumnType("uniqueidentifier");
+                    b.Property<byte>("Status").HasColumnType("tinyint");
+                    b.Property<Guid>("CreatedBy").HasColumnType("uniqueidentifier");
+                    b.Property<DateTimeOffset>("CreatedAt").HasColumnType("datetimeoffset(7)");
+                    b.Property<Guid?>("FinalizedBy").HasColumnType("uniqueidentifier");
+                    b.Property<DateTimeOffset?>("FinalizedAt").HasColumnType("datetimeoffset(7)");
+                    b.HasKey("Id");
+                    b.HasIndex("SupersedesScheduleId");
+                    b.HasIndex("LeaseContractId", "Version").IsUnique().HasDatabaseName("UX_LeasePaymentSchedules_Contract_Version");
+                    b.HasIndex("FinancialBookId", "LeaseContractId", "Status").HasDatabaseName("IX_LeasePaymentSchedules_Book_Contract_Status");
+                    b.ToTable("LeasePaymentSchedules", null, t =>
+                    {
+                        t.HasCheckConstraint("CK_LeasePaymentSchedules_Version_Positive", "[Version] > 0");
+                        t.HasCheckConstraint("CK_LeasePaymentSchedules_Status_Valid", "[Status] IN (1, 2, 3)");
+                        t.HasCheckConstraint("CK_LeasePaymentSchedules_Version_Supersedes", "([Version] = 1 AND [SupersedesScheduleId] IS NULL) OR ([Version] > 1 AND [SupersedesScheduleId] IS NOT NULL)");
+                        t.HasCheckConstraint("CK_LeasePaymentSchedules_Finalization_Consistent", "([Status] = 1 AND [FinalizedBy] IS NULL AND [FinalizedAt] IS NULL) OR ([Status] IN (2, 3) AND [FinalizedBy] IS NOT NULL AND [FinalizedAt] IS NOT NULL)");
+                    });
+                });
+
+            modelBuilder.Entity("ArtaFin.Domain.Finance.LeasePaymentScheduleLine", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uniqueidentifier");
+                    b.Property<Guid>("ScheduleId").HasColumnType("uniqueidentifier");
+                    b.Property<int>("PeriodNumber").HasColumnType("int");
+                    b.Property<DateOnly>("PaymentDate").HasColumnType("date");
+                    b.Property<decimal>("PaymentAmount").HasPrecision(19, 4).HasColumnType("decimal(19,4)");
+                    b.Property<decimal>("EffectivePeriodicRate").HasPrecision(19, 10).HasColumnType("decimal(19,10)");
+                    b.HasKey("Id");
+                    b.HasIndex("ScheduleId", "PeriodNumber").IsUnique().HasDatabaseName("UX_LeasePaymentScheduleLines_Schedule_Period");
+                    b.HasIndex("ScheduleId", "PaymentDate").IsUnique().HasDatabaseName("UX_LeasePaymentScheduleLines_Schedule_Date");
+                    b.ToTable("LeasePaymentScheduleLines", null, t =>
+                    {
+                        t.HasCheckConstraint("CK_LeasePaymentScheduleLines_Period_Positive", "[PeriodNumber] > 0");
+                        t.HasCheckConstraint("CK_LeasePaymentScheduleLines_Amount_NonNegative", "[PaymentAmount] >= 0");
+                        t.HasCheckConstraint("CK_LeasePaymentScheduleLines_Rate_Valid", "[EffectivePeriodicRate] BETWEEN 0 AND 999999999.9999999999");
                     });
                 });
 

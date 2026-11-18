@@ -31,6 +31,8 @@ public sealed class ArtaFinDbContext(
     public DbSet<CashFlowAllocationSet> CashFlowAllocationSets => Set<CashFlowAllocationSet>();
     public DbSet<CashFlowNonCashDisclosure> CashFlowNonCashDisclosures => Set<CashFlowNonCashDisclosure>();
     public DbSet<LeaseContract> LeaseContracts => Set<LeaseContract>();
+    public DbSet<LeasePaymentSchedule> LeasePaymentSchedules => Set<LeasePaymentSchedule>();
+    public DbSet<LeasePaymentScheduleLine> LeasePaymentScheduleLines => Set<LeasePaymentScheduleLine>();
     public DbSet<AppUser> Users => Set<AppUser>();
     public DbSet<UserCredential> UserCredentials => Set<UserCredential>();
     public DbSet<UserSession> UserSessions => Set<UserSession>();
@@ -46,6 +48,8 @@ public sealed class ArtaFinDbContext(
         modelBuilder.Entity<CashFlowAllocationSet>();
         modelBuilder.Entity<CashFlowNonCashDisclosure>();
         modelBuilder.Entity<LeaseContract>();
+        modelBuilder.Entity<LeasePaymentSchedule>();
+        modelBuilder.Entity<LeasePaymentScheduleLine>();
         modelBuilder.Entity<CashFlowAllocation>();
         modelBuilder.Entity<AppUser>();
         modelBuilder.Entity<UserCredential>();
@@ -60,6 +64,8 @@ public sealed class ArtaFinDbContext(
         modelBuilder.ApplyConfiguration(new CashFlowAllocationSetConfiguration());
         modelBuilder.ApplyConfiguration(new CashFlowNonCashDisclosureConfiguration());
         modelBuilder.ApplyConfiguration(new LeaseContractConfiguration());
+        modelBuilder.ApplyConfiguration(new LeasePaymentScheduleConfiguration());
+        modelBuilder.ApplyConfiguration(new LeasePaymentScheduleLineConfiguration());
         modelBuilder.ApplyConfiguration(new CashFlowAllocationConfiguration());
         modelBuilder.ApplyConfiguration(new AppUserConfiguration());
         modelBuilder.ApplyConfiguration(new UserCredentialConfiguration());
@@ -74,6 +80,7 @@ public sealed class ArtaFinDbContext(
     {
         EnsurePostedJournalEntriesAreImmutable();
         EnsureNonCashDisclosuresAreImmutable();
+        EnsureLeasePaymentSchedulesAreImmutable();
 
         try
         {
@@ -290,6 +297,51 @@ public sealed class ArtaFinDbContext(
             exception,
             "EF Core optimistic concurrency conflict. Affected entries: {ConcurrencyEntries}",
             diagnostics);
+    }
+
+    private void EnsureLeasePaymentSchedulesAreImmutable()
+    {
+        ChangeTracker.DetectChanges();
+
+        var hasModifiedOrDeletedPayment = ChangeTracker.Entries<LeasePaymentScheduleLine>()
+            .Any(entry => entry.State is EntityState.Modified or EntityState.Deleted);
+
+        if (hasModifiedOrDeletedPayment)
+            throw new InvalidOperationException(
+                "Lease payment schedule rows are immutable; create a new schedule version instead.");
+
+        foreach (var entry in ChangeTracker.Entries<LeasePaymentSchedule>())
+        {
+            if (entry.State == EntityState.Deleted)
+                throw new InvalidOperationException("Lease payment schedules cannot be deleted.");
+
+            if (entry.State != EntityState.Modified)
+                continue;
+
+            var changedProperties = entry.Properties
+                .Where(property => property.IsModified)
+                .Select(property => property.Metadata.Name)
+                .ToArray();
+
+            var originalStatus = entry.Property(nameof(LeasePaymentSchedule.Status)).OriginalValue;
+            var currentStatus = entry.Property(nameof(LeasePaymentSchedule.Status)).CurrentValue;
+            var isAllowedFinalization =
+                originalStatus == LeasePaymentScheduleStatus.Draft &&
+                currentStatus == LeasePaymentScheduleStatus.Finalized &&
+                changedProperties.Length == 3 &&
+                changedProperties.Contains(nameof(LeasePaymentSchedule.Status)) &&
+                changedProperties.Contains(nameof(LeasePaymentSchedule.FinalizedBy)) &&
+                changedProperties.Contains(nameof(LeasePaymentSchedule.FinalizedAt));
+            var isAllowedSupersession =
+                originalStatus == LeasePaymentScheduleStatus.Finalized &&
+                currentStatus == LeasePaymentScheduleStatus.Superseded &&
+                changedProperties.Length == 1 &&
+                changedProperties[0] == nameof(LeasePaymentSchedule.Status);
+
+            if (!isAllowedFinalization && !isAllowedSupersession)
+                throw new InvalidOperationException(
+                    "Lease payment schedules are immutable except for superseding a finalized version.");
+        }
     }
 
     private void EnsureNonCashDisclosuresAreImmutable()

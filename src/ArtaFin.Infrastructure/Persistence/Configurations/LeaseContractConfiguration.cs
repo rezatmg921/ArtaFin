@@ -23,6 +23,8 @@ public sealed class LeaseContractConfiguration : IEntityTypeConfiguration<LeaseC
         });
 
         builder.HasKey(contract => contract.Id);
+        builder.HasAlternateKey(contract => new { contract.FinancialBookId, contract.Id })
+            .HasName("AK_LeaseContracts_FinancialBookId_Id");
         builder.Property(contract => contract.FinancialBookId).IsRequired();
         builder.Property(contract => contract.ContractNumber).HasMaxLength(LeaseContract.MaxContractNumberLength).IsRequired();
         builder.Property(contract => contract.Description).HasMaxLength(LeaseContract.MaxDescriptionLength).IsRequired();
