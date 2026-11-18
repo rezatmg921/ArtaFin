@@ -358,13 +358,6 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                     b.HasOne("ArtaFin.Domain.Finance.CashFlowAllocationSet", null).WithMany("Allocations").HasForeignKey("AllocationSetId").OnDelete(DeleteBehavior.Cascade).IsRequired();
                 });
 
-            // Configure the collection navigation only after the dependent
-            // relationship has introduced it into the snapshot model.
-            modelBuilder.Entity("ArtaFin.Domain.Finance.CashFlowAllocationSet", b =>
-                {
-                    b.Navigation("Allocations");
-                });
-
             modelBuilder.Entity("ArtaFin.Domain.Security.UserCredential", b =>
                 {
                     b.Property<Guid>("Id")
