@@ -27,49 +27,64 @@ public sealed class LeaseContractService(
             throw new LeaseContractAccountInvalidException(
                 "Lease liability currency must match the financial book base currency.");
 
-        var liabilityAccount = await accountRepository.GetByIdAsync(
-            financialBookId, input.LeaseLiabilityAccountId, cancellationToken);
-        var interestAccount = await accountRepository.GetByIdAsync(
-            financialBookId, input.InterestExpenseAccountId, cancellationToken);
-        var paymentAccount = await accountRepository.GetByIdAsync(
-            financialBookId, input.PaymentAccountId, cancellationToken);
-
-        if (liabilityAccount is null || liabilityAccount.Status != AccountStatus.Active ||
-            liabilityAccount.Type != AccountType.Liability ||
-            liabilityAccount.FinancingLiabilityType != FinancingLiabilityType.LeaseLiabilities)
-            throw new LeaseContractAccountInvalidException(
-                "The lease liability account must be an active LeaseLiabilities financing-liability account in this book.");
-
-        if (interestAccount is null || interestAccount.Status != AccountStatus.Active ||
-            interestAccount.Type != AccountType.Expense)
-            throw new LeaseContractAccountInvalidException(
-                "The interest expense account must be an active Expense account in this book.");
-
-        if (paymentAccount is null || paymentAccount.Status != AccountStatus.Active ||
-            paymentAccount.Type != AccountType.Asset ||
-            paymentAccount.CashFlowAccountType is not CashFlowAccountType.Cash and not CashFlowAccountType.CashEquivalent)
-            throw new LeaseContractAccountInvalidException(
-                "The payment account must be an active Asset account classified as Cash or CashEquivalent.");
-
-        var money = new Money(input.InitialLiabilityAmount, input.Currency);
-        var contract = LeaseContract.Create(
-            Guid.NewGuid(),
-            financialBookId,
-            input.ContractNumber,
-            input.Description,
-            input.CommencementDate,
-            input.FirstPaymentDate,
-            input.ContractEndDate,
-            money,
-            input.EffectivePeriodicRate,
-            input.PaymentFrequency,
-            input.PaymentTiming,
-            input.LeaseLiabilityAccountId,
-            input.InterestExpenseAccountId,
-            input.PaymentAccountId);
-
+        LeaseContract? contract = null;
         await unitOfWork.ExecuteInTransactionAsync(async token =>
         {
+            // Read account rows in deterministic id order inside the serializable
+            // transaction so the account roles cannot change between validation
+            // and contract persistence.
+            var accountIds = new[]
+            {
+                input.LeaseLiabilityAccountId,
+                input.InterestExpenseAccountId,
+                input.PaymentAccountId
+            }.Distinct().Order().ToArray();
+
+            var accounts = new Dictionary<Guid, Account>();
+            foreach (var accountId in accountIds)
+            {
+                var account = await accountRepository.GetByIdAsync(
+                    financialBookId, accountId, token);
+                if (account is not null)
+                    accounts.Add(accountId, account);
+            }
+
+            if (!accounts.TryGetValue(input.LeaseLiabilityAccountId, out var liabilityAccount) ||
+                liabilityAccount.Status != AccountStatus.Active ||
+                liabilityAccount.Type != AccountType.Liability ||
+                liabilityAccount.FinancingLiabilityType != FinancingLiabilityType.LeaseLiabilities)
+                throw new LeaseContractAccountInvalidException(
+                    "The lease liability account must be an active LeaseLiabilities financing-liability account in this book.");
+
+            if (!accounts.TryGetValue(input.InterestExpenseAccountId, out var interestAccount) ||
+                interestAccount.Status != AccountStatus.Active ||
+                interestAccount.Type != AccountType.Expense)
+                throw new LeaseContractAccountInvalidException(
+                    "The interest expense account must be an active Expense account in this book.");
+
+            if (!accounts.TryGetValue(input.PaymentAccountId, out var paymentAccount) ||
+                paymentAccount.Status != AccountStatus.Active ||
+                paymentAccount.Type != AccountType.Asset ||
+                paymentAccount.CashFlowAccountType is not CashFlowAccountType.Cash and not CashFlowAccountType.CashEquivalent)
+                throw new LeaseContractAccountInvalidException(
+                    "The payment account must be an active Asset account classified as Cash or CashEquivalent.");
+
+            contract = LeaseContract.Create(
+                Guid.NewGuid(),
+                financialBookId,
+                input.ContractNumber,
+                input.Description,
+                input.CommencementDate,
+                input.FirstPaymentDate,
+                input.ContractEndDate,
+                new Money(input.InitialLiabilityAmount, input.Currency),
+                input.EffectivePeriodicRate,
+                input.PaymentFrequency,
+                input.PaymentTiming,
+                input.LeaseLiabilityAccountId,
+                input.InterestExpenseAccountId,
+                input.PaymentAccountId);
+
             if (await leaseContractRepository.ExistsByContractNumberAsync(
                     financialBookId, contract.ContractNumber, token))
                 throw new LeaseContractNumberAlreadyExistsException();
@@ -78,7 +93,7 @@ public sealed class LeaseContractService(
             await leaseContractRepository.SaveChangesAsync(token);
         }, cancellationToken);
 
-        return ToResult(contract);
+        return ToResult(contract!);
     }
 
     public async Task<LeaseContractResult?> GetByIdAsync(
