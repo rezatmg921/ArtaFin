@@ -171,11 +171,20 @@ public sealed class CashFlowAllocationService(
         CancellationToken cancellationToken)
     {
         await EnsureCanManageAsync(financialBookId, cancellationToken);
+        var sourceSnapshot = await allocationRepository.GetByIdAsync(
+            financialBookId, allocationSetId, tracking: false, cancellationToken)
+            ?? throw new CashFlowAllocationSetNotFoundException();
         CashFlowAllocationSet? updated = null;
 
         await unitOfWork.ExecuteInTransactionAsync(async token =>
         {
+            // Match the lock order used by Add/Finalize/Revision operations.
+            // The source-entry lock also serializes changes that affect the
+            // shared counterpart-line allocation capacity.
+            await allocationRepository.LockSourceEntryAsync(
+                financialBookId, sourceSnapshot.SourceJournalEntryId, token);
             await allocationRepository.LockAllocationSetAsync(financialBookId, allocationSetId, token);
+
             var set = await allocationRepository.GetByIdAsync(
                 financialBookId, allocationSetId, tracking: true, token)
                 ?? throw new CashFlowAllocationSetNotFoundException();
