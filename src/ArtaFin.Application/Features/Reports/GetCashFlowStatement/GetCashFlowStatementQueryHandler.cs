@@ -181,7 +181,21 @@ public sealed class GetCashFlowStatementQueryHandler(
             closingCash,
             reconciliationDifference,
             isReconciled,
-            exceptions);
+            exceptions,
+            snapshot.NonCashDisclosures
+                .Where(item => item.PostedAt >= query.From && item.PostedAt < query.To)
+                .Select(item => new CashFlowNonCashDisclosureResult(
+                    item.Id,
+                    item.JournalEntryId,
+                    item.SourceLineNumber,
+                    item.PostedAt,
+                    item.Description,
+                    item.Amount,
+                    item.Currency,
+                    item.Activity,
+                    item.Category,
+                    item.Memo))
+                .ToArray());
     }
 
     private static CashFlowStatementExceptionResult ToException(
