@@ -26,6 +26,7 @@ public static class DependencyInjection
         services.AddScoped<CashFlowAllocationService>();
         services.AddScoped<CashFlowNonCashDisclosureService>();
         services.AddScoped<LeaseContractService>();
+        services.AddScoped<LeasePaymentScheduleService>();
         services.AddScoped<CreateFinancialBookCommandHandler>();
         services.AddScoped<AuthenticationService>();
         services.AddScoped<InviteFinancialBookMemberCommandHandler>();

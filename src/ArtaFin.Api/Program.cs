@@ -190,6 +190,7 @@ app.MapFinancingLiabilitiesReconciliationEndpoints();
 app.MapCashFlowAllocationEndpoints();
 app.MapCashFlowNonCashDisclosureEndpoints();
 app.MapLeaseContractEndpoints();
+app.MapLeasePaymentScheduleEndpoints();
 app.MapFinancialBookMemberEndpoints();
 app.MapJournalEntryEndpoints();
 app.MapJournalEntryListEndpoints();

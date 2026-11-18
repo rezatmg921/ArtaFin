@@ -63,6 +63,7 @@ public static class DependencyInjection
         services.AddScoped<ICashFlowAllocationRepository, CashFlowAllocationRepository>();
         services.AddScoped<ICashFlowNonCashDisclosureRepository, CashFlowNonCashDisclosureRepository>();
         services.AddScoped<ILeaseContractRepository, LeaseContractRepository>();
+        services.AddScoped<ILeasePaymentScheduleRepository, LeasePaymentScheduleRepository>();
         services.AddScoped<IFinancingLiabilitiesReconciliationReadRepository, FinancingLiabilitiesReconciliationReadRepository>();
 
         return services;

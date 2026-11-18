@@ -78,6 +78,14 @@ internal sealed class ApiExceptionHandler(
             CashFlowNonCashDisclosureAlreadyExistsException =>
                 (StatusCodes.Status409Conflict, "Non-cash disclosure already exists",
                     "This journal line already has a non-cash disclosure."),
+            LeaseContractNotFoundException =>
+                (StatusCodes.Status404NotFound, "Lease contract not found",
+                    "The lease contract was not found in this financial book."),
+            LeasePaymentScheduleNotFoundException =>
+                (StatusCodes.Status404NotFound, "Lease payment schedule not found",
+                    "The payment schedule was not found for this lease contract."),
+            LeasePaymentScheduleDraftAlreadyExistsException or LeasePaymentScheduleStateConflictException =>
+                (StatusCodes.Status409Conflict, "Lease payment schedule conflict", exception.Message),
             LeaseContractNumberAlreadyExistsException =>
                 (StatusCodes.Status409Conflict, "Lease contract number already exists",
                     "A lease contract with this number already exists in the financial book."),
