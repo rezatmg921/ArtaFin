@@ -114,6 +114,43 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("ArtaFin.Domain.Finance.LeaseContract", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uniqueidentifier");
+                    b.Property<Guid>("FinancialBookId").HasColumnType("uniqueidentifier");
+                    b.Property<string>("ContractNumber").IsRequired().HasMaxLength(100).HasColumnType("nvarchar(100)");
+                    b.Property<string>("Description").IsRequired().HasMaxLength(500).HasColumnType("nvarchar(500)");
+                    b.Property<DateOnly>("CommencementDate").HasColumnType("date");
+                    b.Property<DateOnly>("FirstPaymentDate").HasColumnType("date");
+                    b.Property<DateOnly>("ContractEndDate").HasColumnType("date");
+                    b.Property<decimal>("InitialLiabilityAmount").HasPrecision(19, 4).HasColumnType("decimal(19,4)");
+                    b.Property<string>("InitialLiabilityCurrency").IsRequired().HasMaxLength(3).IsUnicode(false).HasColumnType("char(3)").HasColumnName("Currency").IsFixedLength();
+                    b.Property<decimal>("EffectivePeriodicRate").HasPrecision(19, 10).HasColumnType("decimal(19,10)");
+                    b.Property<byte>("PaymentFrequency").HasColumnType("tinyint");
+                    b.Property<byte>("PaymentTiming").HasColumnType("tinyint");
+                    b.Property<Guid>("LeaseLiabilityAccountId").HasColumnType("uniqueidentifier");
+                    b.Property<Guid>("InterestExpenseAccountId").HasColumnType("uniqueidentifier");
+                    b.Property<Guid>("PaymentAccountId").HasColumnType("uniqueidentifier");
+                    b.Property<byte>("Status").HasColumnType("tinyint");
+                    b.HasKey("Id");
+                    b.HasIndex("FinancialBookId", "ContractNumber").IsUnique().HasDatabaseName("UX_LeaseContracts_Book_ContractNumber");
+                    b.HasIndex("FinancialBookId", "Status", "ContractEndDate").HasDatabaseName("IX_LeaseContracts_Book_Status_EndDate");
+                    b.HasIndex("FinancialBookId", "LeaseLiabilityAccountId");
+                    b.HasIndex("FinancialBookId", "InterestExpenseAccountId");
+                    b.HasIndex("FinancialBookId", "PaymentAccountId");
+                    b.ToTable("LeaseContracts", null, t =>
+                    {
+                        t.HasCheckConstraint("CK_LeaseContracts_InitialLiability_Positive", "[InitialLiabilityAmount] > 0");
+                        t.HasCheckConstraint("CK_LeaseContracts_EffectivePeriodicRate_NonNegative", "[EffectivePeriodicRate] >= 0");
+                        t.HasCheckConstraint("CK_LeaseContracts_PaymentFrequency_Valid", "[PaymentFrequency] IN (1, 3, 6, 12)");
+                        t.HasCheckConstraint("CK_LeaseContracts_PaymentTiming_Valid", "[PaymentTiming] IN (1, 2)");
+                        t.HasCheckConstraint("CK_LeaseContracts_Status_Valid", "[Status] IN (1, 2, 3)");
+                        t.HasCheckConstraint("CK_LeaseContracts_PaymentDates_Valid", "([PaymentTiming] = 1 AND [FirstPaymentDate] >= [CommencementDate]) OR ([PaymentTiming] = 2 AND [FirstPaymentDate] > [CommencementDate])");
+                        t.HasCheckConstraint("CK_LeaseContracts_EndDate_Valid", "[ContractEndDate] >= [FirstPaymentDate]");
+                        t.HasCheckConstraint("CK_LeaseContracts_Accounts_Distinct", "[LeaseLiabilityAccountId] <> [InterestExpenseAccountId] AND [LeaseLiabilityAccountId] <> [PaymentAccountId] AND [InterestExpenseAccountId] <> [PaymentAccountId]");
+                    });
+                });
+
             modelBuilder.Entity("ArtaFin.Domain.Finance.FinancialBook", b =>
                 {
                     b.Property<Guid>("Id")
@@ -553,6 +590,14 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                         {
                             t.HasCheckConstraint("CK_UserSessions_Expiry_After_Creation", "[ExpiresAt] > [CreatedAt]");
                         });
+                });
+
+            modelBuilder.Entity("ArtaFin.Domain.Finance.LeaseContract", b =>
+                {
+                    b.HasOne("ArtaFin.Domain.Finance.FinancialBook", null).WithMany().HasForeignKey("FinancialBookId").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.HasOne("ArtaFin.Domain.Finance.Account", null).WithMany().HasForeignKey("FinancialBookId", "LeaseLiabilityAccountId").HasPrincipalKey("FinancialBookId", "Id").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.HasOne("ArtaFin.Domain.Finance.Account", null).WithMany().HasForeignKey("FinancialBookId", "InterestExpenseAccountId").HasPrincipalKey("FinancialBookId", "Id").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.HasOne("ArtaFin.Domain.Finance.Account", null).WithMany().HasForeignKey("FinancialBookId", "PaymentAccountId").HasPrincipalKey("FinancialBookId", "Id").OnDelete(DeleteBehavior.Restrict).IsRequired();
                 });
 
             modelBuilder.Entity("ArtaFin.Domain.Finance.Account", b =>

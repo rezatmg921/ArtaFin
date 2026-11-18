@@ -33,19 +33,21 @@ public sealed class LeaseContract : AggregateRoot
     public const int MaxContractNumberLength = 100;
     public const int MaxDescriptionLength = 500;
 
-    public Guid FinancialBookId { get; }
-    public string ContractNumber { get; }
-    public string Description { get; }
-    public DateOnly CommencementDate { get; }
-    public DateOnly FirstPaymentDate { get; }
-    public DateOnly ContractEndDate { get; }
-    public Money InitialLiability { get; }
-    public decimal EffectivePeriodicRate { get; }
-    public LeasePaymentFrequency PaymentFrequency { get; }
-    public LeasePaymentTiming PaymentTiming { get; }
-    public Guid LeaseLiabilityAccountId { get; }
-    public Guid InterestExpenseAccountId { get; }
-    public Guid PaymentAccountId { get; }
+    public Guid FinancialBookId { get; private set; }
+    public string ContractNumber { get; private set; }
+    public string Description { get; private set; }
+    public DateOnly CommencementDate { get; private set; }
+    public DateOnly FirstPaymentDate { get; private set; }
+    public DateOnly ContractEndDate { get; private set; }
+    public Money InitialLiability => new(InitialLiabilityAmount, InitialLiabilityCurrency);
+    public decimal InitialLiabilityAmount { get; private set; }
+    public string InitialLiabilityCurrency { get; private set; } = null!;
+    public decimal EffectivePeriodicRate { get; private set; }
+    public LeasePaymentFrequency PaymentFrequency { get; private set; }
+    public LeasePaymentTiming PaymentTiming { get; private set; }
+    public Guid LeaseLiabilityAccountId { get; private set; }
+    public Guid InterestExpenseAccountId { get; private set; }
+    public Guid PaymentAccountId { get; private set; }
     public LeaseContractStatus Status { get; private set; }
 
     private LeaseContract(
@@ -56,7 +58,8 @@ public sealed class LeaseContract : AggregateRoot
         DateOnly commencementDate,
         DateOnly firstPaymentDate,
         DateOnly contractEndDate,
-        Money initialLiability,
+        decimal initialLiabilityAmount,
+        string initialLiabilityCurrency,
         decimal effectivePeriodicRate,
         LeasePaymentFrequency paymentFrequency,
         LeasePaymentTiming paymentTiming,
@@ -70,7 +73,8 @@ public sealed class LeaseContract : AggregateRoot
         CommencementDate = commencementDate;
         FirstPaymentDate = firstPaymentDate;
         ContractEndDate = contractEndDate;
-        InitialLiability = initialLiability;
+        InitialLiabilityAmount = initialLiabilityAmount;
+        InitialLiabilityCurrency = initialLiabilityCurrency;
         EffectivePeriodicRate = effectivePeriodicRate;
         PaymentFrequency = paymentFrequency;
         PaymentTiming = paymentTiming;
@@ -148,7 +152,8 @@ public sealed class LeaseContract : AggregateRoot
             commencementDate,
             firstPaymentDate,
             contractEndDate,
-            initialLiability,
+            initialLiability.Amount,
+            initialLiability.Currency,
             effectivePeriodicRate,
             paymentFrequency,
             paymentTiming,
