@@ -69,7 +69,7 @@ Reconcile opening and closing balances for each equity component, separately ide
 2. Add cash/cash-equivalent account attributes and validate their IAS 7 eligibility.
 3. Persist auditable, versioned cash-flow allocation sets for individual cash journal lines; support split classifications, exact finalization, immutable history, and concurrency control. See [ADR-0007: Auditable Cash-Flow Allocation](ADR-0007-cash-flow-allocation.md).
 4. [Implemented foundation] Implement the IAS 7 direct-method cash-flow statement with internal-transfer elimination, opening/closing reconciliation, and explicit unclassified exceptions. See [cash-flow statement operations](../operations/cash-flow-statement.md).
-5. Add non-cash investing/financing disclosures and financing-liability movement reconciliation.
+5. Add non-cash investing/financing disclosures and financing-liability movement reconciliation. The initial immutable `CashFlowNonCashDisclosure` domain/persistence foundation is implemented; API validation and report integration remain.
 6. Add indirect-method operating cash flows only after working-capital and non-cash adjustment data are sufficient.
 7. Implement the statement of changes in equity and comparative financial statements.
 8. Add accounting-period close, locked periods, controlled reopening, and audit evidence.
