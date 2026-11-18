@@ -44,6 +44,7 @@ public sealed class CashFlowStatementQueryHandlerTests
         var snapshot = new CashFlowStatementReadSnapshot(
             new[] { opening, receipt, payment, financing, transfer }.SelectMany(entry => entry).ToArray(),
             allocations,
+            [],
             []);
         var handler = CreateHandler(ownerId, book, snapshot);
 
@@ -83,7 +84,8 @@ public sealed class CashFlowStatementQueryHandlerTests
         var snapshot = new CashFlowStatementReadSnapshot(
             entry,
             [],
-            [new CashFlowStatementDraftSnapshot(entry[0].JournalEntryId, 1)]);
+            [new CashFlowStatementDraftSnapshot(entry[0].JournalEntryId, 1)],
+            []);
         var handler = CreateHandler(ownerId, book, snapshot);
 
         var result = await handler.Handle(
@@ -95,6 +97,34 @@ public sealed class CashFlowStatementQueryHandlerTests
         Assert.False(result.IsReconciled);
         var exception = Assert.Single(result.Exceptions);
         Assert.Equal("ALLOCATION_DRAFT_NOT_FINALIZED", exception.Code);
+    }
+
+
+    [Fact]
+    public async Task Handle_ReturnsNonCashDisclosuresSeparatelyWithoutChangingCashTotals()
+    {
+        var ownerId = Guid.NewGuid();
+        var bookId = Guid.NewGuid();
+        var from = new DateTimeOffset(2026, 11, 1, 0, 0, 0, TimeSpan.Zero);
+        var to = from.AddMonths(1);
+        var book = FinancialBook.Create(bookId, ownerId, "Non-cash disclosure report", "USD", from.AddDays(-1));
+        var disclosure = new CashFlowNonCashDisclosureSnapshot(
+            Guid.NewGuid(), Guid.NewGuid(), 2, from.AddDays(4),
+            "Equipment acquired through finance lease", 125_000m, "USD",
+            CashFlowActivity.Investing, "ASSET_ACQUIRED_THROUGH_LEASE", "No cash paid at commencement");
+        var snapshot = new CashFlowStatementReadSnapshot([], [], [], [disclosure]);
+        var handler = CreateHandler(ownerId, book, snapshot);
+
+        var result = await handler.Handle(
+            new GetCashFlowStatementQuery(bookId, from, to), CancellationToken.None);
+
+        Assert.Equal(0m, result.NetIncreaseDecrease);
+        Assert.Equal(0m, result.OpeningCashAndCashEquivalents);
+        Assert.Equal(0m, result.ClosingCashAndCashEquivalents);
+        var disclosed = Assert.Single(result.NonCashDisclosures);
+        Assert.Equal(125_000m, disclosed.Amount);
+        Assert.Equal(CashFlowActivity.Investing, disclosed.Activity);
+        Assert.False(result.Exceptions.Any());
     }
 
     private static GetCashFlowStatementQueryHandler CreateHandler(
