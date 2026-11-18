@@ -69,11 +69,12 @@ Reconcile opening and closing balances for each equity component, separately ide
 2. Add cash/cash-equivalent account attributes and validate their IAS 7 eligibility.
 3. Persist auditable, versioned cash-flow allocation sets for individual cash journal lines; support split classifications, exact finalization, immutable history, and concurrency control. See [ADR-0007: Auditable Cash-Flow Allocation](ADR-0007-cash-flow-allocation.md).
 4. [Implemented foundation] Implement the IAS 7 direct-method cash-flow statement with internal-transfer elimination, opening/closing reconciliation, and explicit unclassified exceptions. See [cash-flow statement operations](../operations/cash-flow-statement.md).
-5. [Implemented foundation] Add immutable non-cash investing/financing disclosures, authenticated create/list APIs, posted-line validation, duplicate protection, and a separate Cash Flow Statement disclosure section. Financing-liability movement reconciliation remains.
-6. Add indirect-method operating cash flows only after working-capital and non-cash adjustment data are sufficient.
-7. Implement the statement of changes in equity and comparative financial statements.
-8. Add accounting-period close, locked periods, controlled reopening, and audit evidence.
-9. Expand into tax, inventory, fixed assets, leases, foreign currency, and other standards according to product scope.
+5. [Implemented foundation] Add immutable non-cash investing/financing disclosures, authenticated create/list APIs, posted-line validation, duplicate protection, and a separate Cash Flow Statement disclosure section.
+6. [Implemented foundation] Add explicit financing-liability account classification and an IAS 7.44A reconciliation for opening/closing balances, finalized cash allocations, linked non-cash disclosures, and visible unclassified changes. FX, fair-value, business-combination, and other movement types remain future extensions.
+7. Add indirect-method operating cash flows only after working-capital and non-cash adjustment data are sufficient.
+8. Implement the statement of changes in equity and comparative financial statements.
+9. Add accounting-period close, locked periods, controlled reopening, and audit evidence.
+10. Expand into tax, inventory, fixed assets, leases, foreign currency, and other standards according to product scope.
 
 ## Standards and applicability
 
