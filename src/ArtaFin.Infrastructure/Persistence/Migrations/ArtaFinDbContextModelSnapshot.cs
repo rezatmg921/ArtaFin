@@ -275,6 +275,67 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("ArtaFin.Domain.Finance.CashFlowNonCashDisclosure", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(19, 4)
+                        .HasColumnType("decimal(19,4)");
+
+                    b.Property<byte>("Activity")
+                        .HasColumnType("tinyint");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .IsUnicode(false)
+                        .HasColumnType("char(3)")
+                        .IsFixedLength();
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("FinancialBookId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("JournalEntryId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Memo")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("SourceLineNumber")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FinancialBookId", "CreatedAt")
+                        .HasDatabaseName("IX_CashFlowNonCashDisclosures_Book_CreatedAt");
+
+                    b.HasIndex("JournalEntryId", "SourceLineNumber")
+                        .IsUnique()
+                        .HasDatabaseName("UX_CashFlowNonCashDisclosures_SourceLine");
+
+                    b.ToTable("CashFlowNonCashDisclosures", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_CashFlowNonCashDisclosures_Amount_Positive", "[Amount] > 0");
+                            t.HasCheckConstraint("CK_CashFlowNonCashDisclosures_SourceLineNumber_Positive", "[SourceLineNumber] > 0");
+                            t.HasCheckConstraint("CK_CashFlowNonCashDisclosures_Activity_Valid", "[Activity] IN (2, 3)");
+                        });
+                });
+
             modelBuilder.Entity("ArtaFin.Domain.Security.AppRole", b =>
                 {
                     b.Property<Guid>("Id")
@@ -344,6 +405,12 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                         {
                             t.HasCheckConstraint("CK_Users_DisabledState_Consistent", "([IsActive] = 1 AND [DisabledAt] IS NULL) OR ([IsActive] = 0 AND [DisabledAt] IS NOT NULL)");
                         });
+                });
+
+            modelBuilder.Entity("ArtaFin.Domain.Finance.CashFlowNonCashDisclosure", b =>
+                {
+                    b.HasOne("ArtaFin.Domain.Finance.FinancialBook", null).WithMany().HasForeignKey("FinancialBookId").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.HasOne("ArtaFin.Domain.Finance.JournalEntry", null).WithMany().HasForeignKey("JournalEntryId").OnDelete(DeleteBehavior.Restrict).IsRequired();
                 });
 
             modelBuilder.Entity("ArtaFin.Domain.Finance.CashFlowAllocationSet", b =>
