@@ -14,7 +14,7 @@ internal static class FinancingLiabilitiesReconciliationEndpoints
             .WithName("GetFinancingLiabilitiesReconciliation")
             .WithTags("Reports")
             .RequireAuthorization()
-            .Produces<FinancingLiabilitiesReconciliationResult>()
+            .Produces<FinancingLiabilitiesReconciliationResponse>()
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status404NotFound)
@@ -41,6 +41,54 @@ internal static class FinancingLiabilitiesReconciliationEndpoints
         var result = await sender.Send(
             new GetFinancingLiabilitiesReconciliationQuery(financialBookId, from, to),
             cancellationToken);
-        return Results.Ok(result);
+        return Results.Ok(new FinancingLiabilitiesReconciliationResponse(
+            result.From,
+            result.To,
+            result.Currency,
+            result.Accounts.Select(item => new FinancingLiabilityMovementResponse(
+                item.AccountId,
+                item.AccountCode,
+                item.AccountName,
+                item.Classification.ToString(),
+                item.OpeningBalance,
+                item.CashChanges,
+                item.NonCashChanges,
+                item.UnclassifiedChanges,
+                item.ClosingBalance,
+                item.ReconciliationDifference)).ToArray(),
+            result.TotalOpeningBalance,
+            result.TotalCashChanges,
+            result.TotalNonCashChanges,
+            result.TotalUnclassifiedChanges,
+            result.TotalClosingBalance,
+            result.TotalReconciliationDifference,
+            result.IsComplete,
+            result.Exceptions));
     }
 }
+
+internal sealed record FinancingLiabilitiesReconciliationResponse(
+    DateTimeOffset From,
+    DateTimeOffset To,
+    string Currency,
+    IReadOnlyList<FinancingLiabilityMovementResponse> Accounts,
+    decimal TotalOpeningBalance,
+    decimal TotalCashChanges,
+    decimal TotalNonCashChanges,
+    decimal TotalUnclassifiedChanges,
+    decimal TotalClosingBalance,
+    decimal TotalReconciliationDifference,
+    bool IsComplete,
+    IReadOnlyList<FinancingLiabilityMovementExceptionResult> Exceptions);
+
+internal sealed record FinancingLiabilityMovementResponse(
+    Guid AccountId,
+    string AccountCode,
+    string AccountName,
+    string Classification,
+    decimal OpeningBalance,
+    decimal CashChanges,
+    decimal NonCashChanges,
+    decimal UnclassifiedChanges,
+    decimal ClosingBalance,
+    decimal ReconciliationDifference);
