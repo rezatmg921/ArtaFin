@@ -16,7 +16,8 @@ public interface ICashFlowStatementReadRepository
 public sealed record CashFlowStatementReadSnapshot(
     IReadOnlyList<CashFlowStatementLineSnapshot> Lines,
     IReadOnlyList<CashFlowStatementAllocationSnapshot> FinalizedAllocations,
-    IReadOnlyList<CashFlowStatementDraftSnapshot> Drafts);
+    IReadOnlyList<CashFlowStatementDraftSnapshot> Drafts,
+    IReadOnlyList<CashFlowNonCashDisclosureSnapshot> NonCashDisclosures);
 
 public sealed record CashFlowStatementLineSnapshot(
     Guid JournalEntryId,
@@ -43,3 +44,15 @@ public sealed record CashFlowStatementAllocationSnapshot(
 public sealed record CashFlowStatementDraftSnapshot(
     Guid JournalEntryId,
     int SourceLineNumber);
+
+public sealed record CashFlowNonCashDisclosureSnapshot(
+    Guid Id,
+    Guid JournalEntryId,
+    int SourceLineNumber,
+    DateTimeOffset PostedAt,
+    string Description,
+    decimal Amount,
+    string Currency,
+    CashFlowActivity Activity,
+    string Category,
+    string? Memo);
