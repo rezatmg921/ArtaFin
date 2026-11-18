@@ -18,6 +18,10 @@ public sealed class AccountConfiguration : IEntityTypeConfiguration<Account>
                 "([CashFlowAccountType] = 0 AND [CashEquivalentMaturityDays] IS NULL AND [CashEquivalentRiskInsignificant] IS NULL) OR ([CashFlowAccountType] = 1 AND [CashEquivalentMaturityDays] IS NULL AND [CashEquivalentRiskInsignificant] IS NULL) OR ([CashFlowAccountType] = 2 AND [CashEquivalentMaturityDays] BETWEEN 0 AND 90 AND [CashEquivalentRiskInsignificant] = 1)");
             table.HasCheckConstraint("CK_Accounts_CashFlowClassification_AssetOnly",
                 "[CashFlowAccountType] = 0 OR [Type] = 1");
+            table.HasCheckConstraint("CK_Accounts_FinancingLiabilityType_Valid",
+                "[FinancingLiabilityType] IN (0, 1, 2, 3)");
+            table.HasCheckConstraint("CK_Accounts_FinancingLiabilityType_LiabilityOnly",
+                "[FinancingLiabilityType] = 0 OR [Type] = 2");
         });
 
         builder.HasKey(account => account.Id);
@@ -34,6 +38,8 @@ public sealed class AccountConfiguration : IEntityTypeConfiguration<Account>
         builder.Property(account => account.CashFlowAccountType).HasConversion<byte>().HasColumnType("tinyint").HasDefaultValue(CashFlowAccountType.None).IsRequired();
         builder.Property(account => account.CashEquivalentMaturityDays).HasColumnType("int");
         builder.Property(account => account.CashEquivalentRiskInsignificant).HasColumnType("bit");
+        builder.Property(account => account.FinancingLiabilityType).HasConversion<byte>()
+            .HasColumnType("tinyint").HasDefaultValue(FinancingLiabilityType.None).IsRequired();
         builder.Property(account => account.CreatedAt).HasColumnType("datetimeoffset(7)").IsRequired();
         builder.Property(account => account.DeactivatedAt).HasColumnType("datetimeoffset(7)");
 
