@@ -66,6 +66,8 @@ public sealed class LeasePaymentScheduleLineConfiguration : IEntityTypeConfigura
             table.HasCheckConstraint("CK_LeasePaymentScheduleLines_Amount_NonNegative", "[PaymentAmount] >= 0");
             table.HasCheckConstraint("CK_LeasePaymentScheduleLines_Rate_Valid",
                 "[EffectivePeriodicRate] BETWEEN 0 AND 999999999.9999999999");
+            table.HasCheckConstraint("CK_LeasePaymentScheduleLines_Payment_Consistent",
+                "([IsPaid] = 0 AND [JournalEntryId] IS NULL AND [PaidBy] IS NULL AND [PaidAt] IS NULL) OR ([IsPaid] = 1 AND [JournalEntryId] IS NOT NULL AND [PaidBy] IS NOT NULL AND [PaidAt] IS NOT NULL)");
         });
 
         builder.HasKey(payment => payment.Id);
@@ -74,10 +76,17 @@ public sealed class LeasePaymentScheduleLineConfiguration : IEntityTypeConfigura
         builder.Property(payment => payment.PaymentDate).HasColumnType("date").IsRequired();
         builder.Property(payment => payment.PaymentAmount).HasPrecision(19, 4).IsRequired();
         builder.Property(payment => payment.EffectivePeriodicRate).HasPrecision(19, 10).IsRequired();
+        builder.Property(payment => payment.IsPaid).IsRequired();
+        builder.Property(payment => payment.JournalEntryId);
+        builder.Property(payment => payment.PaidBy);
+        builder.Property(payment => payment.PaidAt).HasColumnType("datetimeoffset(7)");
 
         builder.HasIndex(payment => new { payment.ScheduleId, payment.PeriodNumber })
             .IsUnique().HasDatabaseName("UX_LeasePaymentScheduleLines_Schedule_Period");
         builder.HasIndex(payment => new { payment.ScheduleId, payment.PaymentDate })
             .IsUnique().HasDatabaseName("UX_LeasePaymentScheduleLines_Schedule_Date");
+        builder.HasIndex(payment => payment.JournalEntryId)
+            .IsUnique().HasFilter("[JournalEntryId] IS NOT NULL")
+            .HasDatabaseName("UX_LeasePaymentScheduleLines_JournalEntry");
     }
 }
