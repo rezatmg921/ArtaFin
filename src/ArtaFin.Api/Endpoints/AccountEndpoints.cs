@@ -237,6 +237,20 @@ internal static class AccountEndpoints
             });
         }
 
+        FinancingLiabilityType? financingLiabilityType = null;
+        if (request.FinancingLiabilityType is not null)
+        {
+            if (!Enum.TryParse<FinancingLiabilityType>(request.FinancingLiabilityType, true, out var parsedFinancingType) ||
+                !Enum.IsDefined(parsedFinancingType))
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["financingLiabilityType"] = ["Financing liability type must be None, Borrowings, LeaseLiabilities, or OtherFinancingLiabilities."]
+                });
+            }
+            financingLiabilityType = parsedFinancingType;
+        }
+
         if (string.IsNullOrWhiteSpace(ifMatch))
             return Results.Problem(
                 statusCode: StatusCodes.Status428PreconditionRequired,
@@ -298,7 +312,8 @@ internal static class AccountEndpoints
                 balancePolicy,
                 cashFlowAccountType,
                 request.CashEquivalentMaturityDays,
-                request.CashEquivalentRiskInsignificant),
+                request.CashEquivalentRiskInsignificant,
+                financingLiabilityType),
             cancellationToken);
 
         if (snapshot is null)
@@ -487,6 +502,7 @@ internal static class AccountEndpoints
             account.CashFlowAccountType.ToString(),
             account.CashEquivalentMaturityDays,
             account.CashEquivalentRiskInsignificant,
+            account.FinancingLiabilityType.ToString(),
             account.Status.ToString(),
             account.CreatedAt,
             account.DeactivatedAt);
@@ -498,7 +514,8 @@ internal sealed record UpdateAccountRequest(
     string? BalancePolicy = null,
     string? CashFlowAccountType = null,
     int? CashEquivalentMaturityDays = null,
-    bool? CashEquivalentRiskInsignificant = null);
+    bool? CashEquivalentRiskInsignificant = null,
+    string? FinancingLiabilityType = null);
 internal sealed record CreateAccountResponse(Guid Id);
 
 internal sealed record AccountResponse(
@@ -512,6 +529,7 @@ internal sealed record AccountResponse(
     string CashFlowAccountType,
     int? CashEquivalentMaturityDays,
     bool? CashEquivalentRiskInsignificant,
+    string FinancingLiabilityType,
     string Status,
     DateTimeOffset CreatedAt,
     DateTimeOffset? DeactivatedAt);
