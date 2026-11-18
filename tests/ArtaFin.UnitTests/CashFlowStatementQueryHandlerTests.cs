@@ -112,7 +112,8 @@ public sealed class CashFlowStatementQueryHandlerTests
             Guid.NewGuid(), Guid.NewGuid(), 2, from.AddDays(4),
             "Equipment acquired through finance lease", 125_000m, "USD",
             CashFlowActivity.Investing, "ASSET_ACQUIRED_THROUGH_LEASE", "No cash paid at commencement");
-        var snapshot = new CashFlowStatementReadSnapshot([], [], [], [disclosure]);
+        var afterPeriod = disclosure with { Id = Guid.NewGuid(), PostedAt = to };
+        var snapshot = new CashFlowStatementReadSnapshot([], [], [], [disclosure, afterPeriod]);
         var handler = CreateHandler(ownerId, book, snapshot);
 
         var result = await handler.Handle(
