@@ -70,7 +70,18 @@ internal static class CashFlowStatementEndpoints
                 item.PostedAt,
                 item.Description,
                 item.Amount,
-                item.Currency)).ToArray()));
+                item.Currency)).ToArray(),
+            result.NonCashDisclosures.Select(item => new CashFlowNonCashDisclosureResponse(
+                item.Id,
+                item.JournalEntryId,
+                item.SourceLineNumber,
+                item.PostedAt,
+                item.Description,
+                item.Amount,
+                item.Currency,
+                item.Activity.ToString(),
+                item.Category,
+                item.Memo)).ToArray()));
     }
 }
 
@@ -85,7 +96,8 @@ internal sealed record CashFlowStatementResponse(
     decimal ClosingCashAndCashEquivalents,
     decimal ReconciliationDifference,
     bool IsReconciled,
-    IReadOnlyList<CashFlowStatementExceptionResponse> Exceptions);
+    IReadOnlyList<CashFlowStatementExceptionResponse> Exceptions,
+    IReadOnlyList<CashFlowNonCashDisclosureResponse> NonCashDisclosures);
 
 internal sealed record CashFlowActivityResponse(
     string Activity,
@@ -109,3 +121,15 @@ internal sealed record CashFlowStatementExceptionResponse(
     string Description,
     decimal Amount,
     string Currency);
+
+internal sealed record CashFlowNonCashDisclosureResponse(
+    Guid Id,
+    Guid JournalEntryId,
+    int SourceLineNumber,
+    DateTimeOffset PostedAt,
+    string Description,
+    decimal Amount,
+    string Currency,
+    string Activity,
+    string Category,
+    string? Memo);
