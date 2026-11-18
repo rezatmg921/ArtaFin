@@ -69,7 +69,7 @@ public sealed class CashFlowNonCashDisclosure : AggregateRoot
             throw new DomainException("Disclosure amount must be positive and support at most four decimal places.");
         if (string.IsNullOrWhiteSpace(currency) || currency.Trim().Length != 3 ||
             !currency.Trim().All(char.IsAsciiLetter))
-            throw new DomainException("Disclosure currency must be a three-letter ISO currency code.");
+            throw new DomainException("Disclosure currency must be a three-letter currency code.");
         if (activity is not CashFlowActivity.Investing and not CashFlowActivity.Financing)
             throw new DomainException("Non-cash disclosures must be Investing or Financing activities.");
         if (string.IsNullOrWhiteSpace(category))
