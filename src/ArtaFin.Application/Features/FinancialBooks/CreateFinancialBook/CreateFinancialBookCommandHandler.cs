@@ -8,6 +8,7 @@ namespace ArtaFin.Application.Features.FinancialBooks.CreateFinancialBook;
 public sealed class CreateFinancialBookCommandHandler(
     ICurrentUser currentUser,
     IFinancialBookWriter financialBookWriter,
+    IAccountRepository accountRepository,
     IUnitOfWork unitOfWork,
     TimeProvider timeProvider)
 {
@@ -28,6 +29,15 @@ public sealed class CreateFinancialBookCommandHandler(
             timeProvider.GetUtcNow());
 
         await financialBookWriter.AddAsync(financialBook, cancellationToken);
+
+        // The book and its initial accounts are tracked by the same unit of work.
+        // A single SaveChanges keeps their insertion atomic in the EF Core transaction.
+        await StandardChartOfAccounts.SeedAsync(
+            financialBook.Id,
+            accountRepository,
+            timeProvider,
+            cancellationToken);
+
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return financialBook.Id;
