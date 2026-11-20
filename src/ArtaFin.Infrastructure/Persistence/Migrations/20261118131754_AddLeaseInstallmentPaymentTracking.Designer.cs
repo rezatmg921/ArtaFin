@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ArtaFin.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ArtaFinDbContext))]
-    [Migration("20261118131754_AddLeaseInstallmentPaymentTracking")]
+    [Migration("20261118170000_AddLeaseInstallmentPaymentTracking")]
     partial class AddLeaseInstallmentPaymentTracking
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
