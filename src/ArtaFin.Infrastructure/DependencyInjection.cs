@@ -38,6 +38,7 @@ public static class DependencyInjection
         services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
         services.AddSingleton<IRefreshTokenService, RefreshTokenService>();
 
+        services.AddScoped<InitialDataSeeder>();
         services.AddScoped<IUnitOfWork>(provider =>
             provider.GetRequiredService<ArtaFinDbContext>());
         services.AddScoped<AccountRepository>();
