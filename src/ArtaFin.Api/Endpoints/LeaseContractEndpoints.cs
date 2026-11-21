@@ -11,7 +11,7 @@ internal static class LeaseContractEndpoints
                 GetByFinancialBookAsync)
             .WithName("GetLeaseContracts")
             .WithTags("LeaseAccounting")
-            .RequireAuthorization()
+            .RequireAuthorization("Permission:Leases.Read")
             .Produces<IReadOnlyList<LeaseContractResult>>()
             .ProducesProblem(StatusCodes.Status404NotFound);
 
@@ -19,7 +19,7 @@ internal static class LeaseContractEndpoints
                 GetByIdAsync)
             .WithName("GetLeaseContract")
             .WithTags("LeaseAccounting")
-            .RequireAuthorization()
+            .RequireAuthorization("Permission:Leases.Read")
             .Produces<LeaseContractResult>()
             .ProducesProblem(StatusCodes.Status404NotFound);
 
@@ -27,7 +27,7 @@ internal static class LeaseContractEndpoints
                 CreateAsync)
             .WithName("CreateLeaseContract")
             .WithTags("LeaseAccounting")
-            .RequireAuthorization()
+            .RequireAuthorization("Permission:Leases.Manage")
             .Produces<LeaseContractResult>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status400BadRequest)
