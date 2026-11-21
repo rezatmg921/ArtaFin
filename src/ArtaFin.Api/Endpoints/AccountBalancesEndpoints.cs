@@ -13,7 +13,7 @@ internal static class AccountBalancesEndpoints
                 GetAsync)
             .WithName("GetAccountBalances")
             .WithTags("Accounts")
-            .RequireAuthorization()
+            .RequireAuthorization("Permission:Accounts.Read")
             .Produces<AccountBalancesResponse>()
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status404NotFound)
