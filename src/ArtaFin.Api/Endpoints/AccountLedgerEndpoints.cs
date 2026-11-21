@@ -13,7 +13,7 @@ internal static class AccountLedgerEndpoints
                 GetAsync)
             .WithName("GetAccountLedger")
             .WithTags("Accounts")
-            .RequireAuthorization()
+            .RequireAuthorization("Permission:Accounts.Read")
             .Produces<AccountLedgerResponse>()
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status404NotFound)
