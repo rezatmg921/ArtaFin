@@ -24,6 +24,7 @@ public sealed class AuthenticationServiceTests
         Assert.Equal("PERSON@EXAMPLE.COM", repository.User.NormalizedEmail);
         Assert.NotNull(repository.Credential);
         Assert.Equal("fake-hash", repository.Credential.PasswordHash);
+        Assert.Single(repository.UserRoles);
         Assert.Equal(1, repository.SaveCount);
         Assert.Single(repository.Sessions);
     }
@@ -180,6 +181,23 @@ public sealed class AuthenticationServiceTests
         public int SaveCount { get; private set; }
         public bool ThrowConcurrencyOnNextSave { get; set; }
         public List<UserSession> Sessions { get; } = [];
+        public List<UserRole> UserRoles { get; } = [];
+
+        public Task<IReadOnlyList<string>> GetRoleNamesByUserIdAsync(
+            Guid userId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<string>>(["User"]);
+
+        public Task<Guid?> GetRoleIdByNormalizedNameAsync(
+            string normalizedName,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<Guid?>(Guid.NewGuid());
+
+        public Task AddUserRoleAsync(UserRole userRole, CancellationToken cancellationToken)
+        {
+            UserRoles.Add(userRole);
+            return Task.CompletedTask;
+        }
 
         public Task<AppUser?> GetByIdAsync(Guid userId, CancellationToken cancellationToken) =>
             Task.FromResult(User?.Id == userId ? User : null);
@@ -259,7 +277,10 @@ public sealed class AuthenticationServiceTests
 
     private sealed class FakeAccessTokenGenerator : IAccessTokenGenerator
     {
-        public (string Token, DateTime ExpiresAtUtc) CreateToken(Guid userId, string email) =>
+        public (string Token, DateTime ExpiresAtUtc) CreateToken(
+            Guid userId,
+            string email,
+            IReadOnlyCollection<string> roles) =>
             ("test-access-token", DateTime.UtcNow.AddMinutes(15));
     }
 }
