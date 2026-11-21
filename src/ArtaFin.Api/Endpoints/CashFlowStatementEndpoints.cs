@@ -13,7 +13,7 @@ internal static class CashFlowStatementEndpoints
                 GetAsync)
             .WithName("GetCashFlowStatement")
             .WithTags("Reports")
-            .RequireAuthorization()
+            .RequireAuthorization("Permission:Reports.Read")
             .Produces<CashFlowStatementResponse>()
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status401Unauthorized)
