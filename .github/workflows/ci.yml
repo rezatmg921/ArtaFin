@@ -38,6 +38,7 @@ jobs:
       - name: Restore
         run: dotnet restore ArtaFin.sln
       - name: Build
+        id: build
         run: dotnet build ArtaFin.sln --no-restore --configuration Release
       - name: Check migration model snapshot
         run: dotnet ef migrations has-pending-model-changes --project src/ArtaFin.Infrastructure/ArtaFin.Infrastructure.csproj --startup-project src/ArtaFin.Infrastructure/ArtaFin.Infrastructure.csproj --configuration Release
@@ -48,6 +49,7 @@ jobs:
       - name: Unit tests
         run: dotnet test tests/ArtaFin.UnitTests/ArtaFin.UnitTests.csproj --no-build --configuration Release --logger "trx;LogFileName=unit-tests.trx"
       - name: Infrastructure integration tests
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         env:
           ARTAFIN_SQLSERVER: ${{ env.ARTAFIN_SQLSERVER }}
         run: dotnet test tests/ArtaFin.Infrastructure.IntegrationTests/ArtaFin.Infrastructure.IntegrationTests.csproj --no-build --configuration Release --logger "trx;LogFileName=infrastructure-integration-tests.trx"
