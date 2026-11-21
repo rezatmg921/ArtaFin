@@ -29,6 +29,41 @@ internal sealed class UserRepository(ArtaFinDbContext dbContext) : IUserReposito
             cancellationToken);
     }
 
+    public Task<IReadOnlyList<string>> GetRoleNamesByUserIdAsync(
+        Guid userId,
+        CancellationToken cancellationToken) =>
+        dbContext.UserRoles
+            .Where(userRole => userRole.UserId == userId)
+            .Join(
+                dbContext.Roles,
+                userRole => userRole.RoleId,
+                role => role.Id,
+                (_, role) => role.Name)
+            .OrderBy(name => name)
+            .ToListAsync(cancellationToken)
+            .ContinueWith<IReadOnlyList<string>>(
+                task => task.Result,
+                cancellationToken,
+                TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
+
+    public async Task<Guid?> GetRoleIdByNormalizedNameAsync(
+        string normalizedName,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(normalizedName);
+        return await dbContext.Roles
+            .Where(role => role.NormalizedName == normalizedName)
+            .Select(role => (Guid?)role.Id)
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task AddUserRoleAsync(UserRole userRole, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(userRole);
+        await dbContext.UserRoles.AddAsync(userRole, cancellationToken);
+    }
+
     public async Task AddUserAsync(AppUser user, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(user);
