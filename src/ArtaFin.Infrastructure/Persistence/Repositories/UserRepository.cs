@@ -29,10 +29,11 @@ internal sealed class UserRepository(ArtaFinDbContext dbContext) : IUserReposito
             cancellationToken);
     }
 
-    public Task<IReadOnlyList<string>> GetRoleNamesByUserIdAsync(
+    public async Task<IReadOnlyList<string>> GetRoleNamesByUserIdAsync(
         Guid userId,
-        CancellationToken cancellationToken) =>
-        dbContext.UserRoles
+        CancellationToken cancellationToken)
+    {
+        return await dbContext.UserRoles
             .Where(userRole => userRole.UserId == userId)
             .Join(
                 dbContext.Roles,
@@ -40,12 +41,8 @@ internal sealed class UserRepository(ArtaFinDbContext dbContext) : IUserReposito
                 role => role.Id,
                 (_, role) => role.Name)
             .OrderBy(name => name)
-            .ToListAsync(cancellationToken)
-            .ContinueWith<IReadOnlyList<string>>(
-                task => task.Result,
-                cancellationToken,
-                TaskContinuationOptions.ExecuteSynchronously,
-                TaskScheduler.Default);
+            .ToListAsync(cancellationToken);
+    }
 
     public async Task<Guid?> GetRoleIdByNormalizedNameAsync(
         string normalizedName,
