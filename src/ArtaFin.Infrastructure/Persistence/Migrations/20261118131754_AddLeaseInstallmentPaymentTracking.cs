@@ -1,4 +1,3 @@
-using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -11,70 +10,93 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<bool>(
-                name: "IsPaid",
-                table: "LeasePaymentScheduleLines",
-                type: "bit",
-                nullable: false,
-                defaultValue: false);
+            // Some existing databases may already contain one or more of these
+            // columns. Keep this migration safe for those databases as well.
+            migrationBuilder.Sql(
+                """
+                IF COL_LENGTH(N'dbo.LeasePaymentScheduleLines', N'IsPaid') IS NULL
+                    ALTER TABLE [dbo].[LeasePaymentScheduleLines]
+                    ADD [IsPaid] bit NOT NULL
+                        CONSTRAINT [DF_LeasePaymentScheduleLines_IsPaid] DEFAULT (0);
 
-            migrationBuilder.AddColumn<Guid>(
-                name: "JournalEntryId",
-                table: "LeasePaymentScheduleLines",
-                type: "uniqueidentifier",
-                nullable: true);
+                IF COL_LENGTH(N'dbo.LeasePaymentScheduleLines', N'JournalEntryId') IS NULL
+                    ALTER TABLE [dbo].[LeasePaymentScheduleLines]
+                    ADD [JournalEntryId] uniqueidentifier NULL;
 
-            migrationBuilder.AddColumn<DateTimeOffset>(
-                name: "PaidAt",
-                table: "LeasePaymentScheduleLines",
-                type: "datetimeoffset(7)",
-                nullable: true);
+                IF COL_LENGTH(N'dbo.LeasePaymentScheduleLines', N'PaidAt') IS NULL
+                    ALTER TABLE [dbo].[LeasePaymentScheduleLines]
+                    ADD [PaidAt] datetimeoffset(7) NULL;
 
-            migrationBuilder.AddColumn<Guid>(
-                name: "PaidBy",
-                table: "LeasePaymentScheduleLines",
-                type: "uniqueidentifier",
-                nullable: true);
+                IF COL_LENGTH(N'dbo.LeasePaymentScheduleLines', N'PaidBy') IS NULL
+                    ALTER TABLE [dbo].[LeasePaymentScheduleLines]
+                    ADD [PaidBy] uniqueidentifier NULL;
 
-            migrationBuilder.CreateIndex(
-                name: "UX_LeasePaymentScheduleLines_JournalEntry",
-                table: "LeasePaymentScheduleLines",
-                column: "JournalEntryId",
-                unique: true,
-                filter: "[JournalEntryId] IS NOT NULL");
+                IF NOT EXISTS
+                (
+                    SELECT 1
+                    FROM sys.indexes
+                    WHERE [name] = N'UX_LeasePaymentScheduleLines_JournalEntry'
+                      AND [object_id] = OBJECT_ID(N'dbo.LeasePaymentScheduleLines')
+                )
+                    CREATE UNIQUE INDEX [UX_LeasePaymentScheduleLines_JournalEntry]
+                    ON [dbo].[LeasePaymentScheduleLines] ([JournalEntryId])
+                    WHERE [JournalEntryId] IS NOT NULL;
 
-            migrationBuilder.AddCheckConstraint(
-                name: "CK_LeasePaymentScheduleLines_Payment_Consistent",
-                table: "LeasePaymentScheduleLines",
-                sql: "([IsPaid] = 0 AND [JournalEntryId] IS NULL AND [PaidBy] IS NULL AND [PaidAt] IS NULL) OR ([IsPaid] = 1 AND [JournalEntryId] IS NOT NULL AND [PaidBy] IS NOT NULL AND [PaidAt] IS NOT NULL)");
+                IF NOT EXISTS
+                (
+                    SELECT 1
+                    FROM sys.check_constraints
+                    WHERE [name] = N'CK_LeasePaymentScheduleLines_Payment_Consistent'
+                      AND [parent_object_id] = OBJECT_ID(N'dbo.LeasePaymentScheduleLines')
+                )
+                    ALTER TABLE [dbo].[LeasePaymentScheduleLines]
+                    ADD CONSTRAINT [CK_LeasePaymentScheduleLines_Payment_Consistent]
+                    CHECK
+                    (
+                        ([IsPaid] = 0 AND [JournalEntryId] IS NULL AND [PaidBy] IS NULL AND [PaidAt] IS NULL)
+                        OR
+                        ([IsPaid] = 1 AND [JournalEntryId] IS NOT NULL AND [PaidBy] IS NOT NULL AND [PaidAt] IS NOT NULL)
+                    );
+                """);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropIndex(
-                name: "UX_LeasePaymentScheduleLines_JournalEntry",
-                table: "LeasePaymentScheduleLines");
+            migrationBuilder.Sql(
+                """
+                IF EXISTS
+                (
+                    SELECT 1
+                    FROM sys.check_constraints
+                    WHERE [name] = N'CK_LeasePaymentScheduleLines_Payment_Consistent'
+                      AND [parent_object_id] = OBJECT_ID(N'dbo.LeasePaymentScheduleLines')
+                )
+                    ALTER TABLE [dbo].[LeasePaymentScheduleLines]
+                    DROP CONSTRAINT [CK_LeasePaymentScheduleLines_Payment_Consistent];
 
-            migrationBuilder.DropCheckConstraint(
-                name: "CK_LeasePaymentScheduleLines_Payment_Consistent",
-                table: "LeasePaymentScheduleLines");
+                IF EXISTS
+                (
+                    SELECT 1
+                    FROM sys.indexes
+                    WHERE [name] = N'UX_LeasePaymentScheduleLines_JournalEntry'
+                      AND [object_id] = OBJECT_ID(N'dbo.LeasePaymentScheduleLines')
+                )
+                    DROP INDEX [UX_LeasePaymentScheduleLines_JournalEntry]
+                    ON [dbo].[LeasePaymentScheduleLines];
 
-            migrationBuilder.DropColumn(
-                name: "IsPaid",
-                table: "LeasePaymentScheduleLines");
+                IF COL_LENGTH(N'dbo.LeasePaymentScheduleLines', N'PaidBy') IS NOT NULL
+                    ALTER TABLE [dbo].[LeasePaymentScheduleLines] DROP COLUMN [PaidBy];
 
-            migrationBuilder.DropColumn(
-                name: "JournalEntryId",
-                table: "LeasePaymentScheduleLines");
+                IF COL_LENGTH(N'dbo.LeasePaymentScheduleLines', N'PaidAt') IS NOT NULL
+                    ALTER TABLE [dbo].[LeasePaymentScheduleLines] DROP COLUMN [PaidAt];
 
-            migrationBuilder.DropColumn(
-                name: "PaidAt",
-                table: "LeasePaymentScheduleLines");
+                IF COL_LENGTH(N'dbo.LeasePaymentScheduleLines', N'JournalEntryId') IS NOT NULL
+                    ALTER TABLE [dbo].[LeasePaymentScheduleLines] DROP COLUMN [JournalEntryId];
 
-            migrationBuilder.DropColumn(
-                name: "PaidBy",
-                table: "LeasePaymentScheduleLines");
+                IF COL_LENGTH(N'dbo.LeasePaymentScheduleLines', N'IsPaid') IS NOT NULL
+                    ALTER TABLE [dbo].[LeasePaymentScheduleLines] DROP COLUMN [IsPaid];
+                """);
         }
     }
 }
