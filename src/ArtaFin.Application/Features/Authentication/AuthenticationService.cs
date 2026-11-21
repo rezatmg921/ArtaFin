@@ -54,9 +54,19 @@ public sealed class AuthenticationService(
             Pbkdf2AlgorithmId,
             now);
 
+        var userRoleId = await userRepository.GetRoleIdByNormalizedNameAsync(
+            "USER", cancellationToken);
+        if (userRoleId is null)
+            throw new InvalidOperationException(
+                "The built-in User role is missing. Run the initial database seeder before accepting registrations.");
+
         await userRepository.AddUserAsync(user, cancellationToken);
         await userRepository.AddCredentialAsync(credential, cancellationToken);
-        var response = await CreateAuthenticationResponseAsync(user, now, cancellationToken);
+        await userRepository.AddUserRoleAsync(
+            UserRole.Assign(Guid.NewGuid(), user.Id, userRoleId.Value, now),
+            cancellationToken);
+        var response = await CreateAuthenticationResponseAsync(
+            user, ["User"], now, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return AuthenticationResult.Success(response);
     }
@@ -103,7 +113,8 @@ public sealed class AuthenticationService(
             credential.ResetFailedLogins();
         }
 
-        var response = await CreateAuthenticationResponseAsync(user, now, cancellationToken);
+        var roles = await userRepository.GetRoleNamesByUserIdAsync(user.Id, cancellationToken);
+        var response = await CreateAuthenticationResponseAsync(user, roles, now, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return AuthenticationResult.Success(response);
     }
@@ -145,6 +156,7 @@ public sealed class AuthenticationService(
             return AuthenticationResult.Failed(AuthenticationFailure.InvalidRefreshToken);
         }
 
+        var roles = await userRepository.GetRoleNamesByUserIdAsync(user.Id, cancellationToken);
         var newSessionId = Guid.NewGuid();
         var rawRefreshToken = refreshTokenService.GenerateToken();
         var refreshExpiresAt = now.Add(RefreshTokenLifetime);
@@ -157,7 +169,7 @@ public sealed class AuthenticationService(
 
         oldSession.Revoke(now, newSessionId);
         await sessionRepository.AddAsync(newSession, cancellationToken);
-        var (accessToken, accessExpiresAt) = accessTokenGenerator.CreateToken(user.Id, user.Email);
+        var (accessToken, accessExpiresAt) = accessTokenGenerator.CreateToken(user.Id, user.Email, roles);
         try
         {
             // SQL Server rowversion makes this update conditional on the version
@@ -193,6 +205,7 @@ public sealed class AuthenticationService(
 
     private async Task<AuthenticationResponse> CreateAuthenticationResponseAsync(
         AppUser user,
+        IReadOnlyCollection<string> roles,
         DateTimeOffset now,
         CancellationToken cancellationToken)
     {
@@ -206,7 +219,7 @@ public sealed class AuthenticationService(
             refreshExpiresAt);
         await sessionRepository.AddAsync(session, cancellationToken);
 
-        var (accessToken, accessExpiresAt) = accessTokenGenerator.CreateToken(user.Id, user.Email);
+        var (accessToken, accessExpiresAt) = accessTokenGenerator.CreateToken(user.Id, user.Email, roles);
         return new AuthenticationResponse(
             accessToken,
             accessExpiresAt,
