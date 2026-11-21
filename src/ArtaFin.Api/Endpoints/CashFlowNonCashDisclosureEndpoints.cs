@@ -13,7 +13,7 @@ internal static class CashFlowNonCashDisclosureEndpoints
                 GetByJournalEntryAsync)
             .WithName("GetCashFlowNonCashDisclosures")
             .WithTags("CashFlowNonCashDisclosures")
-            .RequireAuthorization()
+            .RequireAuthorization("Permission:Reports.Read")
             .Produces<IReadOnlyList<CashFlowNonCashDisclosureResult>>()
             .ProducesProblem(StatusCodes.Status404NotFound);
 
@@ -22,7 +22,7 @@ internal static class CashFlowNonCashDisclosureEndpoints
                 CreateAsync)
             .WithName("CreateCashFlowNonCashDisclosure")
             .WithTags("CashFlowNonCashDisclosures")
-            .RequireAuthorization()
+            .RequireAuthorization("Permission:Transactions.Create")
             .Produces<CashFlowNonCashDisclosureResult>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status400BadRequest)
