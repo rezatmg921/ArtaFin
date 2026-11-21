@@ -38,6 +38,8 @@ public sealed class ArtaFinDbContext(
     public DbSet<UserSession> UserSessions => Set<UserSession>();
     public DbSet<AppRole> Roles => Set<AppRole>();
     public DbSet<UserRole> UserRoles => Set<UserRole>();
+    public DbSet<AppPermission> Permissions => Set<AppPermission>();
+    public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -56,6 +58,8 @@ public sealed class ArtaFinDbContext(
         modelBuilder.Entity<UserSession>();
         modelBuilder.Entity<AppRole>();
         modelBuilder.Entity<UserRole>();
+        modelBuilder.Entity<AppPermission>();
+        modelBuilder.Entity<RolePermission>();
 
         modelBuilder.ApplyConfiguration(new FinancialBookConfiguration());
         modelBuilder.ApplyConfiguration(new FinancialBookMemberConfiguration());
@@ -72,6 +76,8 @@ public sealed class ArtaFinDbContext(
         modelBuilder.ApplyConfiguration(new UserSessionConfiguration());
         modelBuilder.ApplyConfiguration(new AppRoleConfiguration());
         modelBuilder.ApplyConfiguration(new UserRoleConfiguration());
+        modelBuilder.ApplyConfiguration(new AppPermissionConfiguration());
+        modelBuilder.ApplyConfiguration(new RolePermissionConfiguration());
     }
 
     public override int SaveChanges() => SaveChanges(acceptAllChangesOnSuccess: true);
