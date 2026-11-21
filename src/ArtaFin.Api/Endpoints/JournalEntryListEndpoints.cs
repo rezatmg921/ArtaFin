@@ -13,7 +13,7 @@ internal static class JournalEntryListEndpoints
                 ListAsync)
             .WithName("ListJournalEntries")
             .WithTags("JournalEntries")
-            .RequireAuthorization()
+            .RequireAuthorization("Permission:Transactions.Read")
             .Produces<JournalEntryListResponse>()
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status404NotFound)
