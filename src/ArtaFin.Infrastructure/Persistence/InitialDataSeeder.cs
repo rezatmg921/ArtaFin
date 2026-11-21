@@ -67,7 +67,7 @@ public sealed class InitialDataSeeder(
         // Existing accounts created before role-aware authorization receive the
         // standard role once. Accounts that already have an explicit role are preserved.
         var usersWithoutRoles = await dbContext.Users
-            .Where(user => !dbContext.UserRoles.Any(userRole => userRole.UserId == user.Id))
+            .Where(user => !dbContext.UserRoles.Any(assignment => assignment.UserId == user.Id))
             .Select(user => user.Id)
             .ToListAsync(cancellationToken);
 
