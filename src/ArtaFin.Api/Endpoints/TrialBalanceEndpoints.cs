@@ -13,7 +13,7 @@ internal static class TrialBalanceEndpoints
                 GetAsync)
             .WithName("GetTrialBalance")
             .WithTags("Reports")
-            .RequireAuthorization()
+            .RequireAuthorization("Permission:Reports.Read")
             .Produces<TrialBalanceResponse>()
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status404NotFound)
