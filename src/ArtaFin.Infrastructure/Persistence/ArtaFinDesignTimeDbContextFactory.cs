@@ -17,7 +17,7 @@ public sealed class ArtaFinDesignTimeDbContextFactory
         var environment =
             Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT")
             ?? Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
-            ?? Environments.Production;
+            ?? "Production";
 
         var configurationBuilder = new ConfigurationBuilder()
             .SetBasePath(Directory.GetCurrentDirectory())
@@ -25,7 +25,7 @@ public sealed class ArtaFinDesignTimeDbContextFactory
             .AddJsonFile($"appsettings.{environment}.json", optional: true, reloadOnChange: false);
 
         // Match WebApplication.CreateBuilder: User Secrets are a Development-only source.
-        if (string.Equals(environment, Environments.Development, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(environment, "Development", StringComparison.OrdinalIgnoreCase))
         {
             var apiAssembly = Assembly.Load("ArtaFin.Api");
             configurationBuilder.AddUserSecrets(apiAssembly, optional: true);
