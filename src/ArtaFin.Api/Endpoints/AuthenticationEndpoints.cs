@@ -44,7 +44,12 @@ internal static class AuthenticationEndpoints
             Results.Ok(new
             {
                 UserId = principal.FindFirst("sub")?.Value,
-                Email = principal.FindFirst("email")?.Value
+                Email = principal.FindFirst("email")?.Value,
+                Roles = principal.FindAll("role")
+                    .Select(claim => claim.Value)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(role => role, StringComparer.OrdinalIgnoreCase)
+                    .ToArray()
             }))
             .RequireAuthorization()
             .WithName("GetCurrentUser");
