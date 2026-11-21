@@ -45,8 +45,12 @@ jobs:
         run: |
           mkdir -p artifacts
           dotnet ef migrations script --idempotent --project src/ArtaFin.Infrastructure/ArtaFin.Infrastructure.csproj --startup-project src/ArtaFin.Infrastructure/ArtaFin.Infrastructure.csproj --configuration Release --output artifacts/ArtaFin.sql
-      - name: Test
-        run: dotnet test ArtaFin.sln --no-build --configuration Release --logger "trx;LogFileName=results.trx"
+      - name: Unit tests
+        run: dotnet test tests/ArtaFin.UnitTests/ArtaFin.UnitTests.csproj --no-build --configuration Release --logger "trx;LogFileName=unit-tests.trx"
+      - name: Infrastructure integration tests
+        env:
+          ARTAFIN_SQLSERVER: ${{ env.ARTAFIN_SQLSERVER }}
+        run: dotnet test tests/ArtaFin.Infrastructure.IntegrationTests/ArtaFin.Infrastructure.IntegrationTests.csproj --no-build --configuration Release --logger "trx;LogFileName=infrastructure-integration-tests.trx"
       - name: Upload SQL migration script
         uses: actions/upload-artifact@v4
         with:
