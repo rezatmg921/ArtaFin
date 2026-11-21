@@ -15,33 +15,15 @@ Do not place passwords or production connection strings in appsettings files, sc
 
 ## Initialize a new database (PowerShell)
 
-Run from the repository root:
+Run from the repository root after configuring the three environment variables above:
 
 ```powershell
-$ErrorActionPreference = "Stop"
-
-if ([string]::IsNullOrWhiteSpace($env:ConnectionStrings__ArtaFin)) {
-    throw "Set ConnectionStrings__ArtaFin in the server's protected environment."
-}
-if ([string]::IsNullOrWhiteSpace($env:BootstrapAdmin__Email) -or
-    [string]::IsNullOrEmpty($env:BootstrapAdmin__Password)) {
-    throw "Set BootstrapAdmin__Email and BootstrapAdmin__Password in the server's protected environment."
-}
-
-dotnet tool restore
-if ($LASTEXITCODE -ne 0) { throw "dotnet tool restore failed." }
-
-dotnet ef database update `
-    --project src/ArtaFin.Infrastructure `
-    --startup-project src/ArtaFin.Api `
-    --context ArtaFinDbContext
-if ($LASTEXITCODE -ne 0) { throw "Database migration failed." }
-
-dotnet run --project src/ArtaFin.Api --no-build -- --seed-initial-data
-if ($LASTEXITCODE -ne 0) { throw "Initial data seeding failed." }
+.\scripts\Initialize-ArtaFin.ps1
 ```
 
-The migration command creates/updates the schema using the checked-in EF Core migration chain. The explicit seed command then creates the built-in `Administrator` and `User` roles and the configured first administrator, including a PBKDF2 password hash. It does not store or log the plaintext password.
+The script restores the repository's local .NET tools, applies the checked-in EF Core migration chain, and invokes the API's one-shot seed command. The seed command creates the built-in `Administrator` and `User` roles and the configured first administrator, including a PBKDF2 password hash. It does not store or log the plaintext password.
+
+The administrator role assignment is persisted in the database. The current JWT implementation does not yet emit role claims or enforce role-based authorization policies; this seed step prepares the role records but does not itself add admin-only API permissions.
 
 ## Safe reruns and safeguards
 
@@ -58,6 +40,6 @@ After successful initialization, remove the bootstrap password from the process 
 
 - Generate and review an idempotent migration script for production releases.
 - Back up the database and apply the reviewed script using the controlled deployment process.
-- Run only the seed command above after the schema is ready.
+- Run the seed command above only after the schema is ready.
 - Start the API normally without `--seed-initial-data`.
 - Never enable `Database.Migrate()` or `EnsureCreated()` at application startup.
