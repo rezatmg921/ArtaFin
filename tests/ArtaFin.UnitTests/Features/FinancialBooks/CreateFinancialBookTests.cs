@@ -13,10 +13,11 @@ public sealed class CreateFinancialBookTests
     {
         var ownerId = Guid.NewGuid();
         var writer = new FakeFinancialBookWriter();
+        var accountRepository = new FakeAccountRepository();
         var unitOfWork = new FakeUnitOfWork();
         var now = DateTimeOffset.Parse("2026-11-09T10:00:00+00:00");
         var handler = new CreateFinancialBookCommandHandler(
-            new FakeCurrentUser(ownerId), writer, unitOfWork,
+            new FakeCurrentUser(ownerId), writer, accountRepository, unitOfWork,
             new FixedTimeProvider(now));
 
         var id = await handler.HandleAsync(
@@ -30,6 +31,9 @@ public sealed class CreateFinancialBookTests
         Assert.Equal("Operating ledger", writer.AddedBook.Name);
         Assert.Equal("EUR", writer.AddedBook.BaseCurrency.Code);
         Assert.Equal(now, writer.AddedBook.CreatedAt);
+        Assert.NotEmpty(accountRepository.AddedAccounts);
+        Assert.All(accountRepository.AddedAccounts, account =>
+            Assert.Equal(id, account.FinancialBookId));
         Assert.Equal(1, unitOfWork.SaveChangesCalls);
     }
 
@@ -37,9 +41,11 @@ public sealed class CreateFinancialBookTests
     public async Task HandleAsync_WhenNameIsInvalid_DoesNotPersist()
     {
         var writer = new FakeFinancialBookWriter();
+        var accountRepository = new FakeAccountRepository();
         var unitOfWork = new FakeUnitOfWork();
         var handler = new CreateFinancialBookCommandHandler(
-            new FakeCurrentUser(Guid.NewGuid()), writer, unitOfWork, TimeProvider.System);
+            new FakeCurrentUser(Guid.NewGuid()), writer, accountRepository,
+            unitOfWork, TimeProvider.System);
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
             handler.HandleAsync(
@@ -47,6 +53,7 @@ public sealed class CreateFinancialBookTests
                 CancellationToken.None));
 
         Assert.Null(writer.AddedBook);
+        Assert.Empty(accountRepository.AddedAccounts);
         Assert.Equal(0, unitOfWork.SaveChangesCalls);
     }
 
@@ -62,6 +69,34 @@ public sealed class CreateFinancialBookTests
         public Task AddAsync(FinancialBook financialBook, CancellationToken cancellationToken)
         {
             AddedBook = financialBook;
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FakeAccountRepository : IAccountRepository
+    {
+        public List<Account> AddedAccounts { get; } = [];
+
+        public Task<Account?> GetByIdAsync(Guid financialBookId, Guid accountId, CancellationToken cancellationToken)
+            => Task.FromResult<Account?>(null);
+
+        public Task<AccountReadSnapshot?> GetReadSnapshotByIdAsync(Guid financialBookId, Guid accountId, CancellationToken cancellationToken)
+            => Task.FromResult<AccountReadSnapshot?>(null);
+
+        public Task<AccountReadSnapshot?> GetForUpdateAsync(
+            Guid financialBookId, Guid accountId, byte[]? expectedRowVersion, CancellationToken cancellationToken)
+            => Task.FromResult<AccountReadSnapshot?>(null);
+
+        public Task<bool> ExistsByCodeAsync(Guid financialBookId, string normalizedCode, CancellationToken cancellationToken)
+            => Task.FromResult(AddedAccounts.Any(account =>
+                account.FinancialBookId == financialBookId && account.Code == normalizedCode));
+
+        public Task<bool> DeleteIfUnusedAsync(Account account, CancellationToken cancellationToken)
+            => Task.FromResult(false);
+
+        public Task AddAsync(Account account, CancellationToken cancellationToken)
+        {
+            AddedAccounts.Add(account);
             return Task.CompletedTask;
         }
     }
