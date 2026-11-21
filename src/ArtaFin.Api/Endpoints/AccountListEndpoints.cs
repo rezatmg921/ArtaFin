@@ -14,7 +14,7 @@ internal static class AccountListEndpoints
                 ListAsync)
             .WithName("ListAccounts")
             .WithTags("Accounts")
-            .RequireAuthorization()
+            .RequireAuthorization("Permission:Accounts.Read")
             .Produces<AccountListResponse>()
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status404NotFound)
