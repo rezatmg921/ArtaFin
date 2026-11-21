@@ -51,10 +51,30 @@ public sealed class InitialDataSeeder(
             await dbContext.Roles.AddAsync(administratorRole, cancellationToken);
         }
 
-        if (!roles.Any(role => role.NormalizedName == UserRoleName.ToUpperInvariant()))
+        var userRole = roles.SingleOrDefault(
+            role => role.NormalizedName == UserRoleName.ToUpperInvariant());
+
+        if (userRole is null)
         {
-            await dbContext.Roles.AddAsync(
-                AppRole.Create(Guid.NewGuid(), UserRoleName, "Standard application user role.", now),
+            userRole = AppRole.Create(
+                Guid.NewGuid(),
+                UserRoleName,
+                "Standard application user role.",
+                now);
+            await dbContext.Roles.AddAsync(userRole, cancellationToken);
+        }
+
+        // Existing accounts created before role-aware authorization receive the
+        // standard role once. Accounts that already have an explicit role are preserved.
+        var usersWithoutRoles = await dbContext.Users
+            .Where(user => !dbContext.UserRoles.Any(userRole => userRole.UserId == user.Id))
+            .Select(user => user.Id)
+            .ToListAsync(cancellationToken);
+
+        foreach (var userId in usersWithoutRoles)
+        {
+            await dbContext.UserRoles.AddAsync(
+                UserRole.Assign(Guid.NewGuid(), userId, userRole.Id, now),
                 cancellationToken);
         }
 
