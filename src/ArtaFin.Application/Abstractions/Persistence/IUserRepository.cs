@@ -14,6 +14,16 @@ public interface IUserRepository
         Guid userId,
         CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<string>> GetRoleNamesByUserIdAsync(
+        Guid userId,
+        CancellationToken cancellationToken);
+
+    Task<Guid?> GetRoleIdByNormalizedNameAsync(
+        string normalizedName,
+        CancellationToken cancellationToken);
+
+    Task AddUserRoleAsync(UserRole userRole, CancellationToken cancellationToken);
+
     Task AddUserAsync(AppUser user, CancellationToken cancellationToken);
 
     Task AddCredentialAsync(UserCredential credential, CancellationToken cancellationToken);
