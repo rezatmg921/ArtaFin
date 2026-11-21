@@ -12,7 +12,7 @@ internal static class IncomeEndpoints
         endpoints.MapPost("/api/financial-books/{financialBookId:guid}/income", CreateAsync)
             .WithName("CreateIncome")
             .WithTags("Income")
-            .RequireAuthorization()
+            .RequireAuthorization("Permission:Transactions.Create")
             .Produces<CreateIncomeResponse>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
             .Produces(StatusCodes.Status401Unauthorized)
