@@ -7,6 +7,7 @@ using ArtaFin.Api.Security;
 using ArtaFin.Application;
 using ArtaFin.Application.Abstractions.Security;
 using ArtaFin.Infrastructure;
+using ArtaFin.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.RateLimiting;
@@ -150,6 +151,24 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
 var app = builder.Build();
+
+// Explicit one-shot command for first-time database initialization.
+// Schema migrations remain a separate, deployment-controlled operation.
+if (args.Any(argument =>
+        string.Equals(argument, "--seed-initial-data", StringComparison.OrdinalIgnoreCase)))
+{
+    var administratorEmail = builder.Configuration["BootstrapAdmin:Email"];
+    var administratorPassword = builder.Configuration["BootstrapAdmin:Password"];
+
+    await using var scope = app.Services.CreateAsyncScope();
+    var seeder = scope.ServiceProvider.GetRequiredService<InitialDataSeeder>();
+    await seeder.SeedAsync(
+        administratorEmail ?? string.Empty,
+        administratorPassword ?? string.Empty);
+
+    Console.WriteLine("ArtaFin initial roles and bootstrap administrator are ready.");
+    return;
+}
 
 app.UseExceptionHandler();
 
