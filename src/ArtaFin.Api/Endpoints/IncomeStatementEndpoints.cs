@@ -13,7 +13,7 @@ internal static class IncomeStatementEndpoints
                 GetAsync)
             .WithName("GetIncomeStatement")
             .WithTags("Reports")
-            .RequireAuthorization()
+            .RequireAuthorization("Permission:Reports.Read")
             .Produces<IncomeStatementResponse>()
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status401Unauthorized)
