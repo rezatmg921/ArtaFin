@@ -13,7 +13,7 @@ internal static class FinancingLiabilitiesReconciliationEndpoints
                 GetAsync)
             .WithName("GetFinancingLiabilitiesReconciliation")
             .WithTags("Reports")
-            .RequireAuthorization()
+            .RequireAuthorization("Permission:Reports.Read")
             .Produces<FinancingLiabilitiesReconciliationResponse>()
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status401Unauthorized)
