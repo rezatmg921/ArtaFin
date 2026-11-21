@@ -13,7 +13,7 @@ internal static class BalanceSheetEndpoints
                 GetAsync)
             .WithName("GetBalanceSheet")
             .WithTags("Reports")
-            .RequireAuthorization()
+            .RequireAuthorization("Permission:Reports.Read")
             .Produces<BalanceSheetResponse>()
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status404NotFound);
