@@ -12,7 +12,7 @@ internal static class TransferEndpoints
         endpoints.MapPost("/api/financial-books/{financialBookId:guid}/transfers", CreateAsync)
             .WithName("CreateTransfer")
             .WithTags("Transfers")
-            .RequireAuthorization()
+            .RequireAuthorization("Permission:Transactions.Create")
             .Produces<CreateTransferResponse>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
             .Produces(StatusCodes.Status401Unauthorized)
