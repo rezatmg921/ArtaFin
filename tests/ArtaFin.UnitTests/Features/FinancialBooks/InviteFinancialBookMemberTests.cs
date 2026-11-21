@@ -143,6 +143,17 @@ public sealed class InviteFinancialBookMemberTests
             Guid userId, CancellationToken cancellationToken) =>
             Task.FromResult<UserCredential?>(null);
 
+        public Task<IReadOnlyList<string>> GetRoleNamesByUserIdAsync(
+            Guid userId, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<string>>(Array.Empty<string>());
+
+        public Task<Guid?> GetRoleIdByNormalizedNameAsync(
+            string normalizedName, CancellationToken cancellationToken) =>
+            Task.FromResult<Guid?>(null);
+
+        public Task AddUserRoleAsync(UserRole userRole, CancellationToken cancellationToken) =>
+            Task.CompletedTask;
+
         public Task AddUserAsync(AppUser appUser, CancellationToken cancellationToken) =>
             Task.CompletedTask;
 
