@@ -13,7 +13,7 @@ internal static class LeasePaymentScheduleEndpoints
                 GetByContractAsync)
             .WithName("GetLeasePaymentSchedules")
             .WithTags("LeaseAccounting")
-            .RequireAuthorization()
+            .RequireAuthorization("Permission:Leases.Read")
             .Produces<IReadOnlyList<LeasePaymentScheduleResult>>()
             .ProducesProblem(StatusCodes.Status404NotFound);
 
@@ -22,7 +22,7 @@ internal static class LeasePaymentScheduleEndpoints
                 CreateAsync)
             .WithName("CreateLeasePaymentSchedule")
             .WithTags("LeaseAccounting")
-            .RequireAuthorization()
+            .RequireAuthorization("Permission:Leases.Manage")
             .Produces<LeasePaymentScheduleResult>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -33,7 +33,7 @@ internal static class LeasePaymentScheduleEndpoints
                 FinalizeAsync)
             .WithName("FinalizeLeasePaymentSchedule")
             .WithTags("LeaseAccounting")
-            .RequireAuthorization()
+            .RequireAuthorization("Permission:Leases.Manage")
             .Produces<LeasePaymentScheduleResult>()
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
