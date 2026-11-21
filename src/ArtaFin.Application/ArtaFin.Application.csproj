@@ -3,6 +3,8 @@
     <RootNamespace>ArtaFin.Application</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="MediatR" Version="12.4.1" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.14" />
     <ProjectReference Include="../ArtaFin.Domain/ArtaFin.Domain.csproj" />
   </ItemGroup>
 </Project>

@@ -8,15 +8,16 @@ A production-minded personal and household finance platform inspired by common p
 
 - Start with a **Modular Monolith**; do not introduce microservices before operational or scaling needs justify them.
 - Apply **DDD** to model financial invariants and bounded contexts.
-- Use **CQRS** for clear write workflows and purpose-built read projections; separate databases are not required.
+- Use **CQRS** for clear use cases and purpose-built read projections; separate databases are not required.
 - Keep money movement and ledger posting atomic within a well-defined transaction boundary.
-- Use immutable posted journal entries; correct posted financial activity with reversal/correction entries.
+- Use ASP.NET Core Identity for local user accounts and JWT Bearer for API authentication.
 - Enforce book-level authorization and tenant isolation in every data access path.
 
 ## Proposed stack
 
-- .NET 10 LTS (recommended for new production deployments); .NET 9 only if explicitly required.
-- ASP.NET Core Web API
+- .NET 10 LTS
+- ASP.NET Core Web API and Identity
+- JWT Bearer authentication
 - Entity Framework Core
 - SQL Server
 - xUnit, integration and architecture tests
@@ -44,11 +45,65 @@ These are logical module boundaries, not a commitment to one deployable service 
 - Every resource is scoped to an authorized financial book.
 - Derived balances can be reconciled and rebuilt from the authoritative ledger.
 
+## Authentication configuration
+
+The API uses ASP.NET Core Identity for account storage and JWT Bearer for access tokens. The API deliberately does not contain a default signing key or credentials.
+
+For local development, initialize User Secrets and set the JWT settings (use a randomly generated signing key of at least 32 UTF-8 bytes):
+
+```powershell
+dotnet user-secrets init --project src/ArtaFin.Api
+dotnet user-secrets set "Authentication:Jwt:Issuer" "ArtaFin" --project src/ArtaFin.Api
+dotnet user-secrets set "Authentication:Jwt:Audience" "ArtaFin.Api" --project src/ArtaFin.Api
+dotnet user-secrets set "Authentication:Jwt:SigningKey" "<random-secret-at-least-32-bytes>" --project src/ArtaFin.Api
+```
+
+Configure the SQL Server connection string locally through User Secrets as well:
+
+```powershell
+dotnet user-secrets set "ConnectionStrings:ArtaFin" "<your-sql-server-connection-string>" --project src/ArtaFin.Api
+```
+
+On the Windows Server VM, provide these values through the hosting service's protected environment configuration or a dedicated secret store; do not put them in appsettings files or source control. ASP.NET Core environment variable names use double underscores, for example `Authentication__Jwt__SigningKey`, `Authentication__Jwt__Issuer`, `Authentication__Jwt__Audience`, and `ConnectionStrings__ArtaFin`.
+
+The API fails at startup if issuer, audience, or a sufficiently long signing key is missing. Access tokens are limited to 5–60 minutes (15 minutes by default). Rotate signing keys using a planned key rollover; replacing the key immediately invalidates existing tokens.
+
+### Identity database migration
+
+The Identity tables are mapped into `ArtaFinDbContext`, alongside the finance tables. Generate and review a migration before running the application against a database:
+
+```powershell
+dotnet ef migrations add AddIdentitySchema --project src/ArtaFin.Infrastructure --startup-project src/ArtaFin.Api --context ArtaFinDbContext --output-dir Persistence/Migrations
+dotnet ef database update --project src/ArtaFin.Infrastructure --startup-project src/ArtaFin.Api --context ArtaFinDbContext
+```
+
+For production, generate an idempotent SQL script, review it, back it up, and apply it during a controlled deployment rather than automatically migrating on API startup:
+
+```powershell
+dotnet ef migrations script --idempotent --project src/ArtaFin.Infrastructure --startup-project src/ArtaFin.Api --context ArtaFinDbContext --output .\\artifacts\\AddIdentitySchema.sql
+```
+
+### Authentication endpoints
+
+- `POST /api/auth/register` — create a local Identity user and return a short-lived bearer token.
+- `POST /api/auth/login` — verify credentials (with Identity lockout protection) and return a bearer token.
+- `POST /api/financial-books/{financialBookId}/accounts` — requires a valid bearer token; the user ID is taken only from the authenticated token's subject claim.
+
+Example registration/login body:
+
+```json
+{
+  "email": "user@example.com",
+  "password": "Use-A-Strong-Password-123!"
+}
+```
+
 ## Repository roadmap
 
 - [ ] Architecture Decision Records (ADRs)
 - [ ] Solution and module skeleton
-- [ ] FinancialBook ownership and authorization model
+- [x] FinancialBook ownership and authorization model
+- [x] Identity & JWT authentication foundation
 - [ ] Ledger domain and posting invariants
 - [ ] EF Core mappings and migrations
 - [ ] First vertical slice: create an expense
@@ -57,6 +112,18 @@ These are logical module boundaries, not a commitment to one deployable service 
 - [ ] Contacts, debts, installments
 - [ ] Budgets and reports
 - [ ] CI, security checks, observability and deployment docs
+
+## API behavior
+
+- [Idempotent financial write requests](docs/operations/idempotency.md) — retry-safe expense, income, and transfer creation with `Idempotency-Key`.
+- [Trial balance report](docs/operations/trial-balance.md) — as-of debit and credit balances derived from posted journal lines.
+- [Income statement report](docs/operations/income-statement.md) — period revenue, expenses and net profit derived from posted journal lines.
+- [Balance sheet report](docs/operations/balance-sheet.md) — as-of assets, liabilities and equity including unclosed net income.
+- [Account ledger report](docs/operations/account-ledger.md) — paged account activity with opening and running balances.
+- [Cash flow account classification](docs/operations/cash-flow-account-classification.md) — identify cash and qualifying cash equivalents with IAS 7 eligibility safeguards.
+- [Cash-flow allocation design](docs/accounting/ADR-0007-cash-flow-allocation.md) — auditable, versioned line-level allocations for IAS 7 cash-flow reporting.
+- [Cash-flow allocation API](docs/operations/cash-flow-allocations.md) — Draft, Finalize, and versioned correction workflow for cash journal lines.\n- [Cash-flow statement report](docs/operations/cash-flow-statement.md) — IAS 7 direct-method receipts, payments, reconciliation, and classification exceptions.
+- [Non-cash investing and financing disclosures](docs/operations/cash-flow-non-cash-disclosures.md)
 
 ## Development principles
 
@@ -69,4 +136,4 @@ These are logical module boundaries, not a commitment to one deployable service 
 
 ## Status
 
-Project initialized. Domain implementation and schema are the next milestones.
+Identity and JWT authentication plumbing has been added. The Identity schema migration must be generated and reviewed before the API can be used with a database.

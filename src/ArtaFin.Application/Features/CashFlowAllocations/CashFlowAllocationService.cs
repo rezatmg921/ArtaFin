@@ -1,0 +1,467 @@
+using ArtaFin.Application.Abstractions.Persistence;
+using ArtaFin.Application.Abstractions.Security;
+using ArtaFin.Application.Features.JournalEntries.CreateJournalEntry;
+using ArtaFin.Domain.Common;
+using ArtaFin.Domain.Finance;
+
+namespace ArtaFin.Application.Features.CashFlowAllocations;
+
+public sealed class CashFlowAllocationService(
+    ICurrentUser currentUser,
+    IFinancialBookRepository financialBookRepository,
+    ICashFlowAllocationRepository allocationRepository,
+    IUnitOfWork unitOfWork,
+    TimeProvider timeProvider)
+{
+    public async Task<CashFlowAllocationSetResult> CreateDraftAsync(
+        Guid financialBookId,
+        Guid journalEntryId,
+        int lineNumber,
+        CancellationToken cancellationToken)
+    {
+        await EnsureCanManageAsync(financialBookId, cancellationToken);
+        CashFlowAllocationSet? created = null;
+
+        await unitOfWork.ExecuteInTransactionAsync(async token =>
+        {
+            await allocationRepository.LockSourceEntryAsync(
+                financialBookId, journalEntryId, token);
+
+            var source = await allocationRepository.GetSourceLineAsync(
+                financialBookId, journalEntryId, lineNumber, token);
+
+            if (source is null)
+                throw new CashFlowSourceLineNotFoundException();
+
+            if (source.AccountType != AccountType.Asset ||
+                source.CashFlowAccountType is not CashFlowAccountType.Cash and not CashFlowAccountType.CashEquivalent)
+                throw new CashFlowSourceLineInvalidException(
+                    "The source journal line must belong to an account classified as Cash or CashEquivalent.");
+
+            if (await allocationRepository.GetDraftForSourceAsync(
+                    journalEntryId, lineNumber, token) is not null)
+                throw new CashFlowAllocationDraftAlreadyExistsException();
+
+            var version = await allocationRepository.GetNextVersionAsync(
+                journalEntryId, lineNumber, token);
+
+            if (version != 1)
+                throw new CashFlowAllocationRevisionConflictException();
+
+            created = CashFlowAllocationSet.Create(
+                Guid.NewGuid(),
+                financialBookId,
+                journalEntryId,
+                lineNumber,
+                source.Amount,
+                source.Currency,
+                currentUser.UserId,
+                timeProvider.GetUtcNow());
+
+            await allocationRepository.AddAsync(created, token);
+            await allocationRepository.SaveChangesAsync(token);
+        }, cancellationToken);
+
+        return ToResult(created!);
+    }
+
+    public async Task<CashFlowAllocationSetResult> GetAsync(
+        Guid financialBookId,
+        Guid allocationSetId,
+        CancellationToken cancellationToken)
+    {
+        await EnsureCanManageAsync(financialBookId, cancellationToken);
+        var set = await allocationRepository.GetByIdAsync(
+            financialBookId, allocationSetId, tracking: false, cancellationToken);
+        return set is null ? throw new CashFlowAllocationSetNotFoundException() : ToResult(set);
+    }
+
+    public async Task<IReadOnlyList<CashFlowAllocationSetResult>> GetHistoryAsync(
+        Guid financialBookId,
+        Guid journalEntryId,
+        int lineNumber,
+        CancellationToken cancellationToken)
+    {
+        await EnsureCanManageAsync(financialBookId, cancellationToken);
+
+        if (lineNumber <= 0)
+            throw new ArgumentOutOfRangeException(nameof(lineNumber));
+
+        var source = await allocationRepository.GetSourceLineAsync(
+            financialBookId, journalEntryId, lineNumber, cancellationToken);
+        if (source is null)
+            throw new CashFlowSourceLineNotFoundException();
+
+        var versions = await allocationRepository.GetBySourceAsync(
+            financialBookId, journalEntryId, lineNumber, cancellationToken);
+
+        return versions.Select(ToResult).ToArray();
+    }
+
+    public async Task<CashFlowAllocationSetResult> AddAllocationAsync(
+        Guid financialBookId,
+        Guid allocationSetId,
+        AddCashFlowAllocationInput input,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        await EnsureCanManageAsync(financialBookId, cancellationToken);
+        var sourceSnapshot = await allocationRepository.GetByIdAsync(
+            financialBookId, allocationSetId, tracking: false, cancellationToken)
+            ?? throw new CashFlowAllocationSetNotFoundException();
+        CashFlowAllocationSet? updated = null;
+
+        await unitOfWork.ExecuteInTransactionAsync(async token =>
+        {
+            // Read the immutable source-entry identity before the transaction, then
+            // acquire the source-entry lock before taking any allocation-set lock.
+            // A Serializable read of the set inside the transaction here would
+            // retain a shared lock and can deadlock concurrent writers upgrading it.
+            await allocationRepository.LockSourceEntryAsync(
+                financialBookId, sourceSnapshot.SourceJournalEntryId, token);
+            await allocationRepository.LockAllocationSetAsync(
+                financialBookId, allocationSetId, token);
+
+            var set = await allocationRepository.GetByIdAsync(
+                financialBookId, allocationSetId, tracking: true, token)
+                ?? throw new CashFlowAllocationSetNotFoundException();
+
+            if (set.Status != CashFlowAllocationSetStatus.Draft)
+                throw new CashFlowAllocationStateConflictException();
+
+            var source = await allocationRepository.GetSourceLineAsync(
+                financialBookId, set.SourceJournalEntryId, set.SourceLineNumber, token);
+            var counterpart = await allocationRepository.GetSourceLineAsync(
+                financialBookId, set.SourceJournalEntryId, input.CounterpartLineNumber, token);
+
+            if (source is null ||
+                source.AccountType != AccountType.Asset ||
+                source.CashFlowAccountType is not CashFlowAccountType.Cash and not CashFlowAccountType.CashEquivalent)
+                throw new CashFlowSourceLineInvalidException(
+                    "The source journal line must still belong to an account classified as Cash or CashEquivalent.");
+
+            if (counterpart is null || source.Side == counterpart.Side)
+                throw new CashFlowSourceLineInvalidException(
+                    "The counterpart must be a different, existing journal line on the opposite posting side.");
+
+            if (counterpart.CashFlowAccountType is CashFlowAccountType.Cash or CashFlowAccountType.CashEquivalent)
+                throw new CashFlowSourceLineInvalidException(
+                    "Transfers between cash and cash equivalents are internal movements and must not be allocated as cash flows.");
+
+            var alreadyAllocatedToCounterpart = await allocationRepository.GetAllocatedAmountForCounterpartAsync(
+                set.SourceJournalEntryId, set.SourceLineNumber, input.CounterpartLineNumber, token);
+            if (alreadyAllocatedToCounterpart + input.Amount > counterpart.Amount)
+                throw new DomainException(
+                    "Allocations referencing a counterpart line cannot exceed that journal line amount.");
+
+            var allocation = set.AddAllocation(Guid.NewGuid(), input.Amount, input.Activity,
+                input.Category, input.CounterpartLineNumber, input.Memo);
+            allocationRepository.AddAllocation(allocation);
+            await allocationRepository.SaveChangesAsync(token);
+            updated = set;
+        }, cancellationToken);
+
+        return ToResult(updated!);
+    }
+
+    public async Task<CashFlowAllocationSetResult> RemoveAllocationAsync(
+        Guid financialBookId,
+        Guid allocationSetId,
+        Guid allocationId,
+        CancellationToken cancellationToken)
+    {
+        await EnsureCanManageAsync(financialBookId, cancellationToken);
+        var sourceSnapshot = await allocationRepository.GetByIdAsync(
+            financialBookId, allocationSetId, tracking: false, cancellationToken)
+            ?? throw new CashFlowAllocationSetNotFoundException();
+        CashFlowAllocationSet? updated = null;
+
+        await unitOfWork.ExecuteInTransactionAsync(async token =>
+        {
+            // Match the lock order used by Add/Finalize/Revision operations.
+            // The source-entry lock also serializes changes that affect the
+            // shared counterpart-line allocation capacity.
+            await allocationRepository.LockSourceEntryAsync(
+                financialBookId, sourceSnapshot.SourceJournalEntryId, token);
+            await allocationRepository.LockAllocationSetAsync(financialBookId, allocationSetId, token);
+
+            var set = await allocationRepository.GetByIdAsync(
+                financialBookId, allocationSetId, tracking: true, token)
+                ?? throw new CashFlowAllocationSetNotFoundException();
+
+            if (set.Status != CashFlowAllocationSetStatus.Draft)
+                throw new CashFlowAllocationStateConflictException();
+
+            set.RemoveAllocation(allocationId);
+            await allocationRepository.SaveChangesAsync(token);
+            updated = set;
+        }, cancellationToken);
+
+        return ToResult(updated!);
+    }
+
+    public async Task CancelDraftAsync(
+        Guid financialBookId,
+        Guid allocationSetId,
+        CancellationToken cancellationToken)
+    {
+        await EnsureCanManageAsync(financialBookId, cancellationToken);
+        var sourceSnapshot = await allocationRepository.GetByIdAsync(
+            financialBookId, allocationSetId, tracking: false, cancellationToken)
+            ?? throw new CashFlowAllocationSetNotFoundException();
+
+        await unitOfWork.ExecuteInTransactionAsync(async token =>
+        {
+            await allocationRepository.LockSourceEntryAsync(
+                financialBookId, sourceSnapshot.SourceJournalEntryId, token);
+            await allocationRepository.LockAllocationSetAsync(
+                financialBookId, allocationSetId, token);
+
+            var set = await allocationRepository.GetByIdAsync(
+                financialBookId, allocationSetId, tracking: true, token)
+                ?? throw new CashFlowAllocationSetNotFoundException();
+
+            if (set.Status != CashFlowAllocationSetStatus.Draft)
+                throw new CashFlowAllocationStateConflictException();
+
+            allocationRepository.DeleteDraft(set);
+            await allocationRepository.SaveChangesAsync(token);
+        }, cancellationToken);
+    }
+
+    public async Task<CashFlowAllocationSetResult> FinalizeAsync(
+        Guid financialBookId,
+        Guid allocationSetId,
+        CancellationToken cancellationToken)
+    {
+        await EnsureCanManageAsync(financialBookId, cancellationToken);
+        var sourceSnapshot = await allocationRepository.GetByIdAsync(
+            financialBookId, allocationSetId, tracking: false, cancellationToken)
+            ?? throw new CashFlowAllocationSetNotFoundException();
+        CashFlowAllocationSet? finalized = null;
+
+        await unitOfWork.ExecuteInTransactionAsync(async token =>
+        {
+            // Always acquire locks in source-entry then allocation-set order.
+            // This keeps revision and finalization paths from taking them in reverse order.
+            await allocationRepository.LockSourceEntryAsync(
+                financialBookId, sourceSnapshot.SourceJournalEntryId, token);
+            await allocationRepository.LockAllocationSetAsync(
+                financialBookId, allocationSetId, token);
+
+            var set = await allocationRepository.GetByIdAsync(
+                financialBookId, allocationSetId, tracking: true, token)
+                ?? throw new CashFlowAllocationSetNotFoundException();
+
+            if (set.Status != CashFlowAllocationSetStatus.Draft)
+                throw new CashFlowAllocationStateConflictException();
+
+            var source = await allocationRepository.GetSourceLineAsync(
+                financialBookId, set.SourceJournalEntryId, set.SourceLineNumber, token);
+            if (source is null ||
+                source.AccountType != AccountType.Asset ||
+                source.CashFlowAccountType is not CashFlowAccountType.Cash and not CashFlowAccountType.CashEquivalent ||
+                source.Amount != set.SourceAmount ||
+                !StringComparer.Ordinal.Equals(source.Currency, set.Currency))
+                throw new CashFlowSourceLineInvalidException(
+                    "The source journal line no longer matches the cash-flow allocation source.");
+
+            if (set.Allocations.Any(allocation => !allocation.CounterpartLineNumber.HasValue))
+                throw new CashFlowSourceLineInvalidException(
+                    "Every allocation must reference a counterpart journal line.");
+
+            foreach (var counterpartGroup in set.Allocations.GroupBy(
+                         allocation => allocation.CounterpartLineNumber!.Value))
+            {
+                var counterpart = await allocationRepository.GetSourceLineAsync(
+                    financialBookId, set.SourceJournalEntryId, counterpartGroup.Key, token);
+
+                if (counterpart is null || counterpart.Side == source.Side ||
+                    counterpart.CashFlowAccountType is CashFlowAccountType.Cash or CashFlowAccountType.CashEquivalent)
+                    throw new CashFlowSourceLineInvalidException(
+                        "Every counterpart must remain an opposite-side non-cash journal line.");
+
+                var allocatedToCounterpart = await allocationRepository.GetAllocatedAmountForCounterpartAsync(
+                    set.SourceJournalEntryId, set.SourceLineNumber, counterpartGroup.Key, token);
+
+                if (allocatedToCounterpart > counterpart.Amount)
+                    throw new DomainException(
+                        "Allocations referencing a counterpart line cannot exceed that journal line amount.");
+            }
+
+            if (set.SupersedesAllocationSetId.HasValue)
+            {
+                var previous = await allocationRepository.GetByIdAsync(
+                    financialBookId, set.SupersedesAllocationSetId.Value, tracking: true, token)
+                    ?? throw new CashFlowAllocationSetNotFoundException();
+
+                if (previous.Status != CashFlowAllocationSetStatus.Finalized)
+                    throw new CashFlowAllocationRevisionConflictException();
+
+                previous.MarkSuperseded();
+
+                // Release the filtered unique index slot before promoting the
+                // replacement. Both saves remain inside the same SQL transaction.
+                await allocationRepository.SaveChangesAsync(token);
+            }
+            else if (await allocationRepository.GetFinalizedForSourceAsync(
+                         set.SourceJournalEntryId, set.SourceLineNumber, token) is not null)
+            {
+                throw new CashFlowAllocationRevisionConflictException();
+            }
+
+            set.Finalize(currentUser.UserId, timeProvider.GetUtcNow());
+            await allocationRepository.SaveChangesAsync(token);
+            finalized = set;
+        }, cancellationToken);
+
+        return ToResult(finalized!);
+    }
+
+    public async Task<CashFlowAllocationSetResult> CreateRevisionAsync(
+        Guid financialBookId,
+        Guid allocationSetId,
+        CancellationToken cancellationToken)
+    {
+        await EnsureCanManageAsync(financialBookId, cancellationToken);
+        var originalSnapshot = await allocationRepository.GetByIdAsync(
+            financialBookId, allocationSetId, tracking: false, cancellationToken)
+            ?? throw new CashFlowAllocationSetNotFoundException();
+        CashFlowAllocationSet? created = null;
+
+        await unitOfWork.ExecuteInTransactionAsync(async token =>
+        {
+            await allocationRepository.LockSourceEntryAsync(
+                financialBookId, originalSnapshot.SourceJournalEntryId, token);
+            await allocationRepository.LockAllocationSetAsync(
+                financialBookId, allocationSetId, token);
+
+            var original = await allocationRepository.GetByIdAsync(
+                financialBookId, allocationSetId, tracking: true, token)
+                ?? throw new CashFlowAllocationSetNotFoundException();
+
+            if (original.Status != CashFlowAllocationSetStatus.Finalized)
+                throw new CashFlowAllocationRevisionConflictException();
+
+            var source = await allocationRepository.GetSourceLineAsync(
+                financialBookId, original.SourceJournalEntryId, original.SourceLineNumber, token);
+            if (source is null ||
+                source.AccountType != AccountType.Asset ||
+                source.CashFlowAccountType is not CashFlowAccountType.Cash and not CashFlowAccountType.CashEquivalent ||
+                source.Amount != original.SourceAmount ||
+                !StringComparer.Ordinal.Equals(source.Currency, original.Currency))
+                throw new CashFlowSourceLineInvalidException(
+                    "The source journal line no longer matches the cash-flow allocation source.");
+
+            if (await allocationRepository.GetDraftForSourceAsync(
+                    original.SourceJournalEntryId, original.SourceLineNumber, token) is not null)
+                throw new CashFlowAllocationDraftAlreadyExistsException();
+
+            var version = await allocationRepository.GetNextVersionAsync(
+                original.SourceJournalEntryId, original.SourceLineNumber, token);
+
+            created = CashFlowAllocationSet.Create(
+                Guid.NewGuid(),
+                financialBookId,
+                original.SourceJournalEntryId,
+                original.SourceLineNumber,
+                original.SourceAmount,
+                original.Currency,
+                currentUser.UserId,
+                timeProvider.GetUtcNow(),
+                version,
+                original.Id);
+
+            await allocationRepository.AddAsync(created, token);
+            await allocationRepository.SaveChangesAsync(token);
+        }, cancellationToken);
+
+        return ToResult(created!);
+    }
+
+    private async Task EnsureCanManageAsync(
+        Guid financialBookId,
+        CancellationToken cancellationToken)
+    {
+        if (financialBookId == Guid.Empty)
+            throw new ArgumentException("Financial book id cannot be empty.", nameof(financialBookId));
+
+        var book = await financialBookRepository.GetByIdAsync(financialBookId, cancellationToken);
+        if (book is null)
+            throw new JournalEntryAccessDeniedException();
+
+        if (book.IsOwnedBy(currentUser.UserId))
+            return;
+
+        var member = await financialBookRepository.GetMemberAsync(
+            financialBookId, currentUser.UserId, cancellationToken);
+
+        if (member is null || !member.CanPostJournalEntriesAt(timeProvider.GetUtcNow()))
+            throw new JournalEntryAccessDeniedException();
+    }
+
+    private static CashFlowAllocationSetResult ToResult(CashFlowAllocationSet set) =>
+        new(
+            set.Id,
+            set.FinancialBookId,
+            set.SourceJournalEntryId,
+            set.SourceLineNumber,
+            set.SourceAmount,
+            set.Currency,
+            set.Version,
+            set.SupersedesAllocationSetId,
+            set.Status.ToString(),
+            set.CreatedBy,
+            set.CreatedAt,
+            set.FinalizedBy,
+            set.FinalizedAt,
+            set.AllocatedAmount,
+            set.RemainingAmount,
+            set.Allocations.Select(item => new CashFlowAllocationResult(
+                item.Id,
+                item.Amount,
+                item.Activity.ToString(),
+                item.Category,
+                item.CounterpartLineNumber,
+                item.Memo)).ToArray());
+}
+
+public sealed record AddCashFlowAllocationInput(
+    decimal Amount,
+    CashFlowActivity Activity,
+    string Category,
+    int CounterpartLineNumber,
+    string? Memo);
+
+public sealed record CashFlowAllocationSetResult(
+    Guid Id,
+    Guid FinancialBookId,
+    Guid SourceJournalEntryId,
+    int SourceLineNumber,
+    decimal SourceAmount,
+    string Currency,
+    int Version,
+    Guid? SupersedesAllocationSetId,
+    string Status,
+    Guid CreatedBy,
+    DateTimeOffset CreatedAt,
+    Guid? FinalizedBy,
+    DateTimeOffset? FinalizedAt,
+    decimal AllocatedAmount,
+    decimal RemainingAmount,
+    IReadOnlyList<CashFlowAllocationResult> Allocations);
+
+public sealed record CashFlowAllocationResult(
+    Guid Id,
+    decimal Amount,
+    string Activity,
+    string Category,
+    int? CounterpartLineNumber,
+    string? Memo);
+
+public sealed class CashFlowSourceLineNotFoundException : Exception { }
+public sealed class CashFlowSourceLineInvalidException(string message) : Exception(message);
+public sealed class CashFlowAllocationSetNotFoundException : Exception { }
+public sealed class CashFlowAllocationDraftAlreadyExistsException : Exception { }
+public sealed class CashFlowAllocationRevisionConflictException : Exception { }
+public sealed class CashFlowAllocationStateConflictException : Exception { }
