@@ -96,6 +96,7 @@ public sealed class InitialDataSeeder(
                     "An administrator is already configured. The bootstrap email does not match that administrator; refusing to create or promote another account.");
             }
 
+            await SynchronizePermissionsAsync(administratorRole, userRole, now, cancellationToken);
             await dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             return;
@@ -124,8 +125,81 @@ public sealed class InitialDataSeeder(
         await dbContext.UserCredentials.AddAsync(credential, cancellationToken);
         await dbContext.UserRoles.AddAsync(assignment, cancellationToken);
 
+        await SynchronizePermissionsAsync(administratorRole, userRole, now, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
+    }
+
+
+    private async Task SynchronizePermissionsAsync(
+        AppRole administratorRole,
+        AppRole userRole,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var definitions = PermissionCatalog.All;
+        var codes = definitions.Select(definition => definition.Code).ToArray();
+        var existingPermissions = await dbContext.Permissions
+            .Where(permission => codes.Contains(permission.Code))
+            .ToDictionaryAsync(permission => permission.Code, cancellationToken);
+
+        foreach (var definition in definitions)
+        {
+            if (existingPermissions.ContainsKey(definition.Code))
+                continue;
+
+            var permission = AppPermission.Create(
+                Guid.NewGuid(),
+                definition.Code,
+                definition.Name,
+                definition.Description,
+                now);
+            await dbContext.Permissions.AddAsync(permission, cancellationToken);
+            existingPermissions.Add(definition.Code, permission);
+        }
+
+        var permissionIds = existingPermissions.Values
+            .Select(permission => permission.Id)
+            .ToArray();
+        var existingGrants = await dbContext.RolePermissions
+            .Where(grant =>
+                (grant.RoleId == administratorRole.Id || grant.RoleId == userRole.Id) &&
+                permissionIds.Contains(grant.PermissionId))
+            .Select(grant => new { grant.RoleId, grant.PermissionId })
+            .ToListAsync(cancellationToken);
+
+        var existingGrantKeys = existingGrants
+            .Select(grant => (grant.RoleId, grant.PermissionId))
+            .ToHashSet();
+
+        var baselineUserPermissions = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "FinancialBooks.Read",
+            "Accounts.Read",
+            "Transactions.Read",
+            "Leases.Read",
+            "Reports.Read"
+        };
+
+        foreach (var permission in existingPermissions.Values)
+        {
+            if (existingGrantKeys.Add((administratorRole.Id, permission.Id)))
+            {
+                await dbContext.RolePermissions.AddAsync(
+                    RolePermission.Assign(
+                        Guid.NewGuid(), administratorRole.Id, permission.Id, now),
+                    cancellationToken);
+            }
+
+            if (baselineUserPermissions.Contains(permission.Code) &&
+                existingGrantKeys.Add((userRole.Id, permission.Id)))
+            {
+                await dbContext.RolePermissions.AddAsync(
+                    RolePermission.Assign(
+                        Guid.NewGuid(), userRole.Id, permission.Id, now),
+                    cancellationToken);
+            }
+        }
     }
 
     private static void ValidateAdministratorCredentials(string email, string password)
