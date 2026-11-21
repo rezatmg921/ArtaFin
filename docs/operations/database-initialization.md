@@ -2,28 +2,61 @@
 
 This procedure prepares a new ArtaFin database without deleting or recreating an existing database.
 
+## One connection-string contract
+
+The entire solution uses exactly one configuration key:
+
+- .NET configuration key: `ConnectionStrings:ArtaFin`
+- Environment-variable equivalent: `ConnectionStrings__ArtaFin`
+
+Both the API runtime and EF Core Design-Time factory read this key through `IConfiguration.GetConnectionString("ArtaFin")`. The Design-Time factory loads the API configuration sources in the same order: `appsettings.json`, environment-specific appsettings, Development User Secrets, environment variables, then command-line arguments.
+
+Configuration precedence (later sources override earlier ones):
+
+1. `src/ArtaFin.Api/appsettings.json` — non-secret defaults only.
+2. `src/ArtaFin.Api/appsettings.{Environment}.json` — environment-specific, non-secret settings.
+3. User Secrets — Development only.
+4. Environment variable `ConnectionStrings__ArtaFin` — deployment/CI override.
+5. Command-line configuration arguments — when explicitly supplied to the EF tooling process.
+
+Do not use `ARTAFIN_SQLSERVER`, a separate Factory connection string, or any hard-coded server/database fallback. If the key is missing, both runtime and EF tooling fail with an explicit configuration error instead of silently targeting another database.
+
 ## Prerequisites
 
 - SQL Server database and a deployment identity with permission to apply the reviewed migrations.
 - .NET 10 SDK and the repository's restored local tools.
-- Environment variables configured outside source control:
-  - `ConnectionStrings__ArtaFin`: target SQL Server connection string.
-  - `BootstrapAdmin__Email`: email for the first system administrator.
-  - `BootstrapAdmin__Password`: strong initial password (at least 12 characters, with uppercase, lowercase, a digit, and a symbol).
+- Configure `ConnectionStrings:ArtaFin` using one of the supported sources above.
+- Configure `BootstrapAdmin__Email` and `BootstrapAdmin__Password` outside source control for first-time seeding.
 
-Do not place passwords or production connection strings in appsettings files, scripts, or Git.
+Do not place passwords or production connection strings in Git or committed appsettings files.
+
+## Development setup (PowerShell)
+
+For local development, store the connection string as an API User Secret (one-time setup):
+
+```powershell
+dotnet user-secrets set "ConnectionStrings:ArtaFin" "<your-local-connection-string>" --project .\src\ArtaFin.Api
+```
+
+The API and `Update-Database` both load this same User Secret when the environment is Development.
+
+For deployment, configure the single environment variable instead:
+
+```powershell
+$env:ConnectionStrings__ArtaFin = "<deployment-connection-string>"
+```
+
+Do not set the legacy `ARTAFIN_SQLSERVER` variable. Remove any old value from User/Machine environment variables and restart Visual Studio/terminal after changing persistent environment variables.
 
 ## Initialize a new database (PowerShell)
 
-Run from the repository root after configuring the three environment variables above:
+Run from the repository root after configuring the connection string and bootstrap administrator settings:
 
 ```powershell
 .\scripts\Initialize-ArtaFin.ps1
 ```
 
 The script restores the repository's local .NET tools, applies the checked-in EF Core migration chain, and invokes the API's one-shot seed command. The seed command creates the built-in `Administrator` and `User` roles and the configured first administrator, including a PBKDF2 password hash. It does not store or log the plaintext password.
-
-The administrator role assignment is persisted in the database. The current JWT implementation does not yet emit role claims or enforce role-based authorization policies; this seed step prepares the role records but does not itself add admin-only API permissions.
 
 ## Safe reruns and safeguards
 
