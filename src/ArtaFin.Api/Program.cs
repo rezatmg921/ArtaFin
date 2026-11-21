@@ -146,6 +146,8 @@ builder.Services
         };
     });
 
+builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
+builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("AdministratorOnly", policy =>
