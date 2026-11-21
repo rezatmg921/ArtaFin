@@ -11,7 +11,7 @@ internal static class FinancialBookEndpoints
         endpoints.MapPost("/api/financial-books", CreateAsync)
             .WithName("CreateFinancialBook")
             .WithTags("FinancialBooks")
-            .RequireAuthorization()
+            .RequireAuthorization("Permission:FinancialBooks.Create")
             .Produces<CreateFinancialBookResponse>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
             .Produces(StatusCodes.Status401Unauthorized);
