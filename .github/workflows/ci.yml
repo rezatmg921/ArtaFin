@@ -45,7 +45,7 @@ jobs:
       - name: Generate idempotent SQL migration script
         run: |
           mkdir -p artifacts
-          dotnet ef migrations script --idempotent --project src/ArtaFin.Infrastructure/ArtaFin.Infrastructure.csproj --startup-project src/ArtaFin.Infrastructure/ArtaFin.Infrastructure.csproj --configuration Release --output artifacts/ArtaFin.sql
+          dotnet ef migrations script --idempotent --project src/ArtaFin.Infrastructure/ArtaFin.Infrastructure.csproj --startup-project src/ArtaFin.Api/ArtaFin.Api.csproj --configuration Release --output artifacts/ArtaFin.sql
       - name: Unit tests
         run: dotnet test tests/ArtaFin.UnitTests/ArtaFin.UnitTests.csproj --no-build --configuration Release --logger "trx;LogFileName=unit-tests.trx"
       - name: Infrastructure integration tests
