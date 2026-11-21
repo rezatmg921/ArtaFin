@@ -57,6 +57,7 @@ public sealed class FinancialBookApiTests
         Assert.Equal(userId, factory.Writer.AddedBook!.OwnerId);
         Assert.Equal("EUR", factory.Writer.AddedBook.BaseCurrency.Code);
         Assert.Equal(1, factory.UnitOfWork.SaveChangesCalls);
+        Assert.NotEmpty(factory.Accounts.AddedAccounts);
     }
 
     [Fact]
@@ -75,6 +76,7 @@ public sealed class FinancialBookApiTests
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Null(factory.Writer.AddedBook);
         Assert.Equal(0, factory.UnitOfWork.SaveChangesCalls);
+        Assert.Empty(factory.Accounts.AddedAccounts);
     }
 
     private static string CreateAccessToken(FinancialBookApiFactory factory, Guid userId) =>
@@ -84,6 +86,7 @@ public sealed class FinancialBookApiTests
     private sealed class FinancialBookApiFactory : WebApplicationFactory<Program>
     {
         public FakeFinancialBookWriter Writer { get; } = new();
+        public FakeAccountRepository Accounts { get; } = new();
         public FakeUnitOfWork UnitOfWork { get; } = new();
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -104,8 +107,10 @@ public sealed class FinancialBookApiTests
             builder.ConfigureTestServices(services =>
             {
                 services.RemoveAll<IFinancialBookWriter>();
+                services.RemoveAll<IAccountRepository>();
                 services.RemoveAll<IUnitOfWork>();
                 services.AddSingleton<IFinancialBookWriter>(Writer);
+                services.AddSingleton<IAccountRepository>(Accounts);
                 services.AddSingleton<IUnitOfWork>(UnitOfWork);
             });
         }
@@ -118,6 +123,49 @@ public sealed class FinancialBookApiTests
         public Task AddAsync(FinancialBook financialBook, CancellationToken cancellationToken)
         {
             AddedBook = financialBook;
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FakeAccountRepository : IAccountRepository
+    {
+        public List<Account> AddedAccounts { get; } = [];
+
+        public Task<Account?> GetByIdAsync(
+            Guid financialBookId,
+            Guid accountId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<Account?>(null);
+
+        public Task<AccountReadSnapshot?> GetReadSnapshotByIdAsync(
+            Guid financialBookId,
+            Guid accountId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<AccountReadSnapshot?>(null);
+
+        public Task<AccountReadSnapshot?> GetForUpdateAsync(
+            Guid financialBookId,
+            Guid accountId,
+            byte[]? expectedRowVersion,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<AccountReadSnapshot?>(null);
+
+        public Task<bool> ExistsByCodeAsync(
+            Guid financialBookId,
+            string normalizedCode,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(AddedAccounts.Any(account =>
+                account.FinancialBookId == financialBookId &&
+                string.Equals(account.Code, normalizedCode, StringComparison.Ordinal)));
+
+        public Task<bool> DeleteIfUnusedAsync(
+            Account account,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(true);
+
+        public Task AddAsync(Account account, CancellationToken cancellationToken)
+        {
+            AddedAccounts.Add(account);
             return Task.CompletedTask;
         }
     }
