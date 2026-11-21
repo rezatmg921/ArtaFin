@@ -10,7 +10,8 @@ internal sealed class JwtTokenService(JwtOptions options) : IAccessTokenGenerato
 {
     public (string Token, DateTime ExpiresAtUtc) CreateToken(
         Guid userId,
-        string email)
+        string email,
+        IReadOnlyCollection<string> roles)
     {
         var now = DateTime.UtcNow;
         var expires = now.AddMinutes(options.AccessTokenMinutes);
@@ -19,7 +20,11 @@ internal sealed class JwtTokenService(JwtOptions options) : IAccessTokenGenerato
             new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
             new Claim(JwtRegisteredClaimNames.Email, email),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-        };
+        }.Concat(roles
+            .Where(role => !string.IsNullOrWhiteSpace(role))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Select(role => new Claim("role", role)))
+         .ToArray();
 
         var credentials = new SigningCredentials(
             new SymmetricSecurityKey(Encoding.UTF8.GetBytes(options.SigningKey)),
