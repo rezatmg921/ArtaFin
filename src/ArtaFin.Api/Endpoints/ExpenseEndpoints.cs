@@ -15,7 +15,7 @@ internal static class ExpenseEndpoints
                 CreateAsync)
             .WithName("CreateExpense")
             .WithTags("Expenses")
-            .RequireAuthorization()
+            .RequireAuthorization("Permission:Transactions.Create")
             .Produces<CreateExpenseResponse>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
             .Produces(StatusCodes.Status401Unauthorized)
