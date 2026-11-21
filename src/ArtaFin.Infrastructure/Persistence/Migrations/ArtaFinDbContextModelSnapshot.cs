@@ -639,6 +639,66 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("ArtaFin.Domain.Security.AppPermission", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(150)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Permissions_Code");
+
+                    b.ToTable("Permissions", (string)null);
+                });
+
+            modelBuilder.Entity("ArtaFin.Domain.Security.RolePermission", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("AssignedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<Guid>("PermissionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("RoleId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PermissionId")
+                        .HasDatabaseName("IX_RolePermissions_PermissionId");
+
+                    b.HasIndex("RoleId", "PermissionId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_RolePermissions_RoleId_PermissionId");
+
+                    b.ToTable("RolePermissions", (string)null);
+                });
+
             modelBuilder.Entity("ArtaFin.Domain.Security.AppRole", b =>
                 {
                     b.Property<Guid>("Id")
@@ -752,6 +812,21 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                         {
                             t.HasCheckConstraint("CK_UserCredentials_FailedLoginCount_NonNegative", "[FailedLoginCount] >= 0");
                         });
+                });
+
+            modelBuilder.Entity("ArtaFin.Domain.Security.RolePermission", b =>
+                {
+                    b.HasOne("ArtaFin.Domain.Security.AppPermission", null)
+                        .WithMany()
+                        .HasForeignKey("PermissionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ArtaFin.Domain.Security.AppRole", null)
+                        .WithMany()
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("ArtaFin.Domain.Security.UserRole", b =>
