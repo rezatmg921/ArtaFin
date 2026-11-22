@@ -12,6 +12,7 @@ using ArtaFin.Application.Features.Income.CreateIncome;
 using ArtaFin.Application.Features.Idempotency;
 using ArtaFin.Application.Features.Transfers.CreateTransfer;
 using ArtaFin.Application.Features.RoleManagement;
+using ArtaFin.Application.Features.UserManagement;
 using ArtaFin.Application.Features.FinancialBooks.ManageMember;
 using ArtaFin.Application.Features.JournalEntries.CreateJournalEntry;
 using ArtaFin.Application.Features.JournalEntries.ReverseJournalEntry;
@@ -32,6 +33,12 @@ internal sealed class ApiExceptionHandler(
     {
         var (status, title, detail) = exception switch
         {
+            ManagedUserNotFoundException =>
+                (StatusCodes.Status404NotFound, "User not found", "The requested user does not exist."),
+            LastAdministratorException =>
+                (StatusCodes.Status409Conflict, "Last administrator protected", exception.Message),
+            UnknownRoleIdsException or InvalidRoleAssignmentException =>
+                (StatusCodes.Status400BadRequest, "Invalid user role assignment", exception.Message),
             InvalidRoleDetailsException or InvalidPermissionSelectionException =>
                 (StatusCodes.Status400BadRequest, "Invalid role request", exception.Message),
             RoleNotFoundException =>

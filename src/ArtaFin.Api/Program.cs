@@ -17,8 +17,6 @@ using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Bind and validate JWT settings through DI so host-specific configuration
-// providers (including WebApplicationFactory overrides) are applied before validation.
 builder.Services.AddOptions<JwtOptions>()
     .BindConfiguration(JwtOptions.SectionName)
     .Validate(options =>
@@ -83,8 +81,6 @@ builder.Services.AddOpenApi(options =>
             });
         }
 
-        // Identify these operations by their stable endpoint names rather than
-        // matching ApiDescription.RelativePath, which can vary with route formatting.
         var endpointName = context.Description.ActionDescriptor.EndpointMetadata
             .OfType<IEndpointNameMetadata>()
             .Select(metadata => metadata.EndpointName)
@@ -158,8 +154,6 @@ builder.Services.AddInfrastructure(builder.Configuration);
 
 var app = builder.Build();
 
-// Explicit one-shot command for first-time database initialization.
-// Schema migrations remain a separate, deployment-controlled operation.
 if (args.Any(argument =>
         string.Equals(argument, "--seed-initial-data", StringComparison.OrdinalIgnoreCase)))
 {
@@ -203,6 +197,7 @@ app.MapGet("/health", () => Results.Ok(new
 
 app.MapAuthenticationEndpoints();
 app.MapRoleManagementEndpoints();
+app.MapUserManagementEndpoints();
 app.MapFinancialBookEndpoints();
 app.MapAccountEndpoints();
 app.MapAccountListEndpoints();

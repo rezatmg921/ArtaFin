@@ -16,14 +16,10 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // Integration hosts may build a bare ServiceCollection; retain the
-        // supplied configuration as a fallback without overriding host config.
         services.TryAddSingleton<IConfiguration>(configuration);
 
         services.AddDbContext<ArtaFinDbContext>((provider, options) =>
         {
-            // Resolve configuration when the DbContext is created, not while
-            // services are registered, so host-specific providers can override it.
             var connectionString = provider.GetRequiredService<IConfiguration>()
                 .GetConnectionString("ArtaFin");
             if (string.IsNullOrWhiteSpace(connectionString))
@@ -59,6 +55,7 @@ public static class DependencyInjection
         services.AddScoped<ICashFlowStatementReadRepository, CashFlowStatementReadRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IRoleManagementRepository, RoleManagementRepository>();
+        services.AddScoped<IUserManagementRepository, UserManagementRepository>();
         services.AddScoped<IUserSessionRepository, UserSessionRepository>();
         services.AddScoped<IFinancialBookRepository, FinancialBookRepository>();
         services.AddScoped<IFinancialBookWriter, FinancialBookRepository>();
