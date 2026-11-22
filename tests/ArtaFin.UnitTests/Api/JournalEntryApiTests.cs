@@ -337,6 +337,7 @@ public sealed class JournalEntryApiTests
 
             builder.ConfigureTestServices(services =>
             {
+                services.UseTestPermissionAuthorization();
                 services.RemoveAll<IFinancialBookRepository>();
                 services.RemoveAll<IAccountRepository>();
                 services.RemoveAll<IJournalEntryRepository>();

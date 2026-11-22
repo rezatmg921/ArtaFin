@@ -152,6 +152,7 @@ public sealed class FinancialBookMemberApiTests
 
             builder.ConfigureTestServices(services =>
             {
+                services.UseTestPermissionAuthorization();
                 services.RemoveAll<IFinancialBookRepository>();
                 services.RemoveAll<IUnitOfWork>();
                 services.AddSingleton<IFinancialBookRepository>(Repository);

@@ -113,6 +113,7 @@ public sealed class IncomeStatementApiTests
 
             builder.ConfigureTestServices(services =>
             {
+                services.UseTestPermissionAuthorization();
                 services.RemoveAll<IFinancialBookRepository>();
                 services.RemoveAll<IIncomeStatementReadRepository>();
                 services.AddSingleton<IFinancialBookRepository>(new FakeBookRepository(book));

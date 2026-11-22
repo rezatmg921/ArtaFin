@@ -106,6 +106,7 @@ public sealed class FinancialBookApiTests
 
             builder.ConfigureTestServices(services =>
             {
+                services.UseTestPermissionAuthorization();
                 services.RemoveAll<IFinancialBookWriter>();
                 services.RemoveAll<IAccountRepository>();
                 services.RemoveAll<IUnitOfWork>();
