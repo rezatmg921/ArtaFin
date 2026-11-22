@@ -94,6 +94,7 @@ internal sealed class UserManagementRepository(ArtaFinDbContext dbContext)
             .Where(assignment => assignment.UserId == userId)
             .ToListAsync(cancellationToken);
         dbContext.UserRoles.RemoveRange(existingAssignments);
+        await dbContext.SaveChangesAsync(cancellationToken);
 
         foreach (var role in roles)
         {

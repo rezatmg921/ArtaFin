@@ -10,7 +10,7 @@ internal static class UserManagementEndpoints
         var group = endpoints.MapGroup("/api/admin/users")
             .WithTags("System User Management");
 
-        group.MapGet("/", async (
+        group.MapGet("", async (
                 UserManagementService service,
                 CancellationToken cancellationToken) =>
                 Results.Ok(await service.GetUsersAsync(cancellationToken)))

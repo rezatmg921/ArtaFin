@@ -142,6 +142,7 @@ internal sealed class RoleManagementRepository(ArtaFinDbContext dbContext)
             .Where(grant => grant.RoleId == roleId)
             .ToListAsync(cancellationToken);
         dbContext.RolePermissions.RemoveRange(existingGrants);
+        await dbContext.SaveChangesAsync(cancellationToken);
 
         foreach (var permission in permissions)
         {
