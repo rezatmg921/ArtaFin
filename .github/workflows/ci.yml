@@ -28,6 +28,7 @@ jobs:
           --health-retries 20
     env:
       ConnectionStrings__ArtaFin: "Server=localhost,1433;Initial Catalog=master;User ID=sa;Password=ArtaFin_CI_Strong!2026;Encrypt=True;TrustServerCertificate=True;Connect Timeout=30;"
+      ARTAFIN_TEST_SQLSERVER: "Server=localhost,1433;Initial Catalog=master;User ID=sa;Password=ArtaFin_CI_Strong!2026;Encrypt=True;TrustServerCertificate=True;Connect Timeout=30;"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -51,7 +52,7 @@ jobs:
       - name: Infrastructure integration tests
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         env:
-          ConnectionStrings__ArtaFin: ${{ env.ConnectionStrings__ArtaFin }}
+          ARTAFIN_TEST_SQLSERVER: ${{ env.ARTAFIN_TEST_SQLSERVER }}
         run: dotnet test tests/ArtaFin.Infrastructure.IntegrationTests/ArtaFin.Infrastructure.IntegrationTests.csproj --no-build --configuration Release --logger "trx;LogFileName=infrastructure-integration-tests.trx"
       - name: Upload SQL migration script
         uses: actions/upload-artifact@v4
