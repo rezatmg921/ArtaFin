@@ -11,6 +11,7 @@ using ArtaFin.Application.Features.Expenses.CreateExpense;
 using ArtaFin.Application.Features.Income.CreateIncome;
 using ArtaFin.Application.Features.Idempotency;
 using ArtaFin.Application.Features.Transfers.CreateTransfer;
+using ArtaFin.Application.Features.RoleManagement;
 using ArtaFin.Application.Features.FinancialBooks.ManageMember;
 using ArtaFin.Application.Features.JournalEntries.CreateJournalEntry;
 using ArtaFin.Application.Features.JournalEntries.ReverseJournalEntry;
@@ -31,6 +32,14 @@ internal sealed class ApiExceptionHandler(
     {
         var (status, title, detail) = exception switch
         {
+            RoleNotFoundException =>
+                (StatusCodes.Status404NotFound, "Role not found", "The requested role does not exist."),
+            RoleNameAlreadyExistsException =>
+                (StatusCodes.Status409Conflict, "Role name already exists", "Choose a different role name."),
+            RoleInUseException or BuiltInRoleIsProtectedException =>
+                (StatusCodes.Status409Conflict, "Role cannot be changed", exception.Message),
+            UnknownPermissionCodesException =>
+                (StatusCodes.Status400BadRequest, "Unknown permission code", exception.Message),
             PersistenceConcurrencyException concurrency =>
                 (StatusCodes.Status409Conflict, "Concurrency conflict",
                     concurrency.DiagnosticDetails is null

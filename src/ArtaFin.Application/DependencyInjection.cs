@@ -9,6 +9,7 @@ using ArtaFin.Application.Features.FinancialBooks.ManageMember;
 using ArtaFin.Application.Features.JournalEntries.CreateJournalEntry;
 using ArtaFin.Application.Features.JournalEntries.GetJournalEntry;
 using ArtaFin.Application.Features.LeaseAccounting;
+using ArtaFin.Application.Features.RoleManagement;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -29,6 +30,7 @@ public static class DependencyInjection
         services.AddScoped<LeasePaymentScheduleService>();
         services.AddScoped<CreateFinancialBookCommandHandler>();
         services.AddScoped<AuthenticationService>();
+        services.AddScoped<RoleManagementService>();
         services.AddScoped<InviteFinancialBookMemberCommandHandler>();
         services.AddScoped<ListFinancialBookMembersQueryHandler>();
         services.AddScoped<ChangeFinancialBookMemberRoleCommandHandler>();

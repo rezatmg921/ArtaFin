@@ -202,6 +202,7 @@ app.MapGet("/health", () => Results.Ok(new
 .AllowAnonymous();
 
 app.MapAuthenticationEndpoints();
+app.MapRoleManagementEndpoints();
 app.MapFinancialBookEndpoints();
 app.MapAccountEndpoints();
 app.MapAccountListEndpoints();

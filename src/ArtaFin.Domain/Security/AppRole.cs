@@ -6,6 +6,7 @@ namespace ArtaFin.Domain.Security;
 public sealed class AppRole : AggregateRoot
 {
     public const int MaxNameLength = 100;
+    public const int MaxDescriptionLength = 500;
 
     public string Name { get; private set; } = string.Empty;
     public string NormalizedName { get; private set; } = string.Empty;
@@ -33,13 +34,39 @@ public sealed class AppRole : AggregateRoot
     {
         if (id == Guid.Empty)
             throw new ArgumentException("Role id cannot be empty.", nameof(id));
+
+        var (normalizedName, trimmedName, trimmedDescription) =
+            ValidateAndNormalize(name, description);
+
+        return new AppRole(id, trimmedName, normalizedName, trimmedDescription, createdAt);
+    }
+
+    public void UpdateDetails(string name, string? description)
+    {
+        var (normalizedName, trimmedName, trimmedDescription) =
+            ValidateAndNormalize(name, description);
+
+        Name = trimmedName;
+        NormalizedName = normalizedName;
+        Description = trimmedDescription;
+    }
+
+    private static (string NormalizedName, string Name, string? Description)
+        ValidateAndNormalize(string name, string? description)
+    {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Role name is required.", nameof(name));
 
-        var normalizedName = name.Trim().ToUpperInvariant();
-        if (normalizedName.Length > MaxNameLength)
+        var trimmedName = name.Trim();
+        if (trimmedName.Length > MaxNameLength)
             throw new ArgumentException($"Role name cannot exceed {MaxNameLength} characters.", nameof(name));
 
-        return new AppRole(id, name.Trim(), normalizedName, description?.Trim(), createdAt);
+        var trimmedDescription = description?.Trim();
+        if (trimmedDescription?.Length > MaxDescriptionLength)
+            throw new ArgumentException(
+                $"Role description cannot exceed {MaxDescriptionLength} characters.",
+                nameof(description));
+
+        return (trimmedName.ToUpperInvariant(), trimmedName, trimmedDescription);
     }
 }
