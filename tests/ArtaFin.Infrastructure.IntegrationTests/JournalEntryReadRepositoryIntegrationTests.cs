@@ -17,27 +17,7 @@ public sealed class JournalEntryReadRepositoryIntegrationTests : IAsyncLifetime
 
     public JournalEntryReadRepositoryIntegrationTests()
     {
-        var configuration = new ConfigurationBuilder()
-            .SetBasePath(AppContext.BaseDirectory)
-            .AddJsonFile("appsettings.Local.json", optional: true)
-            .AddEnvironmentVariables()
-            .Build();
-
-        var configuredConnectionString =
-            configuration.GetConnectionString("ArtaFin")
-            ?? Environment.GetEnvironmentVariable("ARTAFIN_SQLSERVER");
-
-        if (string.IsNullOrWhiteSpace(configuredConnectionString))
-        {
-            throw new InvalidOperationException(
-                "SQL Server connection string was not found. Add ConnectionStrings:ArtaFin " +
-                "to tests/ArtaFin.Infrastructure.IntegrationTests/appsettings.Local.json, " +
-                "or set the ConnectionStrings__ArtaFin environment variable.");
-        }
-
-        var builder = new DbConnectionStringBuilder { ConnectionString = configuredConnectionString };
-        builder["Initial Catalog"] = $"ArtaFin_JournalRead_{Guid.NewGuid():N}";
-        _connectionString = builder.ConnectionString;
+        _connectionString = IntegrationTestDatabase.GetConnectionString();
         _options = new DbContextOptionsBuilder<ArtaFinDbContext>()
             .UseSqlServer(_connectionString)
             .Options;
