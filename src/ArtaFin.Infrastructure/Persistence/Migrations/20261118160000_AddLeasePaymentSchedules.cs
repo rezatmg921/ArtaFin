@@ -59,7 +59,11 @@ public sealed class AddLeasePaymentSchedules : Migration
                 PeriodNumber = table.Column<int>(type: "int", nullable: false),
                 PaymentDate = table.Column<DateOnly>(type: "date", nullable: false),
                 PaymentAmount = table.Column<decimal>(type: "decimal(19,4)", precision: 19, scale: 4, nullable: false),
-                EffectivePeriodicRate = table.Column<decimal>(type: "decimal(19,10)", precision: 19, scale: 10, nullable: false)
+                EffectivePeriodicRate = table.Column<decimal>(type: "decimal(19,10)", precision: 19, scale: 10, nullable: false),
+                IsPaid = table.Column<bool>(type: "bit", nullable: false, defaultValue: false),
+                JournalEntryId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                PaidBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                PaidAt = table.Column<DateTimeOffset>(type: "datetimeoffset(7)", nullable: true)
             },
             constraints: table =>
             {
@@ -70,6 +74,8 @@ public sealed class AddLeasePaymentSchedules : Migration
                 table.CheckConstraint("CK_LeasePaymentScheduleLines_Amount_NonNegative", "[PaymentAmount] >= 0");
                 table.CheckConstraint("CK_LeasePaymentScheduleLines_Rate_Valid",
                     "[EffectivePeriodicRate] BETWEEN 0 AND 999999999.9999999999");
+                table.CheckConstraint("CK_LeasePaymentScheduleLines_Payment_Consistent",
+                    "([IsPaid] = 0 AND [JournalEntryId] IS NULL AND [PaidBy] IS NULL AND [PaidAt] IS NULL) OR ([IsPaid] = 1 AND [JournalEntryId] IS NOT NULL AND [PaidBy] IS NOT NULL AND [PaidAt] IS NOT NULL)");
             });
 
         migrationBuilder.CreateIndex("IX_LeasePaymentSchedules_SupersedesScheduleId",
@@ -82,6 +88,9 @@ public sealed class AddLeasePaymentSchedules : Migration
             "LeasePaymentScheduleLines", new[] { "ScheduleId", "PeriodNumber" }, unique: true);
         migrationBuilder.CreateIndex("UX_LeasePaymentScheduleLines_Schedule_Date",
             "LeasePaymentScheduleLines", new[] { "ScheduleId", "PaymentDate" }, unique: true);
+        migrationBuilder.CreateIndex("UX_LeasePaymentScheduleLines_JournalEntry",
+            "LeasePaymentScheduleLines", "JournalEntryId",
+            unique: true, filter: "[JournalEntryId] IS NOT NULL");
     }
 
     protected override void Down(MigrationBuilder migrationBuilder)
