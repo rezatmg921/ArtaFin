@@ -92,6 +92,7 @@ public sealed class TrialBalanceApiTests
 
             builder.ConfigureTestServices(services =>
             {
+                services.UseTestPermissionAuthorization();
                 services.RemoveAll<IFinancialBookRepository>();
                 services.RemoveAll<ITrialBalanceReadRepository>();
                 services.AddSingleton<IFinancialBookRepository>(new FakeBookRepository(book));
