@@ -54,7 +54,7 @@ internal sealed class RoleManagementRepository(ArtaFinDbContext dbContext)
         return result;
     }
 
-    public async Task CreateRoleAsync(
+    public async Task<Guid> CreateRoleAsync(
         string name,
         string? description,
         DateTimeOffset now,
@@ -68,6 +68,7 @@ internal sealed class RoleManagementRepository(ArtaFinDbContext dbContext)
         var role = AppRole.Create(Guid.NewGuid(), name, description, now);
         await dbContext.Roles.AddAsync(role, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
+        return role.Id;
     }
 
     public async Task UpdateRoleAsync(

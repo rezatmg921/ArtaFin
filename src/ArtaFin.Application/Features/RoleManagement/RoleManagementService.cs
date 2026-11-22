@@ -5,6 +5,10 @@ namespace ArtaFin.Application.Features.RoleManagement;
 
 public sealed record PermissionCatalogItem(string Code, string Name, string Description);
 
+public sealed class InvalidRoleDetailsException(string message) : Exception(message);
+
+public sealed class InvalidPermissionSelectionException(string message) : Exception(message);
+
 public sealed class RoleNotFoundException(Guid roleId)
     : Exception($"Role '{roleId}' was not found.");
 
@@ -34,7 +38,7 @@ public sealed class RoleManagementService(
                 permission.Code, permission.Name, permission.Description))
             .ToArray();
 
-    public Task CreateRoleAsync(
+    public Task<Guid> CreateRoleAsync(
         string? name,
         string? description,
         CancellationToken cancellationToken)
@@ -75,7 +79,7 @@ public sealed class RoleManagementService(
             throw new ArgumentException("Role id is required.", nameof(roleId));
 
         if (permissionCodes is null)
-            throw new ArgumentNullException(nameof(permissionCodes));
+            throw new InvalidPermissionSelectionException("Permission codes are required.");
 
         var normalizedCodes = permissionCodes
             .Where(code => !string.IsNullOrWhiteSpace(code))
@@ -94,9 +98,8 @@ public sealed class RoleManagementService(
             throw new UnknownPermissionCodesException(unknownCodes);
 
         if (normalizedCodes.Length != permissionCodes.Count)
-            throw new ArgumentException(
-                "Permission codes cannot contain null, empty, or duplicate values.",
-                nameof(permissionCodes));
+            throw new InvalidPermissionSelectionException(
+                "Permission codes cannot contain null, empty, or duplicate values.");
 
         return repository.ReplaceRolePermissionsAsync(
             roleId, normalizedCodes, timeProvider.GetUtcNow(), cancellationToken);
@@ -105,14 +108,12 @@ public sealed class RoleManagementService(
     private static void ValidateDetails(string? name, string? description)
     {
         if (string.IsNullOrWhiteSpace(name) || name.Trim().Length > AppRole.MaxNameLength)
-            throw new ArgumentException(
-                $"Role name is required and cannot exceed {AppRole.MaxNameLength} characters.",
-                nameof(name));
+            throw new InvalidRoleDetailsException(
+                $"Role name is required and cannot exceed {AppRole.MaxNameLength} characters.");
 
         if (description?.Trim().Length > AppRole.MaxDescriptionLength)
-            throw new ArgumentException(
-                $"Role description cannot exceed {AppRole.MaxDescriptionLength} characters.",
-                nameof(description));
+            throw new InvalidRoleDetailsException(
+                $"Role description cannot exceed {AppRole.MaxDescriptionLength} characters.");
 
         var normalized = name.Trim().ToUpperInvariant();
         if (normalized is "ADMINISTRATOR" or "USER")

@@ -11,7 +11,7 @@ public sealed record ManagedRole(
 public interface IRoleManagementRepository
 {
     Task<IReadOnlyList<ManagedRole>> GetRolesAsync(CancellationToken cancellationToken);
-    Task CreateRoleAsync(string name, string? description, DateTimeOffset now, CancellationToken cancellationToken);
+    Task<Guid> CreateRoleAsync(string name, string? description, DateTimeOffset now, CancellationToken cancellationToken);
     Task UpdateRoleAsync(Guid roleId, string name, string? description, CancellationToken cancellationToken);
     Task DeleteRoleAsync(Guid roleId, CancellationToken cancellationToken);
     Task ReplaceRolePermissionsAsync(

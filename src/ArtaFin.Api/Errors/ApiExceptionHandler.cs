@@ -32,6 +32,8 @@ internal sealed class ApiExceptionHandler(
     {
         var (status, title, detail) = exception switch
         {
+            InvalidRoleDetailsException or InvalidPermissionSelectionException =>
+                (StatusCodes.Status400BadRequest, "Invalid role request", exception.Message),
             RoleNotFoundException =>
                 (StatusCodes.Status404NotFound, "Role not found", "The requested role does not exist."),
             RoleNameAlreadyExistsException =>

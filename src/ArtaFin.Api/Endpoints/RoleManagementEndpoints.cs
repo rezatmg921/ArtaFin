@@ -27,9 +27,9 @@ internal static class RoleManagementEndpoints
                 RoleManagementService service,
                 CancellationToken cancellationToken) =>
             {
-                await service.CreateRoleAsync(
+                var roleId = await service.CreateRoleAsync(
                     request.Name, request.Description, cancellationToken);
-                return Results.Created("/api/admin/roles", null);
+                return Results.Created($"/api/admin/roles/{roleId}", new { Id = roleId });
             })
             .WithName("CreateSystemRole")
             .RequireAuthorization("Permission:Roles.Manage")
@@ -74,6 +74,12 @@ internal static class RoleManagementEndpoints
                 RoleManagementService service,
                 CancellationToken cancellationToken) =>
             {
+                if (request.PermissionCodes is null)
+                    return Results.ValidationProblem(new Dictionary<string, string[]>
+                    {
+                        ["permissionCodes"] = ["Permission codes are required."]
+                    });
+
                 await service.ReplaceRolePermissionsAsync(
                     roleId, request.PermissionCodes, cancellationToken);
                 return Results.NoContent();
