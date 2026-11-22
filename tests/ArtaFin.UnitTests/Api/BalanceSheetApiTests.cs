@@ -98,6 +98,7 @@ public sealed class BalanceSheetApiTests
 
             builder.ConfigureTestServices(services =>
             {
+                services.UseTestPermissionAuthorization();
                 services.RemoveAll<IFinancialBookRepository>();
                 services.RemoveAll<IBalanceSheetReadRepository>();
                 services.AddSingleton<IFinancialBookRepository>(new FakeBookRepository(book));

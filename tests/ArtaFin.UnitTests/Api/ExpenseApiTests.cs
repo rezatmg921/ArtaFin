@@ -219,6 +219,7 @@ public sealed class ExpenseApiTests
 
             builder.ConfigureTestServices(services =>
             {
+                services.UseTestPermissionAuthorization();
                 services.RemoveAll<IFinancialBookRepository>();
                 services.RemoveAll<IAccountRepository>();
                 services.RemoveAll<IJournalEntryRepository>();
