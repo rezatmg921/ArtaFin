@@ -20,21 +20,7 @@ public sealed class CashFlowNonCashDisclosureServiceIntegrationTests : IAsyncLif
 
     public CashFlowNonCashDisclosureServiceIntegrationTests()
     {
-        var configuration = new ConfigurationBuilder()
-            .SetBasePath(AppContext.BaseDirectory)
-            .AddJsonFile("appsettings.Local.json", optional: true)
-            .AddEnvironmentVariables()
-            .Build();
-
-        var configured = configuration.GetConnectionString("ArtaFin")
-            ?? Environment.GetEnvironmentVariable("ARTAFIN_SQLSERVER");
-        if (string.IsNullOrWhiteSpace(configured))
-            throw new InvalidOperationException(
-                "Configure ConnectionStrings:ArtaFin or ARTAFIN_SQLSERVER for SQL Server integration tests.");
-
-        var builder = new DbConnectionStringBuilder { ConnectionString = configured };
-        builder["Initial Catalog"] = $"ArtaFin_NonCashDisclosure_{Guid.NewGuid():N}";
-        _connectionString = builder.ConnectionString;
+        _connectionString = IntegrationTestDatabase.GetConnectionString();
         _options = new DbContextOptionsBuilder<ArtaFinDbContext>()
             .UseSqlServer(_connectionString)
             .Options;
