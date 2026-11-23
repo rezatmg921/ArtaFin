@@ -59,12 +59,6 @@ public sealed class FinancialObligationPaymentService(
             string.Join("|", normalizedAllocations.Select(x =>
                 $"{x.InstallmentId:N}:{x.Amount.ToString(System.Globalization.CultureInfo.InvariantCulture)}")));
 
-        var cashAccount = await accountRepository.GetByIdAsync(financialBookId, cashAccountId, cancellationToken);
-        if (cashAccount is null || cashAccount.Status != AccountStatus.Active)
-            throw new KeyNotFoundException("An active cash or bank account in this financial book was not found.");
-        if (cashAccount.Type != AccountType.Asset)
-            throw new DomainException("The payment account must be an asset account.");
-
         CreateObligationPaymentResult? result = null;
         await unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
@@ -78,6 +72,12 @@ public sealed class FinancialObligationPaymentService(
                 result = new CreateObligationPaymentResult(existing.Id, existing.JournalEntryId, true);
                 return;
             }
+
+            var cashAccount = await accountRepository.GetByIdAsync(financialBookId, cashAccountId, ct);
+            if (cashAccount is null || cashAccount.Status != AccountStatus.Active)
+                throw new KeyNotFoundException("An active cash or bank account in this financial book was not found.");
+            if (cashAccount.Type != AccountType.Asset)
+                throw new DomainException("The payment account must be an asset account.");
 
             var obligation = await paymentRepository.GetObligationForPaymentAsync(
                 financialBookId, obligationId, ct);
