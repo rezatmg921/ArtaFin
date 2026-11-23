@@ -40,7 +40,9 @@ public sealed class FinancialObligationPaymentService(
         if (string.IsNullOrWhiteSpace(idempotencyKey))
             throw new ArgumentException("Idempotency-Key is required.", nameof(idempotencyKey));
         ArgumentNullException.ThrowIfNull(allocations);
-        ArgumentException.ThrowIfNullOrWhiteSpace(description);
+        if (string.IsNullOrWhiteSpace(description))
+            throw new ArgumentException("Description is required.", nameof(description));
+        var normalizedDescription = description.Trim();
 
         var book = await EnsureBookAccessAsync(financialBookId, write: true, cancellationToken);
         var userId = currentUser.UserId;
@@ -56,7 +58,7 @@ public sealed class FinancialObligationPaymentService(
             obligationId.ToString("N"), cashAccountId.ToString("N"),
             money.Amount.ToString(System.Globalization.CultureInfo.InvariantCulture), money.Currency,
             paymentDate.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
-            description?.Trim() ?? string.Empty, reference?.Trim() ?? string.Empty,
+            normalizedDescription, reference?.Trim() ?? string.Empty,
             string.Join("|", normalizedAllocations.Select(x =>
                 $"{x.InstallmentId:N}:{x.Amount.ToString(System.Globalization.CultureInfo.InvariantCulture)}")));
 
@@ -123,12 +125,12 @@ public sealed class FinancialObligationPaymentService(
             };
             var journalEntry = JournalEntry.Post(
                 Guid.NewGuid(), financialBookId, now,
-                description.Trim(), journalLines);
+                normalizedDescription, journalLines);
 
             var payment = FinancialObligationPayment.Create(
                 Guid.NewGuid(), financialBookId, obligationId, cashAccountId,
                 journalEntry.Id, money.Amount, money.Currency, paymentDate,
-                description, reference, userId, now, idempotencyKey, hash, normalizedAllocations);
+                normalizedDescription, reference, userId, now, idempotencyKey, hash, normalizedAllocations);
 
             var cumulativePaid = alreadyPaid + money.Amount;
             obligation.ApplyPayment(cumulativePaid, now);
