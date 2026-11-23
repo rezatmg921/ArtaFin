@@ -36,9 +36,10 @@ public sealed class FinancialObligationPaymentService(
         IReadOnlyList<ObligationPaymentAllocationRequest> allocations,
         CancellationToken cancellationToken)
     {
-        IdempotencyRequestHash.ValidateKey(idempotencyKey);
         if (string.IsNullOrWhiteSpace(idempotencyKey))
             throw new ArgumentException("Idempotency-Key is required.", nameof(idempotencyKey));
+        var normalizedIdempotencyKey = idempotencyKey.Trim().ToUpperInvariant();
+        IdempotencyRequestHash.ValidateKey(normalizedIdempotencyKey);
         ArgumentNullException.ThrowIfNull(allocations);
         if (string.IsNullOrWhiteSpace(description))
             throw new ArgumentException("Description is required.", nameof(description));
@@ -56,7 +57,7 @@ public sealed class FinancialObligationPaymentService(
             .ToArray();
         var hash = IdempotencyRequestHash.Compute(
             obligationId.ToString("N"), cashAccountId.ToString("N"),
-            money.Amount.ToString(System.Globalization.CultureInfo.InvariantCulture), money.Currency,
+            money.Amount.ToString("G29", System.Globalization.CultureInfo.InvariantCulture), money.Currency,
             paymentDate.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
             normalizedDescription, reference?.Trim() ?? string.Empty,
             string.Join("|", normalizedAllocations.Select(x =>
@@ -65,9 +66,9 @@ public sealed class FinancialObligationPaymentService(
         CreateObligationPaymentResult? result = null;
         await unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
-            await unitOfWork.AcquireIdempotencyLockAsync(financialBookId, userId, idempotencyKey, ct);
+            await unitOfWork.AcquireIdempotencyLockAsync(financialBookId, userId, normalizedIdempotencyKey, ct);
             var existing = await paymentRepository.GetByIdempotencyKeyAsync(
-                financialBookId, userId, idempotencyKey, ct);
+                financialBookId, userId, normalizedIdempotencyKey, ct);
             if (existing is not null)
             {
                 if (!StringComparer.Ordinal.Equals(existing.RequestHash, hash))
@@ -130,7 +131,7 @@ public sealed class FinancialObligationPaymentService(
             var payment = FinancialObligationPayment.Create(
                 Guid.NewGuid(), financialBookId, obligationId, cashAccountId,
                 journalEntry.Id, money.Amount, money.Currency, paymentDate,
-                normalizedDescription, reference, userId, now, idempotencyKey, hash, normalizedAllocations);
+                normalizedDescription, reference, userId, now, normalizedIdempotencyKey, hash, normalizedAllocations);
 
             var cumulativePaid = alreadyPaid + money.Amount;
             obligation.ApplyPayment(cumulativePaid, now);
