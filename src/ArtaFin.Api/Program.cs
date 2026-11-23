@@ -6,6 +6,7 @@ using ArtaFin.Api.Errors;
 using ArtaFin.Api.Security;
 using ArtaFin.Application;
 using ArtaFin.Application.Abstractions.Security;
+using ArtaFin.Application.Features.FinancialBooks.CreateFinancialBook;
 using ArtaFin.Infrastructure;
 using ArtaFin.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
