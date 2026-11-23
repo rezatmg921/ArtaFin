@@ -12,6 +12,9 @@ public sealed class FinancialObligation : AggregateRoot
 {
     public const int MaxDescriptionLength = 500;
     public const int MaxReferenceLength = 100;
+    public const int MaxInstallments = 1200;
+
+    private readonly List<FinancialObligationInstallment> _installments = [];
 
     public Guid FinancialBookId { get; private set; }
     public Guid ContactId { get; private set; }
@@ -29,6 +32,7 @@ public sealed class FinancialObligation : AggregateRoot
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
     public DateTimeOffset? CancelledAt { get; private set; }
+    public IReadOnlyList<FinancialObligationInstallment> Installments => _installments.AsReadOnly();
 
     private FinancialObligation(
         Guid id,
@@ -43,7 +47,8 @@ public sealed class FinancialObligation : AggregateRoot
         DateOnly dueDate,
         string description,
         string? reference,
-        DateTimeOffset createdAt) : base(id)
+        DateTimeOffset createdAt,
+        IReadOnlyList<FinancialObligationInstallmentTerm> installments) : base(id)
     {
         FinancialBookId = financialBookId;
         ContactId = contactId;
@@ -59,6 +64,12 @@ public sealed class FinancialObligation : AggregateRoot
         Status = FinancialObligationStatus.Open;
         CreatedAt = createdAt;
         UpdatedAt = createdAt;
+        for (var index = 0; index < installments.Count; index++)
+        {
+            var term = installments[index];
+            _installments.Add(new FinancialObligationInstallment(
+                Guid.NewGuid(), Id, index + 1, term.DueDate, term.Amount));
+        }
     }
 
     public static FinancialObligation Create(
@@ -74,7 +85,8 @@ public sealed class FinancialObligation : AggregateRoot
         DateOnly dueDate,
         string description,
         string? reference,
-        DateTimeOffset createdAt)
+        DateTimeOffset createdAt,
+        IReadOnlyList<FinancialObligationInstallmentTerm>? installments = null)
     {
         if (financialBookId == Guid.Empty)
             throw new ArgumentException("Financial book id cannot be empty.", nameof(financialBookId));
@@ -103,9 +115,49 @@ public sealed class FinancialObligation : AggregateRoot
 
         var money = new Money(originalAmount, currency);
 
+        var normalizedInstallments = NormalizeInstallments(installments, money, effectiveDate, dueDate);
         return new FinancialObligation(
             id, financialBookId, contactId, controlAccountId, direction, kind,
-            money.Amount, money.Currency, effectiveDate, dueDate, normalizedDescription, normalizedReference, createdAt);
+            money.Amount, money.Currency, effectiveDate, dueDate, normalizedDescription, normalizedReference,
+            createdAt, normalizedInstallments);
+    }
+
+    private static IReadOnlyList<FinancialObligationInstallmentTerm> NormalizeInstallments(
+        IReadOnlyList<FinancialObligationInstallmentTerm>? installments,
+        Money total,
+        DateOnly effectiveDate,
+        DateOnly dueDate)
+    {
+        if (installments is null || installments.Count == 0)
+            return [new FinancialObligationInstallmentTerm(total.Amount, dueDate)];
+
+        if (installments.Count > MaxInstallments)
+            throw new ArgumentOutOfRangeException(nameof(installments),
+                $"An obligation cannot have more than {MaxInstallments} installments.");
+
+        decimal sum = 0m;
+        DateOnly previousDate = DateOnly.MinValue;
+        var normalized = new List<FinancialObligationInstallmentTerm>(installments.Count);
+        foreach (var installment in installments)
+        {
+            if (installment.Amount <= 0m)
+                throw new ArgumentOutOfRangeException(nameof(installments), "Installment amounts must be greater than zero.");
+            var installmentMoney = new Money(installment.Amount, total.Currency);
+            if (installment.DueDate < effectiveDate || installment.DueDate > dueDate)
+                throw new ArgumentException("Installment due dates must be between the effective date and obligation due date.", nameof(installments));
+            if (installment.DueDate <= previousDate)
+                throw new ArgumentException("Installment due dates must be strictly increasing.", nameof(installments));
+            sum += installmentMoney.Amount;
+            previousDate = installment.DueDate;
+            normalized.Add(new FinancialObligationInstallmentTerm(installmentMoney.Amount, installment.DueDate));
+        }
+
+        if (sum != total.Amount)
+            throw new ArgumentException("The sum of installment amounts must equal the original obligation amount.", nameof(installments));
+        if (normalized[^1].DueDate != dueDate)
+            throw new ArgumentException("The final installment due date must equal the obligation due date.", nameof(installments));
+
+        return normalized;
     }
 
     public bool IsOverdueOn(DateOnly date) =>
@@ -146,3 +198,27 @@ public sealed class FinancialObligation : AggregateRoot
             throw new DomainException("Obligation change time cannot be earlier than its previous update.");
     }
 }
+
+
+/// <summary>Immutable contractual terms for one installment of an obligation.</summary>
+public sealed class FinancialObligationInstallment : Entity
+{
+    private FinancialObligationInstallment() : base(Guid.NewGuid()) { }
+
+    internal FinancialObligationInstallment(
+        Guid id, Guid financialObligationId, int installmentNumber, DateOnly dueDate, decimal amount) : base(id)
+    {
+        FinancialObligationId = financialObligationId;
+        InstallmentNumber = installmentNumber;
+        DueDate = dueDate;
+        Amount = amount;
+    }
+
+    public Guid FinancialObligationId { get; private set; }
+    public int InstallmentNumber { get; private set; }
+    public DateOnly DueDate { get; private set; }
+    public decimal Amount { get; private set; }
+}
+
+/// <summary>A proposed installment amount and due date supplied when creating an obligation.</summary>
+public sealed record FinancialObligationInstallmentTerm(decimal Amount, DateOnly DueDate);
