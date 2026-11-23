@@ -48,8 +48,7 @@ public sealed class FinancialObligationPaymentConfiguration : IEntityTypeConfigu
             .HasPrincipalKey(x => new { x.FinancialBookId, x.Id })
             .OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<JournalEntry>().WithMany()
-            .HasForeignKey(x => new { x.FinancialBookId, x.JournalEntryId })
-            .HasPrincipalKey(x => new { x.FinancialBookId, x.Id })
+            .HasForeignKey(x => x.JournalEntryId)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasIndex(x => new { x.FinancialBookId, x.CreatedBy, x.IdempotencyKey })
