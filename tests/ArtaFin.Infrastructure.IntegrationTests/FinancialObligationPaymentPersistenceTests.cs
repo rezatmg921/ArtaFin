@@ -238,6 +238,6 @@ public sealed class FinancialObligationPaymentPersistenceTests : IAsyncLifetime
         var persistedReversal = await read.JournalEntries.SingleAsync(x => x.Id == reversalJournalEntryId);
         Assert.Equal(journalEntryId, persistedReversal.ReversesJournalEntryId);
         Assert.Equal(PostingSide.Credit, Assert.Single(
-            persistedReversal.Lines.Where(x => x.AccountId == cashAccountId)).Side);
+            persistedReversal.Lines, x => x.AccountId == cashAccountId).Side);
     }
 }
