@@ -189,40 +189,55 @@ public sealed class FinancialObligationPaymentPersistenceTests : IAsyncLifetime
             [new FinancialObligationPaymentAllocationTerm(installmentId, 75m)]);
         obligation.ApplyPayment(75m, now);
 
-        var reversal = JournalEntry.Reverse(
-            reversalJournalEntryId, original, now.AddMinutes(1), "Payment reversal: duplicate receipt");
-        payment.MarkReversed(
-            reversal.Id, ownerId, now.AddMinutes(1), "Duplicate receipt",
-            "payment-reversal-key", new string('A', 64));
-        obligation.RecalculateSettlementAfterReversal(0m, now.AddMinutes(1));
-
         await using (var write = new ArtaFinDbContext(_options))
         {
             write.FinancialBooks.Add(book);
             write.Contacts.Add(contact);
             write.Accounts.AddRange(control, cash);
             write.FinancialObligations.Add(obligation);
-            write.JournalEntries.AddRange(original, reversal);
+            write.JournalEntries.Add(original);
             write.FinancialObligationPayments.Add(payment);
             await write.SaveChangesAsync();
         }
 
+        await using (var reverse = new ArtaFinDbContext(_options))
+        {
+            var persistedPayment = await reverse.FinancialObligationPayments
+                .Include(x => x.Allocations)
+                .SingleAsync(x => x.Id == paymentId);
+            var persistedObligation = await reverse.FinancialObligations
+                .SingleAsync(x => x.Id == obligationId);
+            var persistedOriginal = await reverse.JournalEntries
+                .SingleAsync(x => x.Id == journalEntryId);
+            var reversal = JournalEntry.Reverse(
+                reversalJournalEntryId, persistedOriginal, now.AddMinutes(1),
+                "Payment reversal: duplicate receipt", ownerId,
+                "payment-reversal-key", new string('A', 64));
+
+            persistedPayment.MarkReversed(
+                reversal.Id, ownerId, now.AddMinutes(1), "Duplicate receipt",
+                "payment-reversal-key", new string('A', 64));
+            persistedObligation.RecalculateSettlementAfterReversal(0m, now.AddMinutes(1));
+            reverse.JournalEntries.Add(reversal);
+            await reverse.SaveChangesAsync();
+        }
+
         await using var read = new ArtaFinDbContext(_options);
-        var persistedPayment = await read.FinancialObligationPayments.AsNoTracking()
+        var persisted = await read.FinancialObligationPayments.AsNoTracking()
             .Include(x => x.Allocations)
             .SingleAsync(x => x.Id == paymentId);
-        Assert.Equal(75m, persistedPayment.Amount);
-        Assert.Equal(journalEntryId, persistedPayment.JournalEntryId);
-        Assert.Equal(reversalJournalEntryId, persistedPayment.ReversalJournalEntryId);
-        Assert.Equal("Duplicate receipt", persistedPayment.ReversalReason);
-        Assert.NotNull(persistedPayment.ReversedAt);
-        Assert.Single(persistedPayment.Allocations);
+        Assert.Equal(75m, persisted.Amount);
+        Assert.Equal(journalEntryId, persisted.JournalEntryId);
+        Assert.Equal(reversalJournalEntryId, persisted.ReversalJournalEntryId);
+        Assert.Equal("Duplicate receipt", persisted.ReversalReason);
+        Assert.NotNull(persisted.ReversedAt);
+        Assert.Single(persisted.Allocations);
 
-        var persistedObligation = await read.FinancialObligations.SingleAsync(x => x.Id == obligationId);
-        Assert.Equal(FinancialObligationStatus.Open, persistedObligation.Status);
+        var finalObligation = await read.FinancialObligations.SingleAsync(x => x.Id == obligationId);
+        Assert.Equal(FinancialObligationStatus.Open, finalObligation.Status);
         var persistedReversal = await read.JournalEntries.SingleAsync(x => x.Id == reversalJournalEntryId);
         Assert.Equal(journalEntryId, persistedReversal.ReversesJournalEntryId);
-        Assert.Equal(PostingSide.Credit, Assert.Single(persistedReversal.Lines.Where(x => x.AccountId == cashAccountId)).Side);
+        Assert.Equal(PostingSide.Credit, Assert.Single(
+            persistedReversal.Lines.Where(x => x.AccountId == cashAccountId)).Side);
     }
-
 }
