@@ -157,6 +157,19 @@ builder.Services.AddInfrastructure(builder.Configuration);
 var app = builder.Build();
 
 if (args.Any(argument =>
+        string.Equals(argument, "--seed-standard-accounts", StringComparison.OrdinalIgnoreCase)))
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var seeder = scope.ServiceProvider
+        .GetRequiredService<SeedStandardAccountsForExistingBooksService>();
+    var result = await seeder.SeedAsync();
+
+    Console.WriteLine(
+        $"Standard chart of accounts processed {result.FinancialBooksProcessed} financial book(s); created {result.AccountsCreated} account(s).");
+    return;
+}
+
+if (args.Any(argument =>
         string.Equals(argument, "--seed-initial-data", StringComparison.OrdinalIgnoreCase)))
 {
     var administratorEmail = builder.Configuration["BootstrapAdmin:Email"];
