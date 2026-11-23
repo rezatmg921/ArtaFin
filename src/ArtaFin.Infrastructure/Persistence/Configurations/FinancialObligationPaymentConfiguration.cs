@@ -13,6 +13,7 @@ public sealed class FinancialObligationPaymentConfiguration : IEntityTypeConfigu
         {
             table.HasCheckConstraint("CK_FinancialObligationPayments_Amount_Positive", "[Amount] > 0");
             table.HasCheckConstraint("CK_FinancialObligationPayments_IdempotencyMetadata_Valid", "LEN([IdempotencyKey]) BETWEEN 1 AND 128 AND LEN([RequestHash]) = 64");
+            table.HasCheckConstraint("CK_FinancialObligationPayments_ReversalMetadata_Consistent", "([ReversedAt] IS NULL AND [ReversedBy] IS NULL AND [ReversalJournalEntryId] IS NULL AND [ReversalReason] IS NULL AND [ReversalIdempotencyKey] IS NULL AND [ReversalRequestHash] IS NULL) OR ([ReversedAt] IS NOT NULL AND [ReversedBy] IS NOT NULL AND [ReversalJournalEntryId] IS NOT NULL AND [ReversalReason] IS NOT NULL AND [ReversalIdempotencyKey] IS NOT NULL AND [ReversalRequestHash] IS NOT NULL)");
         });
 
         builder.HasKey(x => x.Id);
@@ -32,6 +33,12 @@ public sealed class FinancialObligationPaymentConfiguration : IEntityTypeConfigu
         builder.Property(x => x.CreatedAt).HasColumnType("datetimeoffset(7)").IsRequired();
         builder.Property(x => x.IdempotencyKey).HasMaxLength(128).IsRequired();
         builder.Property(x => x.RequestHash).HasColumnType("char(64)").HasMaxLength(64).IsUnicode(false).IsFixedLength().IsRequired();
+        builder.Property(x => x.ReversedAt).HasColumnType("datetimeoffset(7)");
+        builder.Property(x => x.ReversedBy);
+        builder.Property(x => x.ReversalJournalEntryId);
+        builder.Property(x => x.ReversalReason).HasMaxLength(FinancialObligationPayment.MaxDescriptionLength);
+        builder.Property(x => x.ReversalIdempotencyKey).HasMaxLength(128);
+        builder.Property(x => x.ReversalRequestHash).HasColumnType("char(64)").HasMaxLength(64).IsUnicode(false).IsFixedLength();
 
         builder.HasMany(x => x.Allocations).WithOne()
             .HasForeignKey(x => new { x.PaymentId, x.FinancialObligationId })
@@ -57,6 +64,9 @@ public sealed class FinancialObligationPaymentConfiguration : IEntityTypeConfigu
             .HasDatabaseName("IX_FinancialObligationPayments_FinancialBookId_CashAccountId");
         builder.HasIndex(x => x.JournalEntryId)
             .HasDatabaseName("IX_FinancialObligationPayments_JournalEntryId");
+        builder.HasIndex(x => x.ReversalJournalEntryId)
+            .IsUnique().HasFilter("[ReversalJournalEntryId] IS NOT NULL")
+            .HasDatabaseName("UX_FinancialObligationPayments_ReversalJournalEntryId");
         builder.HasIndex(x => new { x.FinancialBookId, x.FinancialObligationId, x.PaymentDate, x.Id })
             .HasDatabaseName("IX_FinancialObligationPayments_Obligation_Date");
         builder.HasIndex(x => new { x.FinancialBookId, x.Id })
