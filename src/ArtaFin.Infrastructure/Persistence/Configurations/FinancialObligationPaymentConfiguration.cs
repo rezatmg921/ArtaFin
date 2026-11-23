@@ -53,6 +53,10 @@ public sealed class FinancialObligationPaymentConfiguration : IEntityTypeConfigu
 
         builder.HasIndex(x => new { x.FinancialBookId, x.CreatedBy, x.IdempotencyKey })
             .IsUnique().HasDatabaseName("UX_FinancialObligationPayments_Idempotency");
+        builder.HasIndex(x => new { x.FinancialBookId, x.CashAccountId })
+            .HasDatabaseName("IX_FinancialObligationPayments_FinancialBookId_CashAccountId");
+        builder.HasIndex(x => x.JournalEntryId)
+            .HasDatabaseName("IX_FinancialObligationPayments_JournalEntryId");
         builder.HasIndex(x => new { x.FinancialBookId, x.FinancialObligationId, x.PaymentDate, x.Id })
             .HasDatabaseName("IX_FinancialObligationPayments_Obligation_Date");
         builder.HasIndex(x => new { x.FinancialBookId, x.Id })
@@ -81,6 +85,8 @@ public sealed class FinancialObligationPaymentAllocationConfiguration
 
         builder.HasIndex(x => new { x.PaymentId, x.InstallmentId })
             .IsUnique().HasDatabaseName("UX_FinancialObligationPaymentAllocations_Payment_Installment");
+        builder.HasIndex(x => new { x.PaymentId, x.FinancialObligationId })
+            .HasDatabaseName("IX_FinancialObligationPaymentAllocations_PaymentId_FinancialObligationId");
         builder.HasIndex(x => new { x.FinancialObligationId, x.InstallmentId })
             .HasDatabaseName("IX_FinancialObligationPaymentAllocations_Obligation_Installment");
     }
