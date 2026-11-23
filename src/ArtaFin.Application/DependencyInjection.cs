@@ -1,6 +1,7 @@
 using ArtaFin.Application.Features.Accounts.CreateAccount;
 using ArtaFin.Application.Features.Contacts;
 using ArtaFin.Application.Features.Obligations;
+using ArtaFin.Application.Features.ObligationPayments;
 using ArtaFin.Application.Features.CashFlowAllocations;
 using ArtaFin.Application.Features.CashFlowNonCashDisclosures;
 using ArtaFin.Application.Features.Authentication;
