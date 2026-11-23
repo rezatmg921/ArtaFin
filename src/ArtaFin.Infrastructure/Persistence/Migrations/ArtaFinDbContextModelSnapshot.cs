@@ -499,6 +499,8 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                     b.HasIndex("FinancialBookId", "Id").IsUnique().HasDatabaseName("UX_FinancialObligationPayments_Book_Id");
                     b.HasIndex("FinancialBookId", "CreatedBy", "IdempotencyKey").IsUnique().HasDatabaseName("UX_FinancialObligationPayments_Idempotency");
                     b.HasIndex("FinancialBookId", "FinancialObligationId", "PaymentDate", "Id").HasDatabaseName("IX_FinancialObligationPayments_Obligation_Date");
+                    b.HasIndex("FinancialBookId", "CashAccountId").HasDatabaseName("IX_FinancialObligationPayments_FinancialBookId_CashAccountId");
+                    b.HasIndex("JournalEntryId").HasDatabaseName("IX_FinancialObligationPayments_JournalEntryId");
                     b.ToTable("FinancialObligationPayments", (string)null, t =>
                     {
                         t.HasCheckConstraint("CK_FinancialObligationPayments_Amount_Positive", "[Amount] > 0");
@@ -516,6 +518,7 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
                     b.HasIndex("FinancialObligationId", "InstallmentId").HasDatabaseName("IX_FinancialObligationPaymentAllocations_Obligation_Installment");
                     b.HasIndex("PaymentId", "InstallmentId").IsUnique().HasDatabaseName("UX_FinancialObligationPaymentAllocations_Payment_Installment");
+                    b.HasIndex("PaymentId", "FinancialObligationId").HasDatabaseName("IX_FinancialObligationPaymentAllocations_PaymentId_FinancialObligationId");
                     b.ToTable("FinancialObligationPaymentAllocations", (string)null, t =>
                     {
                         t.HasCheckConstraint("CK_FinancialObligationPaymentAllocations_Amount_Positive", "[Amount] > 0");
