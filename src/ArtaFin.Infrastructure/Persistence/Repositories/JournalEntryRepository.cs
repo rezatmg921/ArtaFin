@@ -48,6 +48,13 @@ internal sealed class JournalEntryRepository(ArtaFinDbContext dbContext)
                 cancellationToken);
     }
 
+    public Task<bool> IsLinkedToObligationPaymentAsync(
+        Guid financialBookId, Guid journalEntryId, CancellationToken cancellationToken) =>
+        dbContext.FinancialObligationPayments.AsNoTracking()
+            .AnyAsync(payment => payment.FinancialBookId == financialBookId &&
+                                 payment.JournalEntryId == journalEntryId,
+                cancellationToken);
+
     public async Task AddAsync(JournalEntry entry, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(entry);
