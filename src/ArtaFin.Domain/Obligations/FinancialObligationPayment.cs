@@ -29,6 +29,12 @@ public sealed class FinancialObligationPayment : AggregateRoot
     public DateTimeOffset CreatedAt { get; private set; }
     public string IdempotencyKey { get; private set; } = null!;
     public string RequestHash { get; private set; } = null!;
+    public DateTimeOffset? ReversedAt { get; private set; }
+    public Guid? ReversedBy { get; private set; }
+    public Guid? ReversalJournalEntryId { get; private set; }
+    public string? ReversalReason { get; private set; }
+    public string? ReversalIdempotencyKey { get; private set; }
+    public string? ReversalRequestHash { get; private set; }
     public IReadOnlyList<FinancialObligationPaymentAllocation> Allocations => _allocations.AsReadOnly();
 
     private FinancialObligationPayment() : base(Guid.NewGuid()) { }
@@ -114,6 +120,32 @@ public sealed class FinancialObligationPayment : AggregateRoot
             id, financialBookId, financialObligationId, cashAccountId, journalEntryId,
             money, paymentDate, normalizedDescription, normalizedReference,
             createdBy, createdAt, idempotencyKey, requestHash.ToUpperInvariant(), allocations);
+    }
+    public void MarkReversed(
+        Guid reversalJournalEntryId,
+        Guid reversedBy,
+        DateTimeOffset reversedAt,
+        string reason,
+        string idempotencyKey,
+        string requestHash)
+    {
+        if (ReversedAt.HasValue)
+            throw new DomainException("This obligation payment has already been reversed.");
+        if (reversalJournalEntryId == Guid.Empty || reversedBy == Guid.Empty)
+            throw new ArgumentException("Reversal journal entry and user are required.");
+        if (string.IsNullOrWhiteSpace(reason) || reason.Trim().Length > MaxDescriptionLength)
+            throw new ArgumentException($"Reversal reason is required and cannot exceed {MaxDescriptionLength} characters.", nameof(reason));
+        if (string.IsNullOrWhiteSpace(idempotencyKey) || idempotencyKey.Length > 128)
+            throw new ArgumentException("A valid reversal idempotency key is required.", nameof(idempotencyKey));
+        if (requestHash is null || requestHash.Length != 64 || !requestHash.All(Uri.IsHexDigit))
+            throw new ArgumentException("A valid SHA-256 reversal request hash is required.", nameof(requestHash));
+
+        ReversalJournalEntryId = reversalJournalEntryId;
+        ReversedBy = reversedBy;
+        ReversedAt = reversedAt;
+        ReversalReason = reason.Trim();
+        ReversalIdempotencyKey = idempotencyKey;
+        ReversalRequestHash = requestHash.ToUpperInvariant();
     }
 }
 
