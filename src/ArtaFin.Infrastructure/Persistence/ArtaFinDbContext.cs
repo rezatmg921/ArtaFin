@@ -8,6 +8,7 @@ using ArtaFin.Application.Features.JournalEntries.CreateJournalEntry;
 using ArtaFin.Application.Features.JournalEntries.ReverseJournalEntry;
 using ArtaFin.Domain.Contacts;
 using ArtaFin.Domain.Finance;
+using ArtaFin.Domain.Obligations;
 using ArtaFin.Domain.Security;
 using ArtaFin.Infrastructure.Persistence.Configurations;
 using Microsoft.Data.SqlClient;
@@ -26,6 +27,7 @@ public sealed class ArtaFinDbContext(
     private const string JournalLineAccountForeignKeyName = "FK_JournalLines_Accounts_FinancialBookId_AccountId";
 
     public DbSet<Contact> Contacts => Set<Contact>();
+    public DbSet<FinancialObligation> FinancialObligations => Set<FinancialObligation>();
     public DbSet<FinancialBook> FinancialBooks => Set<FinancialBook>();
     public DbSet<FinancialBookMember> FinancialBookMembers => Set<FinancialBookMember>();
     public DbSet<Account> Accounts => Set<Account>();
@@ -46,6 +48,7 @@ public sealed class ArtaFinDbContext(
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Contact>();
+        modelBuilder.Entity<FinancialObligation>();
         modelBuilder.Entity<FinancialBook>();
         modelBuilder.Entity<FinancialBookMember>();
         modelBuilder.Entity<Account>();
@@ -65,6 +68,7 @@ public sealed class ArtaFinDbContext(
         modelBuilder.Entity<RolePermission>();
 
         modelBuilder.ApplyConfiguration(new ContactConfiguration());
+        modelBuilder.ApplyConfiguration(new FinancialObligationConfiguration());
         modelBuilder.ApplyConfiguration(new FinancialBookConfiguration());
         modelBuilder.ApplyConfiguration(new FinancialBookMemberConfiguration());
         modelBuilder.ApplyConfiguration(new AccountConfiguration());
