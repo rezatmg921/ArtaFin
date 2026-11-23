@@ -5,8 +5,18 @@ using Microsoft.EntityFrameworkCore;
 namespace ArtaFin.Infrastructure.Persistence.Repositories;
 
 internal sealed class FinancialBookRepository(ArtaFinDbContext dbContext)
-    : IFinancialBookRepository, IFinancialBookWriter
+    : IFinancialBookRepository, IFinancialBookWriter, IFinancialBookIdReadRepository
 {
+    public async Task<IReadOnlyList<Guid>> GetAllIdsAsync(CancellationToken cancellationToken)
+    {
+        return await dbContext.FinancialBooks
+            .AsNoTracking()
+            .OrderBy(book => book.CreatedAt)
+            .ThenBy(book => book.Id)
+            .Select(book => book.Id)
+            .ToListAsync(cancellationToken);
+    }
+
     public Task<FinancialBook?> GetByIdAsync(
         Guid financialBookId,
         CancellationToken cancellationToken)
