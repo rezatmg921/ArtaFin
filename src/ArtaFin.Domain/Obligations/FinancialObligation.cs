@@ -198,6 +198,24 @@ public sealed class FinancialObligation : AggregateRoot
         UpdatedAt = changedAt;
     }
 
+    /// <summary>Recomputes settlement state after a payment reversal.</summary>
+    public void RecalculateSettlementAfterReversal(decimal cumulativePaidAmount, DateTimeOffset changedAt)
+    {
+        if (Status == FinancialObligationStatus.Cancelled)
+            throw new DomainException("A cancelled obligation cannot have its payment history reversed.");
+        if (cumulativePaidAmount < 0m || cumulativePaidAmount > OriginalAmount)
+            throw new DomainException("Cumulative payments cannot be negative or exceed the obligation amount.");
+
+        var paidMoney = new Money(cumulativePaidAmount, Currency);
+        EnsureNotBeforeLastChange(changedAt);
+        Status = paidMoney.Amount == 0m
+            ? FinancialObligationStatus.Open
+            : paidMoney.Amount == OriginalAmount
+                ? FinancialObligationStatus.Settled
+                : FinancialObligationStatus.PartiallySettled;
+        UpdatedAt = changedAt;
+    }
+
     public void MarkSettled(DateTimeOffset settledAt)
     {
         if (Status is not FinancialObligationStatus.Open and not FinancialObligationStatus.PartiallySettled)
