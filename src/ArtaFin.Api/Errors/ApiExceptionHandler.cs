@@ -119,6 +119,8 @@ internal sealed class ApiExceptionHandler(
                 (StatusCodes.Status400BadRequest, "Invalid cash-flow source line", exception.Message),
             DomainException =>
                 (StatusCodes.Status400BadRequest, "Invalid accounting operation", exception.Message),
+            ArgumentException =>
+                (StatusCodes.Status400BadRequest, "Invalid request", exception.Message),
             JournalEntryAccountUnavailableException =>
                 (StatusCodes.Status400BadRequest, "Journal entry account unavailable",
                     "One or more accounts are unavailable in this financial book."),
