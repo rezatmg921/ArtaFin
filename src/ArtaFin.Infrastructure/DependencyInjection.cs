@@ -2,6 +2,7 @@ using ArtaFin.Application.Abstractions.Persistence;
 using ArtaFin.Application.Abstractions.Security;
 using ArtaFin.Infrastructure.Persistence;
 using ArtaFin.Infrastructure.Persistence.Repositories;
+using ArtaFin.Infrastructure.Persistence.Repositories;
 using ArtaFin.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -58,6 +59,7 @@ public static class DependencyInjection
         services.AddScoped<IUserManagementRepository, UserManagementRepository>();
         services.AddScoped<IUserSessionRepository, UserSessionRepository>();
         services.AddScoped<IFinancialBookRepository, FinancialBookRepository>();
+        services.AddScoped<IContactRepository, ContactRepository>();
         services.AddScoped<IFinancialBookWriter, FinancialBookRepository>();
         services.AddScoped<ICashFlowAllocationRepository, CashFlowAllocationRepository>();
         services.AddScoped<ICashFlowNonCashDisclosureRepository, CashFlowNonCashDisclosureRepository>();
