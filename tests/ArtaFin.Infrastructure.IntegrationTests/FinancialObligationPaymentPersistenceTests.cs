@@ -132,6 +132,7 @@ public sealed class FinancialObligationPaymentPersistenceTests : IAsyncLifetime
             50m, "USD", new DateOnly(2026, 11, 23), "Receipt", null,
             ownerId, now, "payment-immutable-001", new string('C', 64),
             [new FinancialObligationPaymentAllocationTerm(installmentId, 50m)]);
+        obligation.ApplyPayment(50m, now);
 
         await using (var write = new ArtaFinDbContext(_options))
         {
