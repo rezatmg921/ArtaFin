@@ -66,13 +66,21 @@ public sealed class Contact : AggregateRoot
         if (!Enum.IsDefined(type))
             throw new ArgumentOutOfRangeException(nameof(type));
 
-        Type = type;
-        DisplayName = ValidateDisplayName(displayName);
-        Email = NormalizeEmail(email);
-        Phone = NormalizePhone(phone);
-        Notes = NormalizeNotes(notes);
         if (updatedAt < UpdatedAt)
             throw new DomainException("Contact update time cannot be earlier than its previous update.");
+
+        // Validate every value before mutating the aggregate so a rejected update
+        // cannot leave a partially changed in-memory entity.
+        var normalizedName = ValidateDisplayName(displayName);
+        var normalizedEmail = NormalizeEmail(email);
+        var normalizedPhone = NormalizePhone(phone);
+        var normalizedNotes = NormalizeNotes(notes);
+
+        Type = type;
+        DisplayName = normalizedName;
+        Email = normalizedEmail;
+        Phone = normalizedPhone;
+        Notes = normalizedNotes;
         UpdatedAt = updatedAt;
     }
 
