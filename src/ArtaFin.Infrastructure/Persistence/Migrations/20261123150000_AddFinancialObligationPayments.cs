@@ -22,11 +22,6 @@ public sealed class AddFinancialObligationPayments : Migration
             table: "FinancialObligationInstallments",
             columns: new[] { "FinancialObligationId", "Id" });
 
-        migrationBuilder.AddUniqueConstraint(
-            name: "AK_JournalEntries_FinancialBookId_Id",
-            table: "JournalEntries",
-            columns: new[] { "FinancialBookId", "Id" });
-
         migrationBuilder.CreateTable(
             name: "FinancialObligationPayments",
             columns: table => new
@@ -65,10 +60,10 @@ public sealed class AddFinancialObligationPayments : Migration
                     principalColumns: new[] { "FinancialBookId", "Id" },
                     onDelete: ReferentialAction.Restrict);
                 table.ForeignKey(
-                    name: "FK_FinancialObligationPayments_JournalEntries_FinancialBookId_JournalEntryId",
-                    columns: x => new { x.FinancialBookId, x.JournalEntryId },
+                    name: "FK_FinancialObligationPayments_JournalEntries_JournalEntryId",
+                    column: x => x.JournalEntryId,
                     principalTable: "JournalEntries",
-                    principalColumns: new[] { "FinancialBookId", "Id" },
+                    principalColumn: "Id",
                     onDelete: ReferentialAction.Restrict);
             });
 
@@ -134,9 +129,6 @@ public sealed class AddFinancialObligationPayments : Migration
         migrationBuilder.DropTable(name: "FinancialObligationPaymentAllocations");
         migrationBuilder.DropTable(name: "FinancialObligationPayments");
 
-        migrationBuilder.DropUniqueConstraint(
-            name: "AK_JournalEntries_FinancialBookId_Id",
-            table: "JournalEntries");
         migrationBuilder.DropUniqueConstraint(
             name: "AK_FinancialObligationInstallments_Obligation_Id",
             table: "FinancialObligationInstallments");
