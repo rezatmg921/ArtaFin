@@ -12,7 +12,7 @@ internal static class FinancialObligationPaymentEndpoints
                 CreateAsync)
             .WithName("CreateFinancialObligationPayment")
             .WithTags("Financial Obligation Payments")
-            .RequireAuthorization("Permission:Obligations.Payments.Create")
+            .RequireAuthorization("Permission:ObligationPayments.Create")
             .Produces<CreateObligationPaymentResponse>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict);
@@ -22,7 +22,7 @@ internal static class FinancialObligationPaymentEndpoints
                 ListAsync)
             .WithName("ListFinancialObligationPayments")
             .WithTags("Financial Obligation Payments")
-            .RequireAuthorization("Permission:Obligations.Payments.Read")
+            .RequireAuthorization("Permission:ObligationPayments.Read")
             .Produces<IReadOnlyList<ObligationPaymentResponse>>();
 
         endpoints.MapGet(
@@ -30,7 +30,7 @@ internal static class FinancialObligationPaymentEndpoints
                 GetAsync)
             .WithName("GetFinancialObligationPayment")
             .WithTags("Financial Obligation Payments")
-            .RequireAuthorization("Permission:Obligations.Payments.Read")
+            .RequireAuthorization("Permission:ObligationPayments.Read")
             .Produces<ObligationPaymentResponse>()
             .Produces(StatusCodes.Status404NotFound);
 
