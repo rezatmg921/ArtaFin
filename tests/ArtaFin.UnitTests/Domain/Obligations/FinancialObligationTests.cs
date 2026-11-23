@@ -129,6 +129,30 @@ public sealed class FinancialObligationTests
     }
 
     [Fact]
+    public void RecalculateSettlementAfterReversal_ReflectsRemainingValidPayments()
+    {
+        var obligation = Create();
+
+        obligation.ApplyPayment(1250m, Now.AddHours(1));
+        obligation.RecalculateSettlementAfterReversal(400m, Now.AddHours(2));
+        Assert.Equal(FinancialObligationStatus.PartiallySettled, obligation.Status);
+
+        obligation.RecalculateSettlementAfterReversal(0m, Now.AddHours(3));
+        Assert.Equal(FinancialObligationStatus.Open, obligation.Status);
+        Assert.Equal(Now.AddHours(3), obligation.UpdatedAt);
+    }
+
+    [Fact]
+    public void RecalculateSettlementAfterReversal_RejectsCancelledObligation()
+    {
+        var obligation = Create();
+        obligation.Cancel(Now.AddHours(1));
+
+        Assert.Throws<DomainException>(() =>
+            obligation.RecalculateSettlementAfterReversal(0m, Now.AddHours(2)));
+    }
+
+    [Fact]
     public void MarkSettled_AllowsOpenOrPartiallySettled()
     {
         var open = Create();
