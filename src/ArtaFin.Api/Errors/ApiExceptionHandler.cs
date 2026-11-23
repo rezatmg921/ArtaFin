@@ -91,6 +91,9 @@ internal sealed class ApiExceptionHandler(
             JournalEntryAlreadyReversedException =>
                 (StatusCodes.Status409Conflict, "Journal entry already reversed",
                     "This journal entry already has a reversal entry."),
+            JournalEntryLinkedToPaymentException =>
+                (StatusCodes.Status409Conflict, "Payment journal entry protected",
+                    "Reverse the obligation payment through its dedicated reversal workflow."),
             AccountNegativeBalanceException =>
                 (StatusCodes.Status409Conflict, "Insufficient account balance",
                     "The posting would make an account with PreventNegative policy have a negative balance. Review the account balance or change its policy if overdraft is permitted."),
