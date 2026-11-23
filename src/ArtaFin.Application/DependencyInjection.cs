@@ -29,6 +29,7 @@ public static class DependencyInjection
         services.AddScoped<CreateAccountCommandHandler>();
         services.AddScoped<ContactService>();
         services.AddScoped<FinancialObligationService>();
+        services.AddScoped<FinancialObligationPaymentService>();
         services.AddScoped<CashFlowAllocationService>();
         services.AddScoped<CashFlowNonCashDisclosureService>();
         services.AddScoped<LeaseContractService>();
