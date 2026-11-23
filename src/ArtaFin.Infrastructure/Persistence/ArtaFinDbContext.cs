@@ -330,13 +330,40 @@ public sealed class ArtaFinDbContext(
     private void EnsureFinancialObligationPaymentsAreImmutable()
     {
         ChangeTracker.DetectChanges();
-        var changedPayments = ChangeTracker.Entries<FinancialObligationPayment>()
-            .Any(entry => entry.State is EntityState.Modified or EntityState.Deleted);
+        foreach (var entry in ChangeTracker.Entries<FinancialObligationPayment>())
+        {
+            if (entry.State == EntityState.Deleted)
+                throw new InvalidOperationException("Posted financial obligation payments cannot be deleted.");
+            if (entry.State != EntityState.Modified)
+                continue;
+
+            var changedProperties = entry.Properties
+                .Where(property => property.IsModified)
+                .Select(property => property.Metadata.Name)
+                .ToHashSet(StringComparer.Ordinal);
+            var reversalProperties = new[]
+            {
+                nameof(FinancialObligationPayment.ReversedAt),
+                nameof(FinancialObligationPayment.ReversedBy),
+                nameof(FinancialObligationPayment.ReversalJournalEntryId),
+                nameof(FinancialObligationPayment.ReversalReason),
+                nameof(FinancialObligationPayment.ReversalIdempotencyKey),
+                nameof(FinancialObligationPayment.ReversalRequestHash)
+            };
+            var isAllowedReversal = entry.Property(nameof(FinancialObligationPayment.ReversedAt)).OriginalValue is null &&
+                entry.Property(nameof(FinancialObligationPayment.ReversedAt)).CurrentValue is not null &&
+                changedProperties.Count == reversalProperties.Length &&
+                reversalProperties.All(changedProperties.Contains);
+            if (!isAllowedReversal)
+                throw new InvalidOperationException(
+                    "Posted financial obligation payment facts are immutable; only a one-way reversal transition is allowed.");
+        }
+
         var changedAllocations = ChangeTracker.Entries<FinancialObligationPaymentAllocation>()
             .Any(entry => entry.State is EntityState.Modified or EntityState.Deleted);
-        if (changedPayments || changedAllocations)
+        if (changedAllocations)
             throw new InvalidOperationException(
-                "Posted financial obligation payments and allocations are immutable and cannot be modified or deleted.");
+                "Posted financial obligation payment allocations are immutable and cannot be modified or deleted.");
     }
 
     private void EnsureFinancialObligationInstallmentsAreImmutable()
