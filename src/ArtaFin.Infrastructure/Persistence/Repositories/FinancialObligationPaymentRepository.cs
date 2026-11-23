@@ -49,12 +49,11 @@ internal sealed class FinancialObligationPaymentRepository(ArtaFinDbContext dbCo
             .OrderByDescending(x => x.PaymentDate).ThenByDescending(x => x.Id)
             .Skip(skip).Take(take).ToListAsync(cancellationToken);
 
-    public Task<decimal> GetAllocatedAmountForObligationAsync(
+    public async Task<decimal> GetAllocatedAmountForObligationAsync(
         Guid financialObligationId, CancellationToken cancellationToken) =>
-        dbContext.FinancialObligationPaymentAllocations.AsNoTracking()
+        await dbContext.FinancialObligationPaymentAllocations.AsNoTracking()
             .Where(x => x.FinancialObligationId == financialObligationId)
-            .SumAsync(x => (decimal?)x.Amount, cancellationToken)
-            .ContinueWith(task => task.Result ?? 0m, cancellationToken);
+            .SumAsync(x => (decimal?)x.Amount, cancellationToken) ?? 0m;
 
     public async Task<IReadOnlyDictionary<Guid, decimal>> GetAllocatedAmountsByInstallmentAsync(
         Guid financialObligationId, CancellationToken cancellationToken)
