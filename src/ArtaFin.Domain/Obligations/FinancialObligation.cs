@@ -13,8 +13,6 @@ public sealed class FinancialObligation : AggregateRoot
     public const int MaxDescriptionLength = 500;
     public const int MaxReferenceLength = 100;
 
-    private readonly decimal _originalAmount;
-
     public Guid FinancialBookId { get; private set; }
     public Guid ContactId { get; private set; }
     public Guid ControlAccountId { get; private set; }
@@ -53,7 +51,6 @@ public sealed class FinancialObligation : AggregateRoot
         ControlAccountId = controlAccountId;
         Direction = direction;
         Kind = kind;
-        _originalAmount = originalMoney.Amount;
         OriginalAmount = originalMoney.Amount;
         Currency = originalMoney.Currency;
         EffectiveDate = effectiveDate;
