@@ -88,7 +88,7 @@ builder.Services.AddOpenApi(options =>
 
         var supportsIdempotencyKey =
             context.Description.HttpMethod == "POST" &&
-            endpointName is "CreateExpense" or "CreateIncome" or "CreateTransfer";
+            endpointName is "CreateExpense" or "CreateIncome" or "CreateTransfer" or "CreateFinancialObligationPayment";
 
         if (supportsIdempotencyKey)
         {
