@@ -10,6 +10,7 @@ using ArtaFin.Application.Features.FinancialBooks.InviteMember;
 using ArtaFin.Application.Features.Expenses.CreateExpense;
 using ArtaFin.Application.Features.Income.CreateIncome;
 using ArtaFin.Application.Features.Idempotency;
+using ArtaFin.Application.Features.ObligationPayments;
 using ArtaFin.Application.Features.Transfers.CreateTransfer;
 using ArtaFin.Application.Features.RoleManagement;
 using ArtaFin.Application.Features.UserManagement;
@@ -88,6 +89,9 @@ internal sealed class ApiExceptionHandler(
             IdempotencyKeyConflictException =>
                 (StatusCodes.Status409Conflict, "Idempotency key conflict",
                     "This Idempotency-Key has already been used for a different financial request."),
+            FinancialObligationPaymentAlreadyReversedException => 
+                (StatusCodes.Status409Conflict, "Payment already reversed",
+                    "This obligation payment has already been reversed with a different request."),
             JournalEntryAlreadyReversedException =>
                 (StatusCodes.Status409Conflict, "Journal entry already reversed",
                     "This journal entry already has a reversal entry."),
