@@ -61,7 +61,7 @@ public sealed class FinancialObligationPaymentService(
             paymentDate.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
             normalizedDescription, reference?.Trim() ?? string.Empty,
             string.Join("|", normalizedAllocations.Select(x =>
-                $"{x.InstallmentId:N}:{x.Amount.ToString(System.Globalization.CultureInfo.InvariantCulture)}")));
+                $"{x.InstallmentId:N}:{x.Amount.ToString("G29", System.Globalization.CultureInfo.InvariantCulture)}")));
 
         CreateObligationPaymentResult? result = null;
         await unitOfWork.ExecuteInTransactionAsync(async ct =>
