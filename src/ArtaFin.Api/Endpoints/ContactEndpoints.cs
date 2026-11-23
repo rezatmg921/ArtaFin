@@ -39,10 +39,10 @@ internal static class ContactEndpoints
     }
 
     private static async Task<IResult> ListAsync(
-        Guid financialBookId, bool includeArchived, int? skip, int? take,
+        Guid financialBookId, bool? includeArchived, int? skip, int? take,
         ContactService service, CancellationToken cancellationToken)
     {
-        var contacts = await service.ListAsync(financialBookId, includeArchived,
+        var contacts = await service.ListAsync(financialBookId, includeArchived ?? false,
             skip ?? 0, take ?? 50, cancellationToken);
         return Results.Ok(contacts.Select(ToResponse).ToArray());
     }
