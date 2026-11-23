@@ -88,7 +88,7 @@ builder.Services.AddOpenApi(options =>
 
         var supportsIdempotencyKey =
             context.Description.HttpMethod == "POST" &&
-            endpointName is "CreateExpense" or "CreateIncome" or "CreateTransfer" or "CreateFinancialObligationPayment";
+            endpointName is "CreateExpense" or "CreateIncome" or "CreateTransfer" or "CreateFinancialObligationPayment" or "ReverseFinancialObligationPayment";
 
         if (supportsIdempotencyKey)
         {
@@ -97,9 +97,9 @@ builder.Services.AddOpenApi(options =>
             {
                 Name = "Idempotency-Key",
                 In = ParameterLocation.Header,
-                Required = endpointName == "CreateFinancialObligationPayment",
-                Description = endpointName == "CreateFinancialObligationPayment"
-                    ? "Required key used to safely retry this payment. Reusing the same key with the same request returns the original payment; using it with different request data returns 409 Conflict."
+                Required = endpointName is "CreateFinancialObligationPayment" or "ReverseFinancialObligationPayment",
+                Description = endpointName is "CreateFinancialObligationPayment" or "ReverseFinancialObligationPayment"
+                    ? "Required key used to safely retry this payment operation. Reusing the same key with the same request returns the original result; using it with different request data returns 409 Conflict."
                     : "Optional key used to safely retry this financial operation. Reusing the same key with the same request returns the original result; using it with different request data returns 409 Conflict.",
                 Schema = new OpenApiSchema
                 {
