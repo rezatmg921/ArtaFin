@@ -36,6 +36,7 @@ public static class DependencyInjection
         services.AddScoped<LeaseContractService>();
         services.AddScoped<LeasePaymentScheduleService>();
         services.AddScoped<CreateFinancialBookCommandHandler>();
+        services.AddScoped<SeedStandardAccountsForExistingBooksService>();
         services.AddScoped<AuthenticationService>();
         services.AddScoped<RoleManagementService>();
         services.AddScoped<UserManagementService>();
