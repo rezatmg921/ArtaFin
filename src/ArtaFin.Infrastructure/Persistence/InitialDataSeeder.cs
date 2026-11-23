@@ -175,6 +175,10 @@ public sealed class InitialDataSeeder(
         var baselineUserPermissions = new HashSet<string>(StringComparer.Ordinal)
         {
             "FinancialBooks.Read",
+            "Contacts.Read",
+            "Contacts.Create",
+            "Contacts.Update",
+            "Contacts.Archive",
             "Accounts.Read",
             "Transactions.Read",
             "Leases.Read",
