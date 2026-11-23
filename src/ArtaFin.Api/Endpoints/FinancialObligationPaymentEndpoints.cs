@@ -1,4 +1,5 @@
 using ArtaFin.Application.Features.ObligationPayments;
+using ArtaFin.Domain.Finance;
 
 namespace ArtaFin.Api.Endpoints;
 
@@ -52,6 +53,12 @@ internal static class FinancialObligationPaymentEndpoints
             errors["amount"] = ["Amount must be greater than zero."];
         if (string.IsNullOrWhiteSpace(request.Currency))
             errors["currency"] = ["Currency is required."];
+        else
+        {
+            try { _ = new Money(request.Amount, request.Currency); }
+            catch (ArgumentException exception) { errors["currency"] = [exception.Message]; }
+            catch (NotSupportedException exception) { errors["currency"] = [exception.Message]; }
+        }
         if (string.IsNullOrWhiteSpace(request.Description))
             errors["description"] = ["Description is required."];
         if (request.Allocations is null || request.Allocations.Length == 0)
