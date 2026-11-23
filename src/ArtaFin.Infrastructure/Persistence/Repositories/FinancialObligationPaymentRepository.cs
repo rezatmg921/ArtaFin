@@ -34,6 +34,28 @@ internal sealed class FinancialObligationPaymentRepository(ArtaFinDbContext dbCo
             .Include(x => x.Allocations)
             .SingleOrDefaultAsync(x => x.FinancialBookId == financialBookId && x.Id == paymentId, cancellationToken);
 
+    public async Task<FinancialObligationPayment?> GetForReversalAsync(
+        Guid financialBookId, Guid obligationId, Guid paymentId, CancellationToken cancellationToken)
+    {
+        if (dbContext.Database.CurrentTransaction is null)
+            throw new InvalidOperationException("Payment reversal reads require an active transaction.");
+
+        var lockedId = await dbContext.FinancialObligationPayments
+            .FromSqlInterpolated($@"SELECT * FROM [FinancialObligationPayments] WITH (UPDLOCK, HOLDLOCK)
+                WHERE [FinancialBookId] = {financialBookId} AND [FinancialObligationId] = {obligationId} AND [Id] = {paymentId}")
+            .AsNoTracking()
+            .Select(x => x.Id)
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (lockedId == Guid.Empty)
+            return null;
+
+        return await dbContext.FinancialObligationPayments
+            .Include(x => x.Allocations)
+            .SingleOrDefaultAsync(x => x.FinancialBookId == financialBookId &&
+                x.FinancialObligationId == obligationId && x.Id == paymentId, cancellationToken);
+    }
+
     public Task<FinancialObligationPayment?> GetByIdempotencyKeyAsync(
         Guid financialBookId, Guid userId, string idempotencyKey, CancellationToken cancellationToken) =>
         dbContext.FinancialObligationPayments.AsNoTracking()
@@ -52,19 +74,31 @@ internal sealed class FinancialObligationPaymentRepository(ArtaFinDbContext dbCo
     public async Task<decimal> GetAllocatedAmountForObligationAsync(
         Guid financialObligationId, CancellationToken cancellationToken) =>
         await dbContext.FinancialObligationPaymentAllocations.AsNoTracking()
-            .Where(x => x.FinancialObligationId == financialObligationId)
+            .Where(x => x.FinancialObligationId == financialObligationId &&
+                dbContext.FinancialObligationPayments.Any(payment =>
+                    payment.Id == x.PaymentId && payment.ReversedAt == null))
             .SumAsync(x => (decimal?)x.Amount, cancellationToken) ?? 0m;
 
     public async Task<IReadOnlyDictionary<Guid, decimal>> GetAllocatedAmountsByInstallmentAsync(
         Guid financialObligationId, CancellationToken cancellationToken)
     {
         var values = await dbContext.FinancialObligationPaymentAllocations.AsNoTracking()
-            .Where(x => x.FinancialObligationId == financialObligationId)
+            .Where(x => x.FinancialObligationId == financialObligationId &&
+                dbContext.FinancialObligationPayments.Any(payment =>
+                    payment.Id == x.PaymentId && payment.ReversedAt == null))
             .GroupBy(x => x.InstallmentId)
             .Select(group => new { InstallmentId = group.Key, Amount = group.Sum(x => x.Amount) })
             .ToListAsync(cancellationToken);
         return values.ToDictionary(x => x.InstallmentId, x => x.Amount);
     }
+
+    public async Task<decimal> GetAllocatedAmountExcludingPaymentAsync(
+        Guid financialObligationId, Guid excludedPaymentId, CancellationToken cancellationToken) =>
+        await dbContext.FinancialObligationPaymentAllocations.AsNoTracking()
+            .Where(x => x.FinancialObligationId == financialObligationId && x.PaymentId != excludedPaymentId &&
+                dbContext.FinancialObligationPayments.Any(payment =>
+                    payment.Id == x.PaymentId && payment.ReversedAt == null))
+            .SumAsync(x => (decimal?)x.Amount, cancellationToken) ?? 0m;
 
     public async Task AddAsync(FinancialObligationPayment payment, CancellationToken cancellationToken) =>
         await dbContext.FinancialObligationPayments.AddAsync(payment, cancellationToken);
