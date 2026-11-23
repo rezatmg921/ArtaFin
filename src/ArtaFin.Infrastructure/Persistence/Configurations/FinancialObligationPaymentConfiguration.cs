@@ -57,6 +57,9 @@ public sealed class FinancialObligationPaymentConfiguration : IEntityTypeConfigu
         builder.HasOne<JournalEntry>().WithMany()
             .HasForeignKey(x => x.JournalEntryId)
             .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<JournalEntry>().WithMany()
+            .HasForeignKey(x => x.ReversalJournalEntryId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasIndex(x => new { x.FinancialBookId, x.CreatedBy, x.IdempotencyKey })
             .IsUnique().HasDatabaseName("UX_FinancialObligationPayments_Idempotency");
