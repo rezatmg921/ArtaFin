@@ -585,6 +585,9 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                     b.HasOne("ArtaFin.Domain.Finance.JournalEntry", null).WithMany()
                         .HasForeignKey("JournalEntryId")
                         .OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.HasOne("ArtaFin.Domain.Finance.JournalEntry", null).WithMany()
+                        .HasForeignKey("ReversalJournalEntryId")
+                        .OnDelete(DeleteBehavior.Restrict);
                     b.HasMany("ArtaFin.Domain.Obligations.FinancialObligationPaymentAllocation", "Allocations")
                         .WithOne().HasForeignKey("PaymentId", "FinancialObligationId")
                         .HasPrincipalKey("Id", "FinancialObligationId").OnDelete(DeleteBehavior.Restrict).IsRequired();
