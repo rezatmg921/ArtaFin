@@ -416,6 +416,9 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasAlternateKey("FinancialBookId", "Id")
+                        .HasName("AK_FinancialObligations_Book_Id");
+
                     b.HasIndex("ContactId");
 
                     b.HasIndex("FinancialBookId", "ControlAccountId");
@@ -457,6 +460,9 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasAlternateKey("FinancialObligationId", "Id")
+                        .HasName("AK_FinancialObligationInstallments_Obligation_Id");
+
                     b.HasIndex("FinancialObligationId", "DueDate")
                         .IsUnique()
                         .HasDatabaseName("UX_FinancialObligationInstallments_Obligation_DueDate");
@@ -470,6 +476,50 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("CK_FinancialObligationInstallments_Number_Positive", "[InstallmentNumber] > 0");
                             t.HasCheckConstraint("CK_FinancialObligationInstallments_Amount_Positive", "[Amount] > 0");
                         });
+                });
+
+            modelBuilder.Entity("ArtaFin.Domain.Obligations.FinancialObligationPayment", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uniqueidentifier");
+                    b.Property<decimal>("Amount").HasPrecision(19, 4).HasColumnType("decimal(19,4)");
+                    b.Property<Guid>("CashAccountId").HasColumnType("uniqueidentifier");
+                    b.Property<string>("Currency").IsRequired().HasMaxLength(3).IsUnicode(false).HasColumnType("char(3)").IsFixedLength();
+                    b.Property<Guid>("CreatedBy").HasColumnType("uniqueidentifier");
+                    b.Property<DateTimeOffset>("CreatedAt").HasColumnType("datetimeoffset(7)");
+                    b.Property<string>("Description").IsRequired().HasMaxLength(500).HasColumnType("nvarchar(500)");
+                    b.Property<Guid>("FinancialBookId").HasColumnType("uniqueidentifier");
+                    b.Property<Guid>("FinancialObligationId").HasColumnType("uniqueidentifier");
+                    b.Property<string>("IdempotencyKey").IsRequired().HasMaxLength(128).HasColumnType("nvarchar(128)");
+                    b.Property<Guid>("JournalEntryId").HasColumnType("uniqueidentifier");
+                    b.Property<DateOnly>("PaymentDate").HasColumnType("date");
+                    b.Property<string>("Reference").HasMaxLength(100).HasColumnType("nvarchar(100)");
+                    b.Property<string>("RequestHash").IsRequired().HasMaxLength(64).IsUnicode(false).HasColumnType("char(64)").IsFixedLength();
+                    b.HasKey("Id");
+                    b.HasAlternateKey("Id", "FinancialObligationId").HasName("AK_FinancialObligationPayments_Id_ObligationId");
+                    b.HasIndex("FinancialBookId", "Id").IsUnique().HasDatabaseName("UX_FinancialObligationPayments_Book_Id");
+                    b.HasIndex("FinancialBookId", "CreatedBy", "IdempotencyKey").IsUnique().HasDatabaseName("UX_FinancialObligationPayments_Idempotency");
+                    b.HasIndex("FinancialBookId", "FinancialObligationId", "PaymentDate", "Id").HasDatabaseName("IX_FinancialObligationPayments_Obligation_Date");
+                    b.ToTable("FinancialObligationPayments", (string)null, t =>
+                    {
+                        t.HasCheckConstraint("CK_FinancialObligationPayments_Amount_Positive", "[Amount] > 0");
+                        t.HasCheckConstraint("CK_FinancialObligationPayments_IdempotencyMetadata_Valid", "LEN([IdempotencyKey]) BETWEEN 1 AND 128 AND LEN([RequestHash]) = 64");
+                    });
+                });
+
+            modelBuilder.Entity("ArtaFin.Domain.Obligations.FinancialObligationPaymentAllocation", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uniqueidentifier");
+                    b.Property<decimal>("Amount").HasPrecision(19, 4).HasColumnType("decimal(19,4)");
+                    b.Property<Guid>("FinancialObligationId").HasColumnType("uniqueidentifier");
+                    b.Property<Guid>("InstallmentId").HasColumnType("uniqueidentifier");
+                    b.Property<Guid>("PaymentId").HasColumnType("uniqueidentifier");
+                    b.HasKey("Id");
+                    b.HasIndex("FinancialObligationId", "InstallmentId").HasDatabaseName("IX_FinancialObligationPaymentAllocations_Obligation_Installment");
+                    b.HasIndex("PaymentId", "InstallmentId").IsUnique().HasDatabaseName("UX_FinancialObligationPaymentAllocations_Payment_Installment");
+                    b.ToTable("FinancialObligationPaymentAllocations", (string)null, t =>
+                    {
+                        t.HasCheckConstraint("CK_FinancialObligationPaymentAllocations_Amount_Positive", "[Amount] > 0");
+                    });
                 });
 
             modelBuilder.Entity("ArtaFin.Domain.Finance.FinancialBook", b =>
@@ -511,6 +561,29 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                         .HasForeignKey("FinancialObligationId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("ArtaFin.Domain.Obligations.FinancialObligationPayment", b =>
+                {
+                    b.HasOne("ArtaFin.Domain.Finance.Account", null).WithMany()
+                        .HasForeignKey("FinancialBookId", "CashAccountId")
+                        .HasPrincipalKey("FinancialBookId", "Id").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.HasOne("ArtaFin.Domain.Obligations.FinancialObligation", null).WithMany()
+                        .HasForeignKey("FinancialBookId", "FinancialObligationId")
+                        .HasPrincipalKey("FinancialBookId", "Id").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.HasOne("ArtaFin.Domain.Finance.JournalEntry", null).WithMany()
+                        .HasForeignKey("FinancialBookId", "JournalEntryId")
+                        .HasPrincipalKey("FinancialBookId", "Id").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.HasMany("ArtaFin.Domain.Obligations.FinancialObligationPaymentAllocation", "Allocations")
+                        .WithOne().HasForeignKey("PaymentId", "FinancialObligationId")
+                        .HasPrincipalKey("Id", "FinancialObligationId").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                });
+
+            modelBuilder.Entity("ArtaFin.Domain.Obligations.FinancialObligationPaymentAllocation", b =>
+                {
+                    b.HasOne("ArtaFin.Domain.Obligations.FinancialObligationInstallment", null).WithMany()
+                        .HasForeignKey("FinancialObligationId", "InstallmentId")
+                        .HasPrincipalKey("FinancialObligationId", "Id").OnDelete(DeleteBehavior.Restrict).IsRequired();
                 });
 
             modelBuilder.Entity("ArtaFin.Domain.Finance.FinancialBookMember", b =>
@@ -583,6 +656,9 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
+
+                    b.HasAlternateKey("FinancialBookId", "Id")
+                        .HasName("AK_JournalEntries_FinancialBookId_Id");
 
                     b.HasIndex("ReversesJournalEntryId")
                         .IsUnique()
