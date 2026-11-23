@@ -145,6 +145,7 @@ public sealed class ArtaFinDbContext(
         EnsureNonCashDisclosuresAreImmutable();
         EnsureLeasePaymentSchedulesAreImmutable();
         EnsureFinancialObligationInstallmentsAreImmutable();
+        EnsureFinancialObligationPaymentsAreImmutable();
 
         try
         {
