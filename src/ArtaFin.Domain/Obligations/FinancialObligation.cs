@@ -176,6 +176,26 @@ public sealed class FinancialObligation : AggregateRoot
         UpdatedAt = changedAt;
     }
 
+    /// <summary>
+    /// Refreshes settlement status from the cumulative amount allocated by immutable payments.
+    /// The caller must calculate the amount inside the payment-posting transaction.
+    /// </summary>
+    public void ApplyPayment(decimal cumulativePaidAmount, DateTimeOffset changedAt)
+    {
+        if (Status == FinancialObligationStatus.Cancelled)
+            throw new DomainException("A cancelled obligation cannot receive payments.");
+        if (cumulativePaidAmount <= 0m || cumulativePaidAmount > OriginalAmount)
+            throw new DomainException("Cumulative payments must be greater than zero and cannot exceed the obligation amount.");
+
+        var paidMoney = new Money(cumulativePaidAmount, Currency);
+        EnsureNotBeforeLastChange(changedAt);
+
+        Status = paidMoney.Amount == OriginalAmount
+            ? FinancialObligationStatus.Settled
+            : FinancialObligationStatus.PartiallySettled;
+        UpdatedAt = changedAt;
+    }
+
     public void MarkSettled(DateTimeOffset settledAt)
     {
         if (Status is not FinancialObligationStatus.Open and not FinancialObligationStatus.PartiallySettled)
