@@ -5,8 +5,7 @@ namespace ArtaFin.Domain.Obligations;
 
 /// <summary>
 /// A book-scoped amount owed either by a counterparty to the book or by the book
-/// to a counterparty. Installments and immutable settlement records are separate
-/// concepts and are introduced by subsequent capabilities.
+/// to a counterparty. The aggregate owns an immutable initial installment schedule.
 /// </summary>
 public sealed class FinancialObligation : AggregateRoot
 {
@@ -136,7 +135,7 @@ public sealed class FinancialObligation : AggregateRoot
                 $"An obligation cannot have more than {MaxInstallments} installments.");
 
         decimal sum = 0m;
-        DateOnly previousDate = DateOnly.MinValue;
+        DateOnly? previousDate = null;
         var normalized = new List<FinancialObligationInstallmentTerm>(installments.Count);
         foreach (var installment in installments)
         {
@@ -145,8 +144,10 @@ public sealed class FinancialObligation : AggregateRoot
             var installmentMoney = new Money(installment.Amount, total.Currency);
             if (installment.DueDate < effectiveDate || installment.DueDate > dueDate)
                 throw new ArgumentException("Installment due dates must be between the effective date and obligation due date.", nameof(installments));
-            if (installment.DueDate <= previousDate)
+            if (previousDate.HasValue && installment.DueDate <= previousDate.Value)
                 throw new ArgumentException("Installment due dates must be strictly increasing.", nameof(installments));
+            if (installmentMoney.Amount > total.Amount - sum)
+                throw new ArgumentException("The sum of installment amounts cannot exceed the original obligation amount.", nameof(installments));
             sum += installmentMoney.Amount;
             previousDate = installment.DueDate;
             normalized.Add(new FinancialObligationInstallmentTerm(installmentMoney.Amount, installment.DueDate));
