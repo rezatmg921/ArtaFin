@@ -418,6 +418,8 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ContactId");
 
+                    b.HasIndex("FinancialBookId", "ControlAccountId");
+
                     b.HasIndex("FinancialBookId", "ContactId", "EffectiveDate")
                         .HasDatabaseName("IX_FinancialObligations_Book_Contact_EffectiveDate");
 
