@@ -97,8 +97,10 @@ builder.Services.AddOpenApi(options =>
             {
                 Name = "Idempotency-Key",
                 In = ParameterLocation.Header,
-                Required = false,
-                Description = "Optional key used to safely retry this financial operation. Reusing the same key with the same request returns the original result; using it with different request data returns 409 Conflict.",
+                Required = endpointName == "CreateFinancialObligationPayment",
+                Description = endpointName == "CreateFinancialObligationPayment"
+                    ? "Required key used to safely retry this payment. Reusing the same key with the same request returns the original payment; using it with different request data returns 409 Conflict."
+                    : "Optional key used to safely retry this financial operation. Reusing the same key with the same request returns the original result; using it with different request data returns 409 Conflict.",
                 Schema = new OpenApiSchema
                 {
                     Type = JsonSchemaType.String,
