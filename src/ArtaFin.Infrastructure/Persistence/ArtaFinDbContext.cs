@@ -6,6 +6,7 @@ using ArtaFin.Application.Features.Accounts.CreateAccount;
 using ArtaFin.Application.Features.Accounts.DeleteAccount;
 using ArtaFin.Application.Features.JournalEntries.CreateJournalEntry;
 using ArtaFin.Application.Features.JournalEntries.ReverseJournalEntry;
+using ArtaFin.Domain.Contacts;
 using ArtaFin.Domain.Finance;
 using ArtaFin.Domain.Security;
 using ArtaFin.Infrastructure.Persistence.Configurations;
@@ -24,6 +25,7 @@ public sealed class ArtaFinDbContext(
     private const string JournalEntryReversalUniqueIndexName = "UX_JournalEntries_ReversesJournalEntryId";
     private const string JournalLineAccountForeignKeyName = "FK_JournalLines_Accounts_FinancialBookId_AccountId";
 
+    public DbSet<Contact> Contacts => Set<Contact>();
     public DbSet<FinancialBook> FinancialBooks => Set<FinancialBook>();
     public DbSet<FinancialBookMember> FinancialBookMembers => Set<FinancialBookMember>();
     public DbSet<Account> Accounts => Set<Account>();
@@ -43,6 +45,7 @@ public sealed class ArtaFinDbContext(
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<Contact>();
         modelBuilder.Entity<FinancialBook>();
         modelBuilder.Entity<FinancialBookMember>();
         modelBuilder.Entity<Account>();
@@ -61,6 +64,7 @@ public sealed class ArtaFinDbContext(
         modelBuilder.Entity<AppPermission>();
         modelBuilder.Entity<RolePermission>();
 
+        modelBuilder.ApplyConfiguration(new ContactConfiguration());
         modelBuilder.ApplyConfiguration(new FinancialBookConfiguration());
         modelBuilder.ApplyConfiguration(new FinancialBookMemberConfiguration());
         modelBuilder.ApplyConfiguration(new AccountConfiguration());
