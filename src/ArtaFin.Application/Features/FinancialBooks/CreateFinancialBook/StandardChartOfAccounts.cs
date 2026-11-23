@@ -83,13 +83,14 @@ internal static class StandardChartOfAccounts
         new("6403", "هزینه تبلیغات", AccountType.Expense)
     ];
 
-    public static async Task SeedAsync(
+    public static async Task<int> SeedAsync(
         Guid financialBookId,
         IAccountRepository accountRepository,
         TimeProvider timeProvider,
         CancellationToken cancellationToken)
     {
         var createdAt = timeProvider.GetUtcNow();
+        var createdCount = 0;
 
         foreach (var template in Templates)
         {
@@ -118,7 +119,10 @@ internal static class StandardChartOfAccounts
             }
 
             await accountRepository.AddAsync(account, cancellationToken);
+            createdCount++;
         }
+
+        return createdCount;
     }
 
     private sealed record AccountTemplate(
