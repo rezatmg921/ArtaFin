@@ -33,6 +33,8 @@ public sealed class FinancialObligation : AggregateRoot
     public DateTimeOffset? CancelledAt { get; private set; }
     public IReadOnlyList<FinancialObligationInstallment> Installments => _installments.AsReadOnly();
 
+    private FinancialObligation() : base(Guid.NewGuid()) { }
+
     private FinancialObligation(
         Guid id,
         Guid financialBookId,
