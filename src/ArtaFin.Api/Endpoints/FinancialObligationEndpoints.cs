@@ -70,7 +70,7 @@ internal static class FinancialObligationEndpoints
         var id = await service.CreateAsync(financialBookId, request.ContactId, request.ControlAccountId,
             request.Direction, request.Kind, request.Amount, request.Currency!,
             request.EffectiveDate, request.DueDate, request.Description!, request.Reference,
-            cancellationToken);
+            cancellationToken, request.Installments?.Select(x => new FinancialObligationInstallmentTerm(x.Amount, x.DueDate)).ToArray());
         return Results.Created($"/api/financial-books/{financialBookId}/obligations/{id}",
             new CreateObligationResponse(id));
     }
@@ -93,6 +93,9 @@ internal static class FinancialObligationEndpoints
         if (request.Amount <= 0) errors["amount"] = ["Amount must be greater than zero."];
         if (string.IsNullOrWhiteSpace(request.Currency)) errors["currency"] = ["Currency is required."];
         if (string.IsNullOrWhiteSpace(request.Description)) errors["description"] = ["Description is required."];
+        if (request.Installments is { Length: 0 }) errors["installments"] = ["When supplied, installments must contain at least one item."];
+        if (request.Installments is { Length: > FinancialObligation.MaxInstallments }) errors["installments"] = [$"No more than {FinancialObligation.MaxInstallments} installments are allowed."];
+        if (request.Installments is not null && request.Installments.Any(x => x.Amount <= 0)) errors["installments"] = ["Every installment amount must be greater than zero."];
         return errors;
     }
 
@@ -109,16 +112,21 @@ internal static class FinancialObligationEndpoints
     private static ObligationResponse ToResponse(FinancialObligationSnapshot x) => new(
         x.Id, x.FinancialBookId, x.ContactId, x.ControlAccountId, x.Direction.ToString(),
         x.Kind.ToString(), x.OriginalAmount, x.Currency, x.EffectiveDate, x.DueDate,
-        x.Description, x.Reference, x.Status.ToString(), x.CreatedAt, x.UpdatedAt, x.CancelledAt);
+        x.Description, x.Reference, x.Status.ToString(), x.CreatedAt, x.UpdatedAt, x.CancelledAt,
+        x.Installments.Select(i => new InstallmentResponse(i.Id, i.InstallmentNumber, i.DueDate, i.Amount)).ToArray());
 
     private sealed record CreateObligationRequest(
         Guid ContactId, Guid ControlAccountId, FinancialObligationDirection Direction,
         FinancialObligationKind Kind, decimal Amount, string? Currency,
-        DateOnly EffectiveDate, DateOnly DueDate, string? Description, string? Reference);
+        DateOnly EffectiveDate, DateOnly DueDate, string? Description, string? Reference,
+        InstallmentRequest[]? Installments = null);
+    private sealed record InstallmentRequest(decimal Amount, DateOnly DueDate);
+    private sealed record InstallmentResponse(Guid Id, int InstallmentNumber, DateOnly DueDate, decimal Amount);
     private sealed record CreateObligationResponse(Guid Id);
     private sealed record ObligationResponse(
         Guid Id, Guid FinancialBookId, Guid ContactId, Guid ControlAccountId,
         string Direction, string Kind, decimal Amount, string Currency,
         DateOnly EffectiveDate, DateOnly DueDate, string Description, string? Reference,
-        string Status, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt, DateTimeOffset? CancelledAt);
+        string Status, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt, DateTimeOffset? CancelledAt,
+        IReadOnlyList<InstallmentResponse> Installments);
 }
