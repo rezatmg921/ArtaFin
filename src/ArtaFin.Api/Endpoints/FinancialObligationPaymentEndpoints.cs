@@ -17,6 +17,16 @@ internal static class FinancialObligationPaymentEndpoints
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict);
 
+        endpoints.MapPost(
+                "/api/financial-books/{financialBookId:guid}/obligations/{obligationId:guid}/payments/{paymentId:guid}/reverse",
+                ReverseAsync)
+            .WithName("ReverseFinancialObligationPayment")
+            .WithTags("Financial Obligation Payments")
+            .RequireAuthorization("Permission:ObligationPayments.Reverse")
+            .Produces<ReverseObligationPaymentResponse>()
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
         endpoints.MapGet(
                 "/api/financial-books/{financialBookId:guid}/obligations/{obligationId:guid}/payments",
                 ListAsync)
@@ -87,6 +97,28 @@ internal static class FinancialObligationPaymentEndpoints
                 response);
     }
 
+    private static async Task<IResult> ReverseAsync(
+        Guid financialBookId, Guid obligationId, Guid paymentId,
+        ReverseObligationPaymentRequest request, FinancialObligationPaymentService service,
+        HttpRequest httpRequest, CancellationToken cancellationToken)
+    {
+        var errors = new Dictionary<string, string[]>();
+        var key = IdempotencyKeyHeader.Read(httpRequest, errors);
+        if (key is null && !errors.ContainsKey("Idempotency-Key"))
+            errors["Idempotency-Key"] = ["Idempotency-Key header is required."];
+        if (string.IsNullOrWhiteSpace(request.Reason))
+            errors["reason"] = ["A reversal reason is required."];
+        else if (request.Reason.Trim().Length > 480)
+            errors["reason"] = ["Reversal reason cannot exceed 480 characters."];
+        if (errors.Count > 0)
+            return Results.ValidationProblem(errors);
+
+        var result = await service.ReverseAsync(
+            financialBookId, obligationId, paymentId, request.Reason!, key!, cancellationToken);
+        return Results.Ok(new ReverseObligationPaymentResponse(
+            result.PaymentId, result.ReversalJournalEntryId, result.WasAlreadyReversed));
+    }
+
     private static async Task<IResult> ListAsync(
         Guid financialBookId, Guid obligationId, int? skip, int? take,
         FinancialObligationPaymentService service, CancellationToken cancellationToken)
@@ -116,17 +148,21 @@ internal static class FinancialObligationPaymentEndpoints
         x.Id, x.FinancialBookId, x.FinancialObligationId, x.CashAccountId,
         x.JournalEntryId, x.Amount, x.Currency, x.PaymentDate, x.Description,
         x.Reference, x.CreatedBy, x.CreatedAt,
-        x.Allocations.Select(a => new PaymentAllocationResponse(a.InstallmentId, a.Amount)).ToArray());
+        x.Allocations.Select(a => new PaymentAllocationResponse(a.InstallmentId, a.Amount)).ToArray(),
+        x.IsReversed, x.ReversedAt, x.ReversalJournalEntryId, x.ReversalReason);
 
     private sealed record CreateObligationPaymentRequest(
         Guid CashAccountId, decimal Amount, string? Currency, DateOnly PaymentDate,
         string? Description, string? Reference, PaymentAllocationRequest[]? Allocations);
     private sealed record PaymentAllocationRequest(Guid InstallmentId, decimal Amount);
+    private sealed record ReverseObligationPaymentRequest(string? Reason);
     private sealed record PaymentAllocationResponse(Guid InstallmentId, decimal Amount);
     private sealed record CreateObligationPaymentResponse(Guid PaymentId, Guid JournalEntryId, bool WasAlreadyCreated);
+    private sealed record ReverseObligationPaymentResponse(Guid PaymentId, Guid ReversalJournalEntryId, bool WasAlreadyReversed);
     private sealed record ObligationPaymentResponse(
         Guid Id, Guid FinancialBookId, Guid FinancialObligationId, Guid CashAccountId,
         Guid JournalEntryId, decimal Amount, string Currency, DateOnly PaymentDate,
         string Description, string? Reference, Guid CreatedBy, DateTimeOffset CreatedAt,
-        IReadOnlyList<PaymentAllocationResponse> Allocations);
+        IReadOnlyList<PaymentAllocationResponse> Allocations, bool IsReversed,
+        DateTimeOffset? ReversedAt, Guid? ReversalJournalEntryId, string? ReversalReason);
 }
