@@ -1436,6 +1436,12 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                     b.Navigation("Installments");
                 });
 
+            modelBuilder.Entity("ArtaFin.Domain.Obligations.FinancialObligationPayment", b =>
+                {
+                    b.Navigation("Allocations")
+                        .UsePropertyAccessMode(PropertyAccessMode.Field);
+                });
+
             modelBuilder.Entity("ArtaFin.Domain.Finance.LeasePaymentSchedule", b =>
                 {
                     b.Navigation("Payments");
