@@ -91,16 +91,17 @@ Then validate and create the journal entry, invoking `EnsureCanPostAsync` to loc
 
 Payments and allocations are immutable. A payment must not be reversed by calling the generic journal-entry reversal endpoint directly, because that would leave settlement allocations active while reversing the ledger effect.
 
-A dedicated payment-reversal use case is required to atomically create the reversing journal entry and a durable payment-reversal record, and to restore the obligation's derived settlement status. Until that use case exists, journal entries linked to payments must be protected from generic reversal.
+A dedicated payment-reversal use case atomically creates a reversing journal entry and records reversal metadata on the original payment. The original payment and allocations remain unchanged. The use case recalculates the obligation's settlement status from non-reversed allocations in the same transaction. Reversal is one-way; a reversal journal entry cannot itself be reversed. The workflow requires an idempotency key and a reason. Generic journal-entry reversal remains blocked for every payment-linked journal entry, including already reversed payments.
 
 ### 8. API and authorization
 
 Expose book-scoped operations:
 - Create/post payment for an obligation;
 - List payments for an obligation;
-- Get a payment by identifier.
+- Get a payment by identifier;
+- Reverse a payment using a required `Idempotency-Key` header and a mandatory reason.
 
-Use dedicated permissions `Obligations.Payments.Read` and `Obligations.Payments.Create` (or an equivalent consistent naming convention). Application services must independently enforce book ownership/member role, obligation scope, account scope and active status; API permission alone is insufficient.
+Use dedicated permissions `ObligationPayments.Read`, `ObligationPayments.Create` and `ObligationPayments.Reverse`. Application services must independently enforce book ownership/member role, obligation scope, account scope and active status; API permission alone is insufficient.
 
 The create endpoint returns the payment identifier and the linked journal-entry identifier. Responses include allocation details and computed installment balances where relevant.
 
@@ -110,4 +111,4 @@ The create endpoint returns the payment identifier and the linked journal-entry 
 - Installment contractual terms remain immutable and payment history is fully traceable.
 - Exact allocation prevents unallocated cash from being silently treated as settlement.
 - Serializable transactions, application locks and row locks prevent duplicate or concurrent overpayment.
-- Version one intentionally excludes multi-obligation payments, foreign currency, payment edits/deletes and payment reversal until their complete accounting workflows are implemented.
+- Version one intentionally excludes multi-obligation payments, foreign currency, payment edits/deletes and reversal of a reversal. Payment reversal is supported only through the dedicated transactional workflow.
