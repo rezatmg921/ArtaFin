@@ -494,6 +494,12 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                     b.Property<DateOnly>("PaymentDate").HasColumnType("date");
                     b.Property<string>("Reference").HasMaxLength(100).HasColumnType("nvarchar(100)");
                     b.Property<string>("RequestHash").IsRequired().HasMaxLength(64).IsUnicode(false).HasColumnType("char(64)").IsFixedLength();
+                    b.Property<DateTimeOffset?>("ReversedAt").HasColumnType("datetimeoffset(7)");
+                    b.Property<Guid?>("ReversedBy").HasColumnType("uniqueidentifier");
+                    b.Property<Guid?>("ReversalJournalEntryId").HasColumnType("uniqueidentifier");
+                    b.Property<string>("ReversalReason").HasMaxLength(500).HasColumnType("nvarchar(500)");
+                    b.Property<string>("ReversalIdempotencyKey").HasMaxLength(128).HasColumnType("nvarchar(128)");
+                    b.Property<string>("ReversalRequestHash").HasMaxLength(64).IsUnicode(false).HasColumnType("char(64)").IsFixedLength();
                     b.HasKey("Id");
                     b.HasAlternateKey("Id", "FinancialObligationId").HasName("AK_FinancialObligationPayments_Id_ObligationId");
                     b.HasIndex("FinancialBookId", "Id").IsUnique().HasDatabaseName("UX_FinancialObligationPayments_Book_Id");
@@ -501,10 +507,12 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                     b.HasIndex("FinancialBookId", "FinancialObligationId", "PaymentDate", "Id").HasDatabaseName("IX_FinancialObligationPayments_Obligation_Date");
                     b.HasIndex("FinancialBookId", "CashAccountId").HasDatabaseName("IX_FinancialObligationPayments_FinancialBookId_CashAccountId");
                     b.HasIndex("JournalEntryId").HasDatabaseName("IX_FinancialObligationPayments_JournalEntryId");
+                    b.HasIndex("ReversalJournalEntryId").IsUnique().HasDatabaseName("UX_FinancialObligationPayments_ReversalJournalEntryId").HasFilter("[ReversalJournalEntryId] IS NOT NULL");
                     b.ToTable("FinancialObligationPayments", (string)null, t =>
                     {
                         t.HasCheckConstraint("CK_FinancialObligationPayments_Amount_Positive", "[Amount] > 0");
                         t.HasCheckConstraint("CK_FinancialObligationPayments_IdempotencyMetadata_Valid", "LEN([IdempotencyKey]) BETWEEN 1 AND 128 AND LEN([RequestHash]) = 64");
+                        t.HasCheckConstraint("CK_FinancialObligationPayments_ReversalMetadata_Consistent", "([ReversedAt] IS NULL AND [ReversedBy] IS NULL AND [ReversalJournalEntryId] IS NULL AND [ReversalReason] IS NULL AND [ReversalIdempotencyKey] IS NULL AND [ReversalRequestHash] IS NULL) OR ([ReversedAt] IS NOT NULL AND [ReversedBy] IS NOT NULL AND [ReversalJournalEntryId] IS NOT NULL AND [ReversalReason] IS NOT NULL AND [ReversalIdempotencyKey] IS NOT NULL AND [ReversalRequestHash] IS NOT NULL)");
                     });
                 });
 
