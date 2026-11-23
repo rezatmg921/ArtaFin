@@ -184,6 +184,8 @@ public sealed class FinancialObligation : AggregateRoot
     {
         if (Status == FinancialObligationStatus.Cancelled)
             throw new DomainException("A cancelled obligation cannot receive payments.");
+        if (Status == FinancialObligationStatus.Settled && cumulativePaidAmount != OriginalAmount)
+            throw new DomainException("A settled obligation cannot return to a partially settled state.");
         if (cumulativePaidAmount <= 0m || cumulativePaidAmount > OriginalAmount)
             throw new DomainException("Cumulative payments must be greater than zero and cannot exceed the obligation amount.");
 
