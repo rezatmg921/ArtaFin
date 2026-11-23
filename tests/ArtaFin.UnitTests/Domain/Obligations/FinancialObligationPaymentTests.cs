@@ -55,6 +55,36 @@ public sealed class FinancialObligationPaymentTests
     }
 
     [Fact]
+    public void MarkReversed_RecordsAuditMetadataWithoutChangingOriginalPayment()
+    {
+        var payment = Create();
+        var reversalId = Guid.NewGuid();
+        var reversedAt = Now.AddHours(1);
+
+        payment.MarkReversed(reversalId, UserId, reversedAt, "Duplicate receipt", "REVERSAL-001", new string('D', 64));
+
+        Assert.Equal(100m, payment.Amount);
+        Assert.Equal(JournalEntryId, payment.JournalEntryId);
+        Assert.Equal(reversalId, payment.ReversalJournalEntryId);
+        Assert.Equal(UserId, payment.ReversedBy);
+        Assert.Equal(reversedAt, payment.ReversedAt);
+        Assert.Equal("Duplicate receipt", payment.ReversalReason);
+        Assert.Equal("REVERSAL-001", payment.ReversalIdempotencyKey);
+        Assert.Equal(new string('D', 64), payment.ReversalRequestHash);
+        Assert.Equal(2, payment.Allocations.Count);
+    }
+
+    [Fact]
+    public void MarkReversed_RejectsSecondReversal()
+    {
+        var payment = Create();
+        payment.MarkReversed(Guid.NewGuid(), UserId, Now.AddHours(1), "Duplicate", "REVERSAL-001", new string('D', 64));
+
+        Assert.Throws<ArtaFin.Domain.Common.DomainException>(() =>
+            payment.MarkReversed(Guid.NewGuid(), UserId, Now.AddHours(2), "Second", "REVERSAL-002", new string('E', 64)));
+    }
+
+    [Fact]
     public void Create_RequiresAllocationsToEqualPaymentAmount()
     {
         Assert.Throws<ArgumentException>(() => Create([
