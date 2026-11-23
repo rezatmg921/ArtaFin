@@ -24,6 +24,7 @@ public static class PermissionCatalog
         new("Obligations.Cancel", "Cancel financial obligations", "Cancel eligible unsettled obligations in financial books the user may access."),
         new("ObligationPayments.Read", "Read obligation payments", "View posted receipts and disbursements for obligations in financial books the user may access."),
         new("ObligationPayments.Create", "Create obligation payments", "Post receipts and disbursements against obligation installments in financial books the user may access."),
+        new("ObligationPayments.Reverse", "Reverse obligation payments", "Reverse posted obligation payments with an auditable accounting reversal."),
         new("Accounts.Read", "Read accounts", "View accounts in financial books the user may access."),
         new("Accounts.Create", "Create accounts", "Create accounts in financial books the user may access."),
         new("Accounts.Update", "Update accounts", "Update accounts in financial books the user may access."),
