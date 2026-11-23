@@ -11,7 +11,11 @@ public sealed record FinancialObligationSnapshot(
     FinancialObligationDirection Direction, FinancialObligationKind Kind,
     decimal OriginalAmount, string Currency, DateOnly EffectiveDate, DateOnly DueDate,
     string Description, string? Reference, FinancialObligationStatus Status,
-    DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt, DateTimeOffset? CancelledAt);
+    DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt, DateTimeOffset? CancelledAt,
+    IReadOnlyList<FinancialObligationInstallmentSnapshot> Installments);
+
+public sealed record FinancialObligationInstallmentSnapshot(
+    Guid Id, int InstallmentNumber, DateOnly DueDate, decimal Amount);
 
 /// <summary>Book-scoped use cases for creating, reading and cancelling obligations.</summary>
 public sealed class FinancialObligationService(
@@ -27,7 +31,8 @@ public sealed class FinancialObligationService(
         Guid financialBookId, Guid contactId, Guid controlAccountId,
         FinancialObligationDirection direction, FinancialObligationKind kind,
         decimal amount, string currency, DateOnly effectiveDate, DateOnly dueDate,
-        string description, string? reference, CancellationToken cancellationToken)
+        string description, string? reference, CancellationToken cancellationToken,
+        IReadOnlyList<FinancialObligationInstallmentTerm>? installments = null)
     {
         await EnsureBookAccessAsync(financialBookId, write: true, cancellationToken);
 
@@ -54,7 +59,7 @@ public sealed class FinancialObligationService(
         var obligation = FinancialObligation.Create(
             Guid.NewGuid(), financialBookId, contactId, controlAccountId,
             direction, kind, amount, currency, effectiveDate, dueDate,
-            description, reference, now);
+            description, reference, now, installments);
         await obligationRepository.AddAsync(obligation, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return obligation.Id;
@@ -108,5 +113,8 @@ public sealed class FinancialObligationService(
     private static FinancialObligationSnapshot ToSnapshot(FinancialObligation x) => new(
         x.Id, x.FinancialBookId, x.ContactId, x.ControlAccountId, x.Direction, x.Kind,
         x.OriginalAmount, x.Currency, x.EffectiveDate, x.DueDate, x.Description,
-        x.Reference, x.Status, x.CreatedAt, x.UpdatedAt, x.CancelledAt);
+        x.Reference, x.Status, x.CreatedAt, x.UpdatedAt, x.CancelledAt,
+        x.Installments.OrderBy(i => i.InstallmentNumber)
+            .Select(i => new FinancialObligationInstallmentSnapshot(
+                i.Id, i.InstallmentNumber, i.DueDate, i.Amount)).ToArray());
 }
