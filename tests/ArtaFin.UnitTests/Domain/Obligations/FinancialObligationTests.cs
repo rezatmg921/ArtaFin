@@ -124,4 +124,76 @@ public sealed class FinancialObligationTests
         Assert.Equal(Now.AddHours(1), obligation.CancelledAt);
         Assert.Throws<DomainException>(() => obligation.Cancel(Now.AddHours(2)));
     }
+
+    [Fact]
+    public void Create_WithoutInstallmentTerms_CreatesOneFullAmountInstallment()
+    {
+        var obligation = Create();
+
+        var installment = Assert.Single(obligation.Installments);
+        Assert.Equal(1, installment.InstallmentNumber);
+        Assert.Equal(DueDate, installment.DueDate);
+        Assert.Equal(obligation.OriginalAmount, installment.Amount);
+    }
+
+    [Fact]
+    public void Create_WithInstallmentTerms_PreservesOrderedSchedule()
+    {
+        var terms = new[]
+        {
+            new FinancialObligationInstallmentTerm(500m, new DateOnly(2026, 11, 15)),
+            new FinancialObligationInstallmentTerm(750m, DueDate)
+        };
+
+        var obligation = FinancialObligation.Create(
+            Guid.NewGuid(), BookId, ContactId, AccountId,
+            FinancialObligationDirection.Receivable, FinancialObligationKind.GeneralDebt,
+            1250m, "USD", EffectiveDate, DueDate, "Invoice", null, Now, terms);
+
+        Assert.Collection(obligation.Installments,
+            first =>
+            {
+                Assert.Equal(1, first.InstallmentNumber);
+                Assert.Equal(new DateOnly(2026, 11, 15), first.DueDate);
+                Assert.Equal(500m, first.Amount);
+            },
+            second =>
+            {
+                Assert.Equal(2, second.InstallmentNumber);
+                Assert.Equal(DueDate, second.DueDate);
+                Assert.Equal(750m, second.Amount);
+            });
+        Assert.Equal(obligation.OriginalAmount, obligation.Installments.Sum(x => x.Amount));
+    }
+
+    [Fact]
+    public void Create_RejectsInstallmentsWhoseTotalDoesNotMatchObligation()
+    {
+        var terms = new[]
+        {
+            new FinancialObligationInstallmentTerm(500m, new DateOnly(2026, 11, 15)),
+            new FinancialObligationInstallmentTerm(700m, DueDate)
+        };
+
+        Assert.Throws<ArgumentException>(() => FinancialObligation.Create(
+            Guid.NewGuid(), BookId, ContactId, AccountId,
+            FinancialObligationDirection.Receivable, FinancialObligationKind.GeneralDebt,
+            1250m, "USD", EffectiveDate, DueDate, "Invoice", null, Now, terms));
+    }
+
+    [Fact]
+    public void Create_RejectsInstallmentsNotInStrictDueDateOrder()
+    {
+        var terms = new[]
+        {
+            new FinancialObligationInstallmentTerm(500m, DueDate),
+            new FinancialObligationInstallmentTerm(750m, DueDate)
+        };
+
+        Assert.Throws<ArgumentException>(() => FinancialObligation.Create(
+            Guid.NewGuid(), BookId, ContactId, AccountId,
+            FinancialObligationDirection.Receivable, FinancialObligationKind.GeneralDebt,
+            1250m, "USD", EffectiveDate, DueDate, "Invoice", null, Now, terms));
+    }
+
 }
