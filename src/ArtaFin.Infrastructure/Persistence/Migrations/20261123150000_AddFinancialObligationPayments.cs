@@ -102,6 +102,16 @@ public sealed class AddFinancialObligationPayments : Migration
             unique: true);
 
         migrationBuilder.CreateIndex(
+            name: "IX_FinancialObligationPayments_FinancialBookId_CashAccountId",
+            table: "FinancialObligationPayments",
+            columns: new[] { "FinancialBookId", "CashAccountId" });
+
+        migrationBuilder.CreateIndex(
+            name: "IX_FinancialObligationPayments_JournalEntryId",
+            table: "FinancialObligationPayments",
+            column: "JournalEntryId");
+
+        migrationBuilder.CreateIndex(
             name: "IX_FinancialObligationPayments_Obligation_Date",
             table: "FinancialObligationPayments",
             columns: new[] { "FinancialBookId", "FinancialObligationId", "PaymentDate", "Id" });
@@ -117,6 +127,11 @@ public sealed class AddFinancialObligationPayments : Migration
             table: "FinancialObligationPaymentAllocations",
             columns: new[] { "PaymentId", "InstallmentId" },
             unique: true);
+
+        migrationBuilder.CreateIndex(
+            name: "IX_FinancialObligationPaymentAllocations_PaymentId_FinancialObligationId",
+            table: "FinancialObligationPaymentAllocations",
+            columns: new[] { "PaymentId", "FinancialObligationId" });
 
         migrationBuilder.CreateIndex(
             name: "IX_FinancialObligationPaymentAllocations_Obligation_Installment",
