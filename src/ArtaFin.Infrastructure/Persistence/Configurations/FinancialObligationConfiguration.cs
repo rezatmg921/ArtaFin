@@ -20,6 +20,9 @@ public sealed class FinancialObligationConfiguration : IEntityTypeConfiguration<
         });
 
         builder.HasKey(x => x.Id);
+        builder.HasMany(x => x.Installments).WithOne()
+            .HasForeignKey(x => x.FinancialObligationId).OnDelete(DeleteBehavior.Restrict);
+        builder.Navigation(x => x.Installments).UsePropertyAccessMode(PropertyAccessMode.Field);
         builder.Property(x => x.FinancialBookId).IsRequired();
         builder.Property(x => x.ContactId).IsRequired();
         builder.Property(x => x.ControlAccountId).IsRequired();
@@ -49,5 +52,29 @@ public sealed class FinancialObligationConfiguration : IEntityTypeConfiguration<
             .HasDatabaseName("IX_FinancialObligations_Book_Direction_Status_DueDate");
         builder.HasIndex(x => new { x.FinancialBookId, x.ContactId, x.EffectiveDate })
             .HasDatabaseName("IX_FinancialObligations_Book_Contact_EffectiveDate");
+    }
+}
+
+
+public sealed class FinancialObligationInstallmentConfiguration : IEntityTypeConfiguration<FinancialObligationInstallment>
+{
+    public void Configure(EntityTypeBuilder<FinancialObligationInstallment> builder)
+    {
+        builder.ToTable("FinancialObligationInstallments", table =>
+        {
+            table.HasCheckConstraint("CK_FinancialObligationInstallments_Number_Positive", "[InstallmentNumber] > 0");
+            table.HasCheckConstraint("CK_FinancialObligationInstallments_Amount_Positive", "[Amount] > 0");
+        });
+
+        builder.HasKey(x => x.Id);
+        builder.Property(x => x.FinancialObligationId).IsRequired();
+        builder.Property(x => x.InstallmentNumber).IsRequired();
+        builder.Property(x => x.DueDate).HasColumnType("date").IsRequired();
+        builder.Property(x => x.Amount).HasPrecision(19, 4).IsRequired();
+
+        builder.HasIndex(x => new { x.FinancialObligationId, x.InstallmentNumber })
+            .IsUnique().HasDatabaseName("UX_FinancialObligationInstallments_Obligation_Number");
+        builder.HasIndex(x => new { x.FinancialObligationId, x.DueDate })
+            .IsUnique().HasDatabaseName("UX_FinancialObligationInstallments_Obligation_DueDate");
     }
 }
