@@ -1,5 +1,6 @@
 using ArtaFin.Application.Features.Accounts.CreateAccount;
 using ArtaFin.Application.Features.Contacts;
+using ArtaFin.Application.Features.Obligations;
 using ArtaFin.Application.Features.CashFlowAllocations;
 using ArtaFin.Application.Features.CashFlowNonCashDisclosures;
 using ArtaFin.Application.Features.Authentication;
@@ -27,6 +28,7 @@ public static class DependencyInjection
 
         services.AddScoped<CreateAccountCommandHandler>();
         services.AddScoped<ContactService>();
+        services.AddScoped<FinancialObligationService>();
         services.AddScoped<CashFlowAllocationService>();
         services.AddScoped<CashFlowNonCashDisclosureService>();
         services.AddScoped<LeaseContractService>();
