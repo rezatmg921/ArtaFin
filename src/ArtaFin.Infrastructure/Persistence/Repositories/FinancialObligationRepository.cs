@@ -8,15 +8,17 @@ internal sealed class FinancialObligationRepository(ArtaFinDbContext dbContext) 
 {
     public Task<FinancialObligation?> GetByIdAsync(
         Guid financialBookId, Guid obligationId, CancellationToken cancellationToken) =>
-        dbContext.FinancialObligations.SingleOrDefaultAsync(
-            x => x.FinancialBookId == financialBookId && x.Id == obligationId,
-            cancellationToken);
+        dbContext.FinancialObligations.Include(x => x.Installments)
+            .SingleOrDefaultAsync(
+                x => x.FinancialBookId == financialBookId && x.Id == obligationId,
+                cancellationToken);
 
     public async Task<IReadOnlyList<FinancialObligation>> ListAsync(
         Guid financialBookId, FinancialObligationDirection? direction,
         FinancialObligationStatus? status, int skip, int take, CancellationToken cancellationToken)
     {
         var query = dbContext.FinancialObligations.AsNoTracking()
+            .Include(x => x.Installments)
             .Where(x => x.FinancialBookId == financialBookId);
         if (direction.HasValue) query = query.Where(x => x.Direction == direction.Value);
         if (status.HasValue) query = query.Where(x => x.Status == status.Value);
