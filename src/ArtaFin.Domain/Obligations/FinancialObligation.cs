@@ -30,8 +30,6 @@ public sealed class FinancialObligation : AggregateRoot
     public DateTimeOffset UpdatedAt { get; private set; }
     public DateTimeOffset? CancelledAt { get; private set; }
 
-    private FinancialObligation() : base(Guid.Empty) { }
-
     private FinancialObligation(
         Guid id,
         Guid financialBookId,
@@ -39,7 +37,8 @@ public sealed class FinancialObligation : AggregateRoot
         Guid controlAccountId,
         FinancialObligationDirection direction,
         FinancialObligationKind kind,
-        Money originalMoney,
+        decimal originalAmount,
+        string currency,
         DateOnly effectiveDate,
         DateOnly dueDate,
         string description,
@@ -51,8 +50,8 @@ public sealed class FinancialObligation : AggregateRoot
         ControlAccountId = controlAccountId;
         Direction = direction;
         Kind = kind;
-        OriginalAmount = originalMoney.Amount;
-        Currency = originalMoney.Currency;
+        OriginalAmount = originalAmount;
+        Currency = currency;
         EffectiveDate = effectiveDate;
         DueDate = dueDate;
         Description = description;
@@ -106,7 +105,7 @@ public sealed class FinancialObligation : AggregateRoot
 
         return new FinancialObligation(
             id, financialBookId, contactId, controlAccountId, direction, kind,
-            money, effectiveDate, dueDate, normalizedDescription, normalizedReference, createdAt);
+            money.Amount, money.Currency, effectiveDate, dueDate, normalizedDescription, normalizedReference, createdAt);
     }
 
     public bool IsOverdueOn(DateOnly date) =>
