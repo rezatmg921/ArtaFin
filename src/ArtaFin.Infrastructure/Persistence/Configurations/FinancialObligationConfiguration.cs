@@ -20,6 +20,8 @@ public sealed class FinancialObligationConfiguration : IEntityTypeConfiguration<
         });
 
         builder.HasKey(x => x.Id);
+        builder.HasAlternateKey(x => new { x.FinancialBookId, x.Id })
+            .HasName("AK_FinancialObligations_Book_Id");
         builder.HasMany(x => x.Installments).WithOne()
             .HasForeignKey(x => x.FinancialObligationId).OnDelete(DeleteBehavior.Restrict);
         builder.Navigation(x => x.Installments).UsePropertyAccessMode(PropertyAccessMode.Field);
@@ -67,6 +69,8 @@ public sealed class FinancialObligationInstallmentConfiguration : IEntityTypeCon
         });
 
         builder.HasKey(x => x.Id);
+        builder.HasAlternateKey(x => new { x.FinancialObligationId, x.Id })
+            .HasName("AK_FinancialObligationInstallments_Obligation_Id");
         builder.Property(x => x.FinancialObligationId).IsRequired();
         builder.Property(x => x.InstallmentNumber).IsRequired();
         builder.Property(x => x.DueDate).HasColumnType("date").IsRequired();
