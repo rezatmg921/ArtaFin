@@ -82,6 +82,12 @@ public sealed class ReverseJournalEntryCommandHandler(
             throw new JournalEntryAlreadyReversedException();
         }
 
+        if (await journalEntryRepository.IsLinkedToObligationPaymentAsync(
+                financialBook.Id, original.Id, cancellationToken))
+        {
+            throw new JournalEntryLinkedToPaymentException();
+        }
+
         var reversal = JournalEntry.Reverse(
             Guid.NewGuid(),
             original,
