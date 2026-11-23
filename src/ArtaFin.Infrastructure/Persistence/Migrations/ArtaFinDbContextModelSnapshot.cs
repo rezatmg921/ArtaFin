@@ -572,8 +572,8 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                         .HasForeignKey("FinancialBookId", "FinancialObligationId")
                         .HasPrincipalKey("FinancialBookId", "Id").OnDelete(DeleteBehavior.Restrict).IsRequired();
                     b.HasOne("ArtaFin.Domain.Finance.JournalEntry", null).WithMany()
-                        .HasForeignKey("FinancialBookId", "JournalEntryId")
-                        .HasPrincipalKey("FinancialBookId", "Id").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                        .HasForeignKey("JournalEntryId")
+                        .OnDelete(DeleteBehavior.Restrict).IsRequired();
                     b.HasMany("ArtaFin.Domain.Obligations.FinancialObligationPaymentAllocation", "Allocations")
                         .WithOne().HasForeignKey("PaymentId", "FinancialObligationId")
                         .HasPrincipalKey("Id", "FinancialObligationId").OnDelete(DeleteBehavior.Restrict).IsRequired();
@@ -656,9 +656,6 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
-
-                    b.HasAlternateKey("FinancialBookId", "Id")
-                        .HasName("AK_JournalEntries_FinancialBookId_Id");
 
                     b.HasIndex("ReversesJournalEntryId")
                         .IsUnique()
