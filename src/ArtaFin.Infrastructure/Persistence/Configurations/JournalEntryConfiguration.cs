@@ -13,8 +13,6 @@ public sealed class JournalEntryConfiguration : IEntityTypeConfiguration<Journal
                 "CK_JournalEntries_IdempotencyMetadata_Consistent",
                 "([IdempotencyKey] IS NULL AND [IdempotencyUserId] IS NULL AND [RequestHash] IS NULL) OR ([IdempotencyKey] IS NOT NULL AND [IdempotencyUserId] IS NOT NULL AND [RequestHash] IS NOT NULL)"));
         builder.HasKey(entry => entry.Id);
-        builder.HasAlternateKey(entry => new { entry.FinancialBookId, entry.Id })
-            .HasName("AK_JournalEntries_FinancialBookId_Id");
         builder.Property(entry => entry.FinancialBookId).IsRequired();
         builder.Property(entry => entry.PostedAt).HasColumnType("datetimeoffset(7)").IsRequired();
         builder.Property(entry => entry.Description).HasMaxLength(JournalEntry.MaxDescriptionLength).IsRequired();
