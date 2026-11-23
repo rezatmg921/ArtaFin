@@ -214,6 +214,7 @@ app.MapLeaseContractEndpoints();
 app.MapLeasePaymentScheduleEndpoints();
 app.MapFinancialBookMemberEndpoints();
 app.MapContactEndpoints();
+app.MapFinancialObligationEndpoints();
 app.MapJournalEntryEndpoints();
 app.MapJournalEntryListEndpoints();
 app.MapExpenseEndpoints();
