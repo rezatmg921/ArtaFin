@@ -13,11 +13,13 @@ public sealed record ObligationPaymentSnapshot(
     Guid Id, Guid FinancialBookId, Guid FinancialObligationId, Guid CashAccountId,
     Guid JournalEntryId, decimal Amount, string Currency, DateOnly PaymentDate,
     string Description, string? Reference, Guid CreatedBy, DateTimeOffset CreatedAt,
-    IReadOnlyList<ObligationPaymentAllocationSnapshot> Allocations);
+    IReadOnlyList<ObligationPaymentAllocationSnapshot> Allocations,
+    bool IsReversed, DateTimeOffset? ReversedAt, Guid? ReversalJournalEntryId, string? ReversalReason);
 
 public sealed record ObligationPaymentAllocationSnapshot(Guid InstallmentId, decimal Amount);
 
 public sealed record CreateObligationPaymentResult(Guid PaymentId, Guid JournalEntryId, bool WasAlreadyCreated);
+public sealed record ReverseObligationPaymentResult(Guid PaymentId, Guid ReversalJournalEntryId, bool WasAlreadyReversed);
 
 /// <summary>Posts receipts and disbursements against obligation installments.</summary>
 public sealed class FinancialObligationPaymentService(
@@ -147,6 +149,89 @@ public sealed class FinancialObligationPaymentService(
         return result ?? throw new InvalidOperationException("Payment transaction completed without a result.");
     }
 
+
+    public async Task<ReverseObligationPaymentResult> ReverseAsync(
+        Guid financialBookId, Guid obligationId, Guid paymentId,
+        string reason, string idempotencyKey, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(reason))
+            throw new ArgumentException("A reversal reason is required.", nameof(reason));
+        var normalizedReason = reason.Trim();
+        if (normalizedReason.Length > 480)
+            throw new ArgumentException("Reversal reason cannot exceed 480 characters.", nameof(reason));
+        if (string.IsNullOrWhiteSpace(idempotencyKey))
+            throw new ArgumentException("Idempotency-Key is required.", nameof(idempotencyKey));
+
+        var normalizedKey = idempotencyKey.Trim().ToUpperInvariant();
+        IdempotencyRequestHash.ValidateKey(normalizedKey);
+        var book = await EnsureBookAccessAsync(financialBookId, write: true, cancellationToken);
+        var userId = currentUser.UserId;
+        var hash = IdempotencyRequestHash.Compute(
+            "obligation-payment-reversal", paymentId.ToString("N"), normalizedReason);
+
+        ReverseObligationPaymentResult? result = null;
+        await unitOfWork.ExecuteInTransactionAsync(async ct =>
+        {
+            await unitOfWork.AcquireIdempotencyLockAsync(financialBookId, userId, normalizedKey, ct);
+            var obligation = await paymentRepository.GetObligationForPaymentAsync(
+                financialBookId, obligationId, ct);
+            if (obligation is null)
+                throw new KeyNotFoundException("Financial obligation was not found.");
+
+            var payment = await paymentRepository.GetForReversalAsync(
+                financialBookId, obligationId, paymentId, ct);
+            if (payment is null)
+                throw new KeyNotFoundException("Financial obligation payment was not found.");
+
+            if (payment.ReversedAt.HasValue)
+            {
+                if (payment.ReversedBy == userId &&
+                    StringComparer.Ordinal.Equals(payment.ReversalIdempotencyKey, normalizedKey) &&
+                    StringComparer.Ordinal.Equals(payment.ReversalRequestHash, hash))
+                {
+                    result = new ReverseObligationPaymentResult(
+                        payment.Id, payment.ReversalJournalEntryId!.Value, true);
+                    return;
+                }
+                throw new FinancialObligationPaymentAlreadyReversedException();
+            }
+
+            if (obligation.Status == FinancialObligationStatus.Cancelled)
+                throw new DomainException("A payment linked to a cancelled obligation cannot be reversed.");
+
+            var originalJournalEntry = await journalEntryRepository.GetByIdAsync(
+                financialBookId, payment.JournalEntryId, ct);
+            if (originalJournalEntry is null)
+                throw new InvalidOperationException("The payment's original journal entry was not found.");
+
+            if (await journalEntryRepository.HasReversalAsync(
+                    financialBookId, originalJournalEntry.Id, ct))
+                throw new FinancialObligationPaymentAlreadyReversedException();
+
+            if (originalJournalEntry.Lines.Any(line =>
+                    !StringComparer.Ordinal.Equals(line.Amount.Currency, book.BaseCurrency.Code)))
+                throw new DomainException("The payment journal entry currency does not match the financial book base currency.");
+
+            var now = timeProvider.GetUtcNow();
+            var reversalDescription = $"Payment reversal: {normalizedReason}";
+            var reversal = JournalEntry.Reverse(
+                Guid.NewGuid(), originalJournalEntry, now, reversalDescription);
+
+            var remainingPaid = await paymentRepository.GetAllocatedAmountExcludingPaymentAsync(
+                obligationId, paymentId, ct);
+            obligation.RecalculateSettlementAfterReversal(remainingPaid, now);
+            payment.MarkReversed(reversal.Id, userId, now, normalizedReason, normalizedKey, hash);
+
+            await unitOfWork.EnsureCanPostAsync(financialBookId, reversal.Lines, ct);
+            await journalEntryRepository.AddAsync(reversal, ct);
+            await unitOfWork.SaveChangesAsync(ct);
+
+            result = new ReverseObligationPaymentResult(payment.Id, reversal.Id, false);
+        }, cancellationToken);
+
+        return result ?? throw new InvalidOperationException("Payment reversal transaction completed without a result.");
+    }
+
     public async Task<ObligationPaymentSnapshot?> GetByIdAsync(
         Guid financialBookId, Guid paymentId, CancellationToken cancellationToken)
     {
@@ -190,5 +275,6 @@ public sealed class FinancialObligationPaymentService(
         x.Id, x.FinancialBookId, x.FinancialObligationId, x.CashAccountId,
         x.JournalEntryId, x.Amount, x.Currency, x.PaymentDate, x.Description,
         x.Reference, x.CreatedBy, x.CreatedAt,
-        x.Allocations.Select(a => new ObligationPaymentAllocationSnapshot(a.InstallmentId, a.Amount)).ToArray());
+        x.Allocations.Select(a => new ObligationPaymentAllocationSnapshot(a.InstallmentId, a.Amount)).ToArray(),
+        x.ReversedAt.HasValue, x.ReversedAt, x.ReversalJournalEntryId, x.ReversalReason);
 }
