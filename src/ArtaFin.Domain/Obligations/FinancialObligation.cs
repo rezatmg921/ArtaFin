@@ -15,22 +15,24 @@ public sealed class FinancialObligation : AggregateRoot
 
     private readonly decimal _originalAmount;
 
-    public Guid FinancialBookId { get; }
-    public Guid ContactId { get; }
-    public Guid ControlAccountId { get; }
-    public FinancialObligationDirection Direction { get; }
-    public FinancialObligationKind Kind { get; }
-    public decimal OriginalAmount => _originalAmount;
-    public string Currency { get; }
-    public Money OriginalMoney => new(_originalAmount, Currency);
-    public DateOnly EffectiveDate { get; }
-    public DateOnly DueDate { get; }
-    public string Description { get; }
-    public string? Reference { get; }
+    public Guid FinancialBookId { get; private set; }
+    public Guid ContactId { get; private set; }
+    public Guid ControlAccountId { get; private set; }
+    public FinancialObligationDirection Direction { get; private set; }
+    public FinancialObligationKind Kind { get; private set; }
+    public decimal OriginalAmount { get; private set; }
+    public string Currency { get; private set; } = null!;
+    public Money OriginalMoney => new(OriginalAmount, Currency);
+    public DateOnly EffectiveDate { get; private set; }
+    public DateOnly DueDate { get; private set; }
+    public string Description { get; private set; } = null!;
+    public string? Reference { get; private set; }
     public FinancialObligationStatus Status { get; private set; }
-    public DateTimeOffset CreatedAt { get; }
+    public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
     public DateTimeOffset? CancelledAt { get; private set; }
+
+    private FinancialObligation() : base(Guid.Empty) { }
 
     private FinancialObligation(
         Guid id,
@@ -52,6 +54,7 @@ public sealed class FinancialObligation : AggregateRoot
         Direction = direction;
         Kind = kind;
         _originalAmount = originalMoney.Amount;
+        OriginalAmount = originalMoney.Amount;
         Currency = originalMoney.Currency;
         EffectiveDate = effectiveDate;
         DueDate = dueDate;
