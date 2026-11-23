@@ -22,5 +22,11 @@ public interface IJournalEntryRepository
         Guid originalJournalEntryId,
         CancellationToken cancellationToken);
 
+    Task<bool> IsLinkedToObligationPaymentAsync(
+        Guid financialBookId,
+        Guid journalEntryId,
+        CancellationToken cancellationToken) =>
+        Task.FromResult(false);
+
     Task AddAsync(JournalEntry entry, CancellationToken cancellationToken);
 }
