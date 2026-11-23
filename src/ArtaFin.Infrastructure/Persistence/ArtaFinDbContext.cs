@@ -28,6 +28,7 @@ public sealed class ArtaFinDbContext(
 
     public DbSet<Contact> Contacts => Set<Contact>();
     public DbSet<FinancialObligation> FinancialObligations => Set<FinancialObligation>();
+    public DbSet<FinancialObligationInstallment> FinancialObligationInstallments => Set<FinancialObligationInstallment>();
     public DbSet<FinancialBook> FinancialBooks => Set<FinancialBook>();
     public DbSet<FinancialBookMember> FinancialBookMembers => Set<FinancialBookMember>();
     public DbSet<Account> Accounts => Set<Account>();
@@ -49,6 +50,7 @@ public sealed class ArtaFinDbContext(
     {
         modelBuilder.Entity<Contact>();
         modelBuilder.Entity<FinancialObligation>();
+        modelBuilder.Entity<FinancialObligationInstallment>();
         modelBuilder.Entity<FinancialBook>();
         modelBuilder.Entity<FinancialBookMember>();
         modelBuilder.Entity<Account>();
@@ -69,6 +71,7 @@ public sealed class ArtaFinDbContext(
 
         modelBuilder.ApplyConfiguration(new ContactConfiguration());
         modelBuilder.ApplyConfiguration(new FinancialObligationConfiguration());
+        modelBuilder.ApplyConfiguration(new FinancialObligationInstallmentConfiguration());
         modelBuilder.ApplyConfiguration(new FinancialBookConfiguration());
         modelBuilder.ApplyConfiguration(new FinancialBookMemberConfiguration());
         modelBuilder.ApplyConfiguration(new AccountConfiguration());
@@ -95,6 +98,7 @@ public sealed class ArtaFinDbContext(
         EnsurePostedJournalEntriesAreImmutable();
         EnsureNonCashDisclosuresAreImmutable();
         EnsureLeasePaymentSchedulesAreImmutable();
+        EnsureFinancialObligationInstallmentsAreImmutable();
 
         try
         {
@@ -312,6 +316,16 @@ public sealed class ArtaFinDbContext(
             exception,
             "EF Core optimistic concurrency conflict. Affected entries: {ConcurrencyEntries}",
             diagnostics);
+    }
+
+    private void EnsureFinancialObligationInstallmentsAreImmutable()
+    {
+        ChangeTracker.DetectChanges();
+        var changedInstallments = ChangeTracker.Entries<FinancialObligationInstallment>()
+            .Any(entry => entry.State is EntityState.Modified or EntityState.Deleted);
+        if (changedInstallments)
+            throw new InvalidOperationException(
+                "Financial obligation installment terms are immutable and cannot be modified or deleted.");
     }
 
     private void EnsureLeasePaymentSchedulesAreImmutable()
