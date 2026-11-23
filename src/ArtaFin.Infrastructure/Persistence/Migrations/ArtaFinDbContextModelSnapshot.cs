@@ -302,6 +302,59 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("ArtaFin.Domain.Contacts.Contact", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("ArchivedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(254)
+                        .HasColumnType("nvarchar(254)");
+
+                    b.Property<Guid>("FinancialBookId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(32)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(32)");
+
+                    b.Property<byte>("Type")
+                        .HasColumnType("tinyint");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FinancialBookId", "ArchivedAt")
+                        .HasDatabaseName("IX_Contacts_FinancialBookId_ArchivedAt");
+
+                    b.HasIndex("FinancialBookId", "Email")
+                        .HasDatabaseName("IX_Contacts_FinancialBookId_Email");
+
+                    b.ToTable("Contacts", (string)null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Contacts_Type_Valid", "[Type] IN (1, 2)");
+                        });
+                });
+
             modelBuilder.Entity("ArtaFin.Domain.Finance.FinancialBook", b =>
                 {
                     b.Property<Guid>("Id")
@@ -955,6 +1008,15 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                     b.HasOne("ArtaFin.Domain.Finance.JournalEntry", null)
                         .WithMany()
                         .HasForeignKey("JournalEntryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ArtaFin.Domain.Contacts.Contact", b =>
+                {
+                    b.HasOne("ArtaFin.Domain.Finance.FinancialBook", null)
+                        .WithMany()
+                        .HasForeignKey("FinancialBookId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
