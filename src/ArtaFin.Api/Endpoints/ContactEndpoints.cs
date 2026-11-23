@@ -42,8 +42,16 @@ internal static class ContactEndpoints
         Guid financialBookId, bool? includeArchived, int? skip, int? take,
         ContactService service, CancellationToken cancellationToken)
     {
+        var pageSkip = skip ?? 0;
+        var pageTake = take ?? 50;
+        if (pageSkip < 0 || pageTake is < 1 or > 100)
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["pagination"] = ["Skip must be zero or greater and take must be between 1 and 100."]
+            });
+
         var contacts = await service.ListAsync(financialBookId, includeArchived ?? false,
-            skip ?? 0, take ?? 50, cancellationToken);
+            pageSkip, pageTake, cancellationToken);
         return Results.Ok(contacts.Select(ToResponse).ToArray());
     }
 
