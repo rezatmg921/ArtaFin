@@ -40,6 +40,7 @@ public sealed class FinancialObligationPaymentService(
         if (string.IsNullOrWhiteSpace(idempotencyKey))
             throw new ArgumentException("Idempotency-Key is required.", nameof(idempotencyKey));
         ArgumentNullException.ThrowIfNull(allocations);
+        ArgumentException.ThrowIfNullOrWhiteSpace(description);
 
         var book = await EnsureBookAccessAsync(financialBookId, write: true, cancellationToken);
         var userId = currentUser.UserId;
