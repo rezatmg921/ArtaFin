@@ -124,7 +124,10 @@ public sealed class JournalEntry : AggregateRoot
         Guid id,
         JournalEntry original,
         DateTimeOffset postedAt,
-        string description)
+        string description,
+        Guid? idempotencyUserId = null,
+        string? idempotencyKey = null,
+        string? requestHash = null)
     {
         ArgumentNullException.ThrowIfNull(original);
 
@@ -145,7 +148,10 @@ public sealed class JournalEntry : AggregateRoot
             postedAt,
             description,
             reversedLines,
-            original.Id);
+            original.Id,
+            idempotencyUserId,
+            idempotencyKey,
+            requestHash);
     }
 
     private static JournalEntry CreatePosted(
