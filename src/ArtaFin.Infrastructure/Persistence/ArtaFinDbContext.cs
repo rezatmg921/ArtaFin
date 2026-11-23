@@ -29,6 +29,8 @@ public sealed class ArtaFinDbContext(
     public DbSet<Contact> Contacts => Set<Contact>();
     public DbSet<FinancialObligation> FinancialObligations => Set<FinancialObligation>();
     public DbSet<FinancialObligationInstallment> FinancialObligationInstallments => Set<FinancialObligationInstallment>();
+    public DbSet<FinancialObligationPayment> FinancialObligationPayments => Set<FinancialObligationPayment>();
+    public DbSet<FinancialObligationPaymentAllocation> FinancialObligationPaymentAllocations => Set<FinancialObligationPaymentAllocation>();
     public DbSet<FinancialBook> FinancialBooks => Set<FinancialBook>();
     public DbSet<FinancialBookMember> FinancialBookMembers => Set<FinancialBookMember>();
     public DbSet<Account> Accounts => Set<Account>();
@@ -51,6 +53,8 @@ public sealed class ArtaFinDbContext(
         modelBuilder.Entity<Contact>();
         modelBuilder.Entity<FinancialObligation>();
         modelBuilder.Entity<FinancialObligationInstallment>();
+        modelBuilder.Entity<FinancialObligationPayment>();
+        modelBuilder.Entity<FinancialObligationPaymentAllocation>();
         modelBuilder.Entity<FinancialBook>();
         modelBuilder.Entity<FinancialBookMember>();
         modelBuilder.Entity<Account>();
@@ -72,6 +76,8 @@ public sealed class ArtaFinDbContext(
         modelBuilder.ApplyConfiguration(new ContactConfiguration());
         modelBuilder.ApplyConfiguration(new FinancialObligationConfiguration());
         modelBuilder.ApplyConfiguration(new FinancialObligationInstallmentConfiguration());
+        modelBuilder.ApplyConfiguration(new FinancialObligationPaymentConfiguration());
+        modelBuilder.ApplyConfiguration(new FinancialObligationPaymentAllocationConfiguration());
         modelBuilder.ApplyConfiguration(new FinancialBookConfiguration());
         modelBuilder.ApplyConfiguration(new FinancialBookMemberConfiguration());
         modelBuilder.ApplyConfiguration(new AccountConfiguration());
@@ -99,6 +105,7 @@ public sealed class ArtaFinDbContext(
         EnsureNonCashDisclosuresAreImmutable();
         EnsureLeasePaymentSchedulesAreImmutable();
         EnsureFinancialObligationInstallmentsAreImmutable();
+        EnsureFinancialObligationPaymentsAreImmutable();
 
         try
         {
@@ -317,6 +324,18 @@ public sealed class ArtaFinDbContext(
             exception,
             "EF Core optimistic concurrency conflict. Affected entries: {ConcurrencyEntries}",
             diagnostics);
+    }
+
+    private void EnsureFinancialObligationPaymentsAreImmutable()
+    {
+        ChangeTracker.DetectChanges();
+        var changedPayments = ChangeTracker.Entries<FinancialObligationPayment>()
+            .Any(entry => entry.State is EntityState.Modified or EntityState.Deleted);
+        var changedAllocations = ChangeTracker.Entries<FinancialObligationPaymentAllocation>()
+            .Any(entry => entry.State is EntityState.Modified or EntityState.Deleted);
+        if (changedPayments || changedAllocations)
+            throw new InvalidOperationException(
+                "Posted financial obligation payments and allocations are immutable and cannot be modified or deleted.");
     }
 
     private void EnsureFinancialObligationInstallmentsAreImmutable()
