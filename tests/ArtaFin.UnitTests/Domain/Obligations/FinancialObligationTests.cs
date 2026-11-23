@@ -101,6 +101,34 @@ public sealed class FinancialObligationTests
     }
 
     [Fact]
+    public void ApplyPayment_UpdatesStatusAcrossRepeatedPartialPayments()
+    {
+        var obligation = Create();
+
+        obligation.ApplyPayment(300m, Now.AddHours(1));
+        Assert.Equal(FinancialObligationStatus.PartiallySettled, obligation.Status);
+        Assert.Equal(Now.AddHours(1), obligation.UpdatedAt);
+
+        obligation.ApplyPayment(900m, Now.AddHours(2));
+        Assert.Equal(FinancialObligationStatus.PartiallySettled, obligation.Status);
+        Assert.Equal(Now.AddHours(2), obligation.UpdatedAt);
+
+        obligation.ApplyPayment(1250m, Now.AddHours(3));
+        Assert.Equal(FinancialObligationStatus.Settled, obligation.Status);
+        Assert.Equal(Now.AddHours(3), obligation.UpdatedAt);
+    }
+
+    [Fact]
+    public void ApplyPayment_RejectsOverpaymentAndCancelledObligation()
+    {
+        var obligation = Create();
+        Assert.Throws<DomainException>(() => obligation.ApplyPayment(1251m, Now.AddHours(1)));
+
+        obligation.Cancel(Now.AddHours(1));
+        Assert.Throws<DomainException>(() => obligation.ApplyPayment(1m, Now.AddHours(2)));
+    }
+
+    [Fact]
     public void MarkSettled_AllowsOpenOrPartiallySettled()
     {
         var open = Create();
