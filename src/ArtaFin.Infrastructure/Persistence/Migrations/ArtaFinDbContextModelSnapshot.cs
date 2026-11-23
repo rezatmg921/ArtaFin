@@ -436,6 +436,42 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("ArtaFin.Domain.Obligations.FinancialObligationInstallment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(19, 4)
+                        .HasColumnType("decimal(19,4)");
+
+                    b.Property<DateOnly>("DueDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("FinancialObligationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("InstallmentNumber")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FinancialObligationId", "DueDate")
+                        .IsUnique()
+                        .HasDatabaseName("UX_FinancialObligationInstallments_Obligation_DueDate");
+
+                    b.HasIndex("FinancialObligationId", "InstallmentNumber")
+                        .IsUnique()
+                        .HasDatabaseName("UX_FinancialObligationInstallments_Obligation_Number");
+
+                    b.ToTable("FinancialObligationInstallments", (string)null, t =>
+                        {
+                            t.HasCheckConstraint("CK_FinancialObligationInstallments_Number_Positive", "[InstallmentNumber] > 0");
+                            t.HasCheckConstraint("CK_FinancialObligationInstallments_Amount_Positive", "[Amount] > 0");
+                        });
+                });
+
             modelBuilder.Entity("ArtaFin.Domain.Finance.FinancialBook", b =>
                 {
                     b.Property<Guid>("Id")
@@ -466,6 +502,15 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("IX_FinancialBooks_OwnerId");
 
                     b.ToTable("FinancialBooks", (string)null);
+                });
+
+            modelBuilder.Entity("ArtaFin.Domain.Obligations.FinancialObligationInstallment", b =>
+                {
+                    b.HasOne("ArtaFin.Domain.Obligations.FinancialObligation", null)
+                        .WithMany("Installments")
+                        .HasForeignKey("FinancialObligationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("ArtaFin.Domain.Finance.FinancialBookMember", b =>
@@ -1308,6 +1353,11 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("ArtaFin.Domain.Finance.CashFlowAllocationSet", b =>
                 {
                     b.Navigation("Allocations");
+                });
+
+            modelBuilder.Entity("ArtaFin.Domain.Obligations.FinancialObligation", b =>
+                {
+                    b.Navigation("Installments");
                 });
 
             modelBuilder.Entity("ArtaFin.Domain.Finance.LeasePaymentSchedule", b =>
