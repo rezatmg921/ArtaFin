@@ -213,6 +213,7 @@ app.MapCashFlowNonCashDisclosureEndpoints();
 app.MapLeaseContractEndpoints();
 app.MapLeasePaymentScheduleEndpoints();
 app.MapFinancialBookMemberEndpoints();
+app.MapContactEndpoints();
 app.MapJournalEntryEndpoints();
 app.MapJournalEntryListEndpoints();
 app.MapExpenseEndpoints();
