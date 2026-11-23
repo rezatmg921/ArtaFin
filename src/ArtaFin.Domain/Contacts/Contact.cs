@@ -87,8 +87,8 @@ public sealed class Contact : AggregateRoot
     public void Archive(DateTimeOffset archivedAt)
     {
         EnsureActive();
-        if (archivedAt < CreatedAt)
-            throw new DomainException("Contact cannot be archived before it was created.");
+        if (archivedAt < UpdatedAt)
+            throw new DomainException("Contact cannot be archived before its last update.");
         ArchivedAt = archivedAt;
         UpdatedAt = archivedAt;
     }
