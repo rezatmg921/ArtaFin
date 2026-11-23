@@ -183,12 +183,27 @@ public sealed class FinancialObligationPaymentService(
             if (payment is null)
                 throw new KeyNotFoundException("Financial obligation payment was not found.");
 
+            var existingReversalRequest = await journalEntryRepository.GetByIdempotencyKeyAsync(
+                financialBookId, userId, normalizedKey, ct);
+            if (existingReversalRequest is not null)
+            {
+                if (!StringComparer.Ordinal.Equals(existingReversalRequest.RequestHash, hash))
+                    throw new IdempotencyKeyConflictException();
+                if (payment.ReversalJournalEntryId == existingReversalRequest.Id)
+                {
+                    result = new ReverseObligationPaymentResult(payment.Id, existingReversalRequest.Id, true);
+                    return;
+                }
+                throw new IdempotencyKeyConflictException();
+            }
+
             if (payment.ReversedAt.HasValue)
             {
                 if (payment.ReversedBy == userId &&
-                    StringComparer.Ordinal.Equals(payment.ReversalIdempotencyKey, normalizedKey) &&
-                    StringComparer.Ordinal.Equals(payment.ReversalRequestHash, hash))
+                    StringComparer.Ordinal.Equals(payment.ReversalIdempotencyKey, normalizedKey))
                 {
+                    if (!StringComparer.Ordinal.Equals(payment.ReversalRequestHash, hash))
+                        throw new IdempotencyKeyConflictException();
                     result = new ReverseObligationPaymentResult(
                         payment.Id, payment.ReversalJournalEntryId!.Value, true);
                     return;
@@ -215,7 +230,8 @@ public sealed class FinancialObligationPaymentService(
             var now = timeProvider.GetUtcNow();
             var reversalDescription = $"Payment reversal: {normalizedReason}";
             var reversal = JournalEntry.Reverse(
-                Guid.NewGuid(), originalJournalEntry, now, reversalDescription);
+                Guid.NewGuid(), originalJournalEntry, now, reversalDescription,
+                userId, normalizedKey, hash);
 
             var remainingPaid = await paymentRepository.GetAllocatedAmountExcludingPaymentAsync(
                 obligationId, paymentId, ct);
