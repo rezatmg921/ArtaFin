@@ -152,4 +152,77 @@ public sealed class FinancialObligationPaymentPersistenceTests : IAsyncLifetime
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => update.SaveChangesAsync());
     }
+    [Fact]
+    public async Task SaveAndReload_PersistsReversalAndKeepsOriginalPaymentAndAllocations()
+    {
+        var now = new DateTimeOffset(2026, 11, 23, 11, 0, 0, TimeSpan.Zero);
+        var bookId = Guid.NewGuid();
+        var ownerId = Guid.NewGuid();
+        var contactId = Guid.NewGuid();
+        var controlAccountId = Guid.NewGuid();
+        var cashAccountId = Guid.NewGuid();
+        var obligationId = Guid.NewGuid();
+        var journalEntryId = Guid.NewGuid();
+        var reversalJournalEntryId = Guid.NewGuid();
+        var paymentId = Guid.NewGuid();
+        var dueDate = new DateOnly(2026, 12, 1);
+
+        var book = FinancialBook.Create(bookId, ownerId, "Payment reversal", "USD", now);
+        var contact = Contact.Create(contactId, bookId, ContactType.Person, "Customer", null, null, null, now);
+        var control = Account.Create(controlAccountId, bookId, "1100", "Receivable", AccountType.Asset, now);
+        var cash = Account.Create(cashAccountId, bookId, "1000", "Bank", AccountType.Asset, now);
+        var obligation = FinancialObligation.Create(
+            obligationId, bookId, contactId, controlAccountId,
+            FinancialObligationDirection.Receivable, FinancialObligationKind.GeneralDebt,
+            75m, "USD", new DateOnly(2026, 11, 1), dueDate, "Invoice", null, now,
+            [new FinancialObligationInstallmentTerm(75m, dueDate)]);
+        var installmentId = Assert.Single(obligation.Installments).Id;
+        var original = JournalEntry.Post(journalEntryId, bookId, now, "Receipt",
+        [
+            new JournalLine(cashAccountId, PostingSide.Debit, new Money(75m, "USD")),
+            new JournalLine(controlAccountId, PostingSide.Credit, new Money(75m, "USD"))
+        ]);
+        var payment = FinancialObligationPayment.Create(
+            paymentId, bookId, obligationId, cashAccountId, journalEntryId,
+            75m, "USD", new DateOnly(2026, 11, 23), "Receipt", "RCPT-075",
+            ownerId, now, "payment-reversal-persistence", new string('F', 64),
+            [new FinancialObligationPaymentAllocationTerm(installmentId, 75m)]);
+        obligation.ApplyPayment(75m, now);
+
+        var reversal = JournalEntry.Reverse(
+            reversalJournalEntryId, original, now.AddMinutes(1), "Payment reversal: duplicate receipt");
+        payment.MarkReversed(
+            reversal.Id, ownerId, now.AddMinutes(1), "Duplicate receipt",
+            "payment-reversal-key", new string('A', 64));
+        obligation.RecalculateSettlementAfterReversal(0m, now.AddMinutes(1));
+
+        await using (var write = new ArtaFinDbContext(_options))
+        {
+            write.FinancialBooks.Add(book);
+            write.Contacts.Add(contact);
+            write.Accounts.AddRange(control, cash);
+            write.FinancialObligations.Add(obligation);
+            write.JournalEntries.AddRange(original, reversal);
+            write.FinancialObligationPayments.Add(payment);
+            await write.SaveChangesAsync();
+        }
+
+        await using var read = new ArtaFinDbContext(_options);
+        var persistedPayment = await read.FinancialObligationPayments.AsNoTracking()
+            .Include(x => x.Allocations)
+            .SingleAsync(x => x.Id == paymentId);
+        Assert.Equal(75m, persistedPayment.Amount);
+        Assert.Equal(journalEntryId, persistedPayment.JournalEntryId);
+        Assert.Equal(reversalJournalEntryId, persistedPayment.ReversalJournalEntryId);
+        Assert.Equal("Duplicate receipt", persistedPayment.ReversalReason);
+        Assert.NotNull(persistedPayment.ReversedAt);
+        Assert.Single(persistedPayment.Allocations);
+
+        var persistedObligation = await read.FinancialObligations.SingleAsync(x => x.Id == obligationId);
+        Assert.Equal(FinancialObligationStatus.Open, persistedObligation.Status);
+        var persistedReversal = await read.JournalEntries.SingleAsync(x => x.Id == reversalJournalEntryId);
+        Assert.Equal(journalEntryId, persistedReversal.ReversesJournalEntryId);
+        Assert.Equal(PostingSide.Credit, Assert.Single(persistedReversal.Lines.Where(x => x.AccountId == cashAccountId)).Side);
+    }
+
 }
