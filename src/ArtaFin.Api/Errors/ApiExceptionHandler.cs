@@ -33,6 +33,10 @@ internal sealed class ApiExceptionHandler(
     {
         var (status, title, detail) = exception switch
         {
+            KeyNotFoundException =>
+                (StatusCodes.Status404NotFound, "Resource not found", exception.Message),
+            UnauthorizedAccessException =>
+                (StatusCodes.Status403Forbidden, "Access denied", exception.Message),
             ManagedUserNotFoundException =>
                 (StatusCodes.Status404NotFound, "User not found", "The requested user does not exist."),
             LastAdministratorException =>
