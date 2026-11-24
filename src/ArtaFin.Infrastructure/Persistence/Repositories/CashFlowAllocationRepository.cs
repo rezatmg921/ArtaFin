@@ -51,7 +51,7 @@ internal sealed class CashFlowAllocationRepository(ArtaFinDbContext dbContext)
             where entry.FinancialBookId == financialBookId && entry.Id == journalEntryId
             from line in entry.Lines
             join account in dbContext.Accounts.AsNoTracking()
-                on new { line.FinancialBookId, line.AccountId }
+                on new { entry.FinancialBookId, line.AccountId }
                 equals new { account.FinancialBookId, AccountId = account.Id }
             where line.LineNumber == lineNumber
             select new CashFlowSourceLine(

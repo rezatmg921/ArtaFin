@@ -331,6 +331,39 @@ public sealed class JournalEntryPersistenceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task JournalLine_RejectsOwnerFromDifferentFinancialBook_EvenWhenAccountMatchesLineBook()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var entryBookId = Guid.NewGuid();
+        var lineBookId = Guid.NewGuid();
+        var entryCashId = Guid.NewGuid();
+        var lineAccountId = Guid.NewGuid();
+        var entryId = Guid.NewGuid();
+
+        await using var context = new ArtaFinDbContext(_options);
+        context.FinancialBooks.AddRange(
+            FinancialBook.Create(entryBookId, Guid.NewGuid(), "Entry book", "USD", now),
+            FinancialBook.Create(lineBookId, Guid.NewGuid(), "Line book", "USD", now));
+        context.Accounts.AddRange(
+            Account.Create(entryCashId, entryBookId, "1000", "Entry cash", AccountType.Asset, now),
+            Account.Create(lineAccountId, lineBookId, "1000", "Other cash", AccountType.Asset, now));
+
+        var entry = JournalEntry.Post(
+            entryId, entryBookId, now, "Mismatched owned line",
+            [
+                new JournalLine(entryCashId, PostingSide.Debit, new Money(10m, "USD")),
+                new JournalLine(entryCashId, PostingSide.Credit, new Money(10m, "USD"))
+            ]);
+        context.JournalEntries.Add(entry);
+
+        var mismatchedLine = entry.Lines[0];
+        context.Entry(mismatchedLine).Property(line => line.FinancialBookId).CurrentValue = lineBookId;
+        context.Entry(mismatchedLine).Property(line => line.AccountId).CurrentValue = lineAccountId;
+
+        await Assert.ThrowsAsync<DbUpdateException>(() => context.SaveChangesAsync());
+    }
+
+    [Fact]
     public async Task JournalEntry_RejectsMoreThanOneReversalForOriginal()
     {
         var now = DateTimeOffset.UtcNow;

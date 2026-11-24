@@ -13,6 +13,7 @@ public sealed class JournalEntryConfiguration : IEntityTypeConfiguration<Journal
                 "CK_JournalEntries_IdempotencyMetadata_Consistent",
                 "([IdempotencyKey] IS NULL AND [IdempotencyUserId] IS NULL AND [RequestHash] IS NULL) OR ([IdempotencyKey] IS NOT NULL AND [IdempotencyUserId] IS NOT NULL AND [RequestHash] IS NOT NULL)"));
         builder.HasKey(entry => entry.Id);
+        builder.HasAlternateKey(entry => new { entry.FinancialBookId, entry.Id });
         builder.Property(entry => entry.FinancialBookId).IsRequired();
         builder.Property(entry => entry.PostedAt).HasColumnType("datetimeoffset(7)").IsRequired();
         builder.Property(entry => entry.Description).HasMaxLength(JournalEntry.MaxDescriptionLength).IsRequired();
@@ -62,7 +63,9 @@ public sealed class JournalEntryConfiguration : IEntityTypeConfiguration<Journal
                 table.HasCheckConstraint("CK_JournalLines_Side_Valid", "[Side] IN (1, 2)");
             });
 
-            lines.WithOwner().HasForeignKey("JournalEntryId");
+            lines.WithOwner()
+                .HasPrincipalKey(entry => new { entry.FinancialBookId, entry.Id })
+                .HasForeignKey("FinancialBookId", "JournalEntryId");
             lines.Property<Guid>("JournalEntryId");
             lines.HasKey("JournalEntryId", nameof(JournalLine.LineNumber));
             lines.Property(line => line.LineNumber).ValueGeneratedNever();
