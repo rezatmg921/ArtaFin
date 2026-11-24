@@ -1320,6 +1320,8 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
 
                             b1.HasIndex("FinancialBookId", "AccountId");
 
+                            b1.HasIndex("FinancialBookId", "JournalEntryId");
+
                             b1.ToTable("JournalLines", null, t =>
                                 {
                                     t.HasCheckConstraint("CK_JournalLines_Amount_Positive", "[Amount] > 0");

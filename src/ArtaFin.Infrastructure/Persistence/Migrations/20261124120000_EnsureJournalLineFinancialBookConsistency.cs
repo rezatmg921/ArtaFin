@@ -33,6 +33,11 @@ public sealed class EnsureJournalLineFinancialBookConsistency : Migration
             table: "JournalEntries",
             columns: new[] { "FinancialBookId", "Id" });
 
+        migrationBuilder.CreateIndex(
+            name: "IX_JournalLines_FinancialBookId_JournalEntryId",
+            table: "JournalLines",
+            columns: new[] { "FinancialBookId", "JournalEntryId" });
+
         migrationBuilder.AddForeignKey(
             name: "FK_JournalLines_JournalEntries_FinancialBookId_JournalEntryId",
             table: "JournalLines",
@@ -46,6 +51,10 @@ public sealed class EnsureJournalLineFinancialBookConsistency : Migration
     {
         migrationBuilder.DropForeignKey(
             name: "FK_JournalLines_JournalEntries_FinancialBookId_JournalEntryId",
+            table: "JournalLines");
+
+        migrationBuilder.DropIndex(
+            name: "IX_JournalLines_FinancialBookId_JournalEntryId",
             table: "JournalLines");
 
         migrationBuilder.DropUniqueConstraint(
