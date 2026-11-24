@@ -671,6 +671,8 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasAlternateKey("FinancialBookId", "Id");
+
                     b.HasIndex("ReversesJournalEntryId")
                         .IsUnique()
                         .HasDatabaseName("UX_JournalEntries_ReversesJournalEntryId")
@@ -1326,7 +1328,8 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                                 });
 
                             b1.WithOwner()
-                                .HasForeignKey("JournalEntryId");
+                                .HasForeignKey("FinancialBookId", "JournalEntryId")
+                                .HasPrincipalKey("FinancialBookId", "Id");
 
                             b1.HasOne("ArtaFin.Domain.Finance.Account", null)
                                 .WithMany()
