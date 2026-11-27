@@ -28,8 +28,12 @@ public sealed class BalanceSheetApiTests
         var asOf = DateTimeOffset.UtcNow.AddMinutes(-1);
         var repository = new FakeBalanceSheetRepository(
         [
-            new BalanceSheetAccountSnapshot(Guid.NewGuid(), "1000", "Cash", AccountType.Asset, 200m, 0m),
-            new BalanceSheetAccountSnapshot(Guid.NewGuid(), "2000", "Payables", AccountType.Liability, 0m, 50m),
+            new BalanceSheetAccountSnapshot(Guid.NewGuid(), "1000", "Cash", AccountType.Asset, 200m, 0m, BalanceSheetClassification.Current),
+            new BalanceSheetAccountSnapshot(Guid.NewGuid(), "1100", "Equipment", AccountType.Asset, 0m, 0m, BalanceSheetClassification.NonCurrent),
+            new BalanceSheetAccountSnapshot(Guid.NewGuid(), "1200", "Other assets", AccountType.Asset, 0m, 0m),
+            new BalanceSheetAccountSnapshot(Guid.NewGuid(), "2000", "Payables", AccountType.Liability, 0m, 50m, BalanceSheetClassification.Current),
+            new BalanceSheetAccountSnapshot(Guid.NewGuid(), "2100", "Long-term payable", AccountType.Liability, 0m, 0m, BalanceSheetClassification.NonCurrent),
+            new BalanceSheetAccountSnapshot(Guid.NewGuid(), "2200", "Other liabilities", AccountType.Liability, 0m, 0m),
             new BalanceSheetAccountSnapshot(Guid.NewGuid(), "3000", "Capital", AccountType.Equity, 0m, 30m),
             new BalanceSheetAccountSnapshot(Guid.NewGuid(), "4000", "Sales", AccountType.Income, 0m, 150m),
             new BalanceSheetAccountSnapshot(Guid.NewGuid(), "6000", "Supplies", AccountType.Expense, 30m, 0m)
@@ -51,7 +55,19 @@ public sealed class BalanceSheetApiTests
         Assert.Equal(150m, payload.TotalEquity);
         Assert.Equal(200m, payload.TotalLiabilitiesAndEquity);
         Assert.Equal(0m, payload.Difference);
-        Assert.Single(payload.Assets);
+        Assert.Equal(3, payload.Assets.Count);
+        Assert.Single(payload.CurrentAssets);
+        Assert.Single(payload.NonCurrentAssets);
+        Assert.Single(payload.UnclassifiedAssets);
+        Assert.Equal(200m, payload.CurrentAssetsTotal);
+        Assert.Equal(0m, payload.NonCurrentAssetsTotal);
+        Assert.Equal(0m, payload.UnclassifiedAssetsTotal);
+        Assert.Single(payload.CurrentLiabilities);
+        Assert.Single(payload.NonCurrentLiabilities);
+        Assert.Single(payload.UnclassifiedLiabilities);
+        Assert.Equal(50m, payload.CurrentLiabilitiesTotal);
+        Assert.Equal(0m, payload.NonCurrentLiabilitiesTotal);
+        Assert.Equal(0m, payload.UnclassifiedLiabilitiesTotal);
         Assert.Equal(asOf, repository.LastAsOf);
     }
 
@@ -158,8 +174,20 @@ public sealed class BalanceSheetApiTests
         decimal TotalLiabilities,
         decimal TotalEquity,
         decimal TotalLiabilitiesAndEquity,
-        decimal Difference);
+        decimal Difference,
+        IReadOnlyList<BalanceSheetItemResponse> CurrentAssets,
+        IReadOnlyList<BalanceSheetItemResponse> NonCurrentAssets,
+        IReadOnlyList<BalanceSheetItemResponse> UnclassifiedAssets,
+        IReadOnlyList<BalanceSheetItemResponse> CurrentLiabilities,
+        IReadOnlyList<BalanceSheetItemResponse> NonCurrentLiabilities,
+        IReadOnlyList<BalanceSheetItemResponse> UnclassifiedLiabilities,
+        decimal CurrentAssetsTotal,
+        decimal NonCurrentAssetsTotal,
+        decimal UnclassifiedAssetsTotal,
+        decimal CurrentLiabilitiesTotal,
+        decimal NonCurrentLiabilitiesTotal,
+        decimal UnclassifiedLiabilitiesTotal);
 
     private sealed record BalanceSheetItemResponse(
-        Guid AccountId, string Code, string Name, string Type, decimal Amount);
+        Guid AccountId, string Code, string Name, string Type, decimal Amount, string BalanceSheetClassification);
 }
