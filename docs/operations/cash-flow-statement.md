@@ -53,29 +53,3 @@ The report uses the same half-open period as the Cash Flow Statement. Trial Bala
 Internal transfers in the period are deducted once from cash-account debits and once from cash-account credits. The resulting external inflows and outflows are compared separately with Cash Flow Statement receipts and payments. The response includes account-level turnover, both differences, the Trial Balance cutoff, and `IsReconciled`.
 
 A report is reconciled only when the underlying Cash Flow Statement is reconciled and both turnover differences are zero. The Trial Balance snapshots and Cash Flow Statement therefore share the exact same period boundaries; callers should not compare reports generated with different cutoffs.
-
-
-### SQL-backed API integration check
-
-The repository includes `tests/scripts/Test-CashFlowReconciliation.ps1`. It calls both report endpoints against the configured running API (and therefore the API's configured SQL Server database), then verifies:
-
-- The requested period and logical Trial Balance cutoff are preserved.
-- Account-level debit/credit totals add up to the report totals.
-- Internal transfers agree with the Cash Flow Statement and are excluded from external inflows/outflows.
-- Cash Flow receipts/payments agree across both endpoints.
-- Both reconciliation differences are zero and both reports are marked reconciled.
-
-Run the API against the intended test/development database, obtain an access token with `Reports.Read`, then run from the repository root in PowerShell 7:
-
-```powershell
-$env:ARTAFIN_ACCESS_TOKEN = "<access-token>"
-./tests/scripts/Test-CashFlowReconciliation.ps1 -Token $env:ARTAFIN_ACCESS_TOKEN
-```
-
-For a local HTTPS development certificate that is not trusted by the machine, PowerShell 7 can skip certificate validation for this local test only:
-
-```powershell
-./tests/scripts/Test-CashFlowReconciliation.ps1 -Token $env:ARTAFIN_ACCESS_TOKEN -SkipCertificateCheck
-```
-
-Override `-FinancialBookId`, `-From`, `-To`, or `-BaseUrl` when testing another book, period, or API instance. This script is an API/SQL integration smoke test; it is run separately from `dotnet test` and should target a development/test database, not production.
