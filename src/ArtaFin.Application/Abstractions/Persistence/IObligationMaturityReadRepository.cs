@@ -15,3 +15,6 @@ public sealed record ObligationMaturitySnapshot(
     string Currency,
     IReadOnlyList<ObligationInstallmentTerm> Installments,
     IReadOnlyList<ObligationInstallmentPayment> Payments);
+
+public sealed record ObligationInstallmentTerm(Guid InstallmentId, DateOnly DueDate, decimal Amount);
+public sealed record ObligationInstallmentPayment(Guid InstallmentId, decimal Amount);
