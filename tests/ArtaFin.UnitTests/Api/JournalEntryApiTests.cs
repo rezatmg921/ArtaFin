@@ -283,6 +283,8 @@ public sealed class JournalEntryApiTests
         Assert.Equal("Debit", payload.Lines[0].Side);
         Assert.Equal(25m, payload.Lines[0].Amount);
         Assert.Equal("EUR", payload.Lines[0].Currency);
+        Assert.Equal("Unclassified", payload.Lines[0].EquityMovementType);
+        Assert.Equal("OwnerContribution", payload.Lines[1].EquityMovementType);
     }
 
     private static object CreateValidRequest(JournalEntryApiFactory factory) => new
@@ -291,7 +293,7 @@ public sealed class JournalEntryApiTests
         lines = new[]
         {
             new { accountId = factory.DebitAccount.Id, side = "Debit", amount = 25m, currency = "EUR" },
-            new { accountId = factory.CreditAccount.Id, side = "Credit", amount = 25m, currency = "EUR" }
+            new { accountId = factory.CreditAccount.Id, side = "Credit", amount = 25m, currency = "EUR", equityMovementType = "OwnerContribution" }
         }
     };
 
@@ -438,7 +440,8 @@ public sealed class JournalEntryApiTests
         Guid AccountId,
         string Side,
         decimal Amount,
-        string Currency);
+        string Currency,
+        string EquityMovementType);
 
     private sealed class FakeUnitOfWork : IUnitOfWork
     {
