@@ -1,13 +1,9 @@
-using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
-using ArtaFin.Infrastructure.Persistence;
 
 #nullable disable
 
 namespace ArtaFin.Infrastructure.Persistence.Migrations;
 
-[DbContext(typeof(ArtaFinDbContext))]
-[Migration("20261127210000_AddEquityMovementClassification")]
 public partial class AddEquityMovementClassification : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
