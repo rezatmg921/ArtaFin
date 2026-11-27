@@ -81,6 +81,8 @@ public sealed class JournalEntryConfiguration : IEntityTypeConfiguration<Journal
                 .OnDelete(DeleteBehavior.Restrict);
 
             lines.Property(line => line.Side).HasConversion<byte>().HasColumnType("tinyint").IsRequired();
+            lines.Property(line => line.EquityMovementType).HasConversion<byte>()
+                .HasColumnType("tinyint").HasDefaultValue(EquityMovementType.Unclassified).IsRequired();
             lines.Ignore(line => line.Amount);
 
             lines.Property<decimal>("_amount")
