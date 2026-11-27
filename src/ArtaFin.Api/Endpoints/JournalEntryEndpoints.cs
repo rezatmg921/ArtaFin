@@ -76,7 +76,8 @@ internal static class JournalEntryEndpoints
                 line.AccountId,
                 line.Side.ToString(),
                 line.Amount.Amount,
-                line.Amount.Currency)).ToArray());
+                line.Amount.Currency,
+                line.EquityMovementType.ToString())).ToArray());
 
         return Results.Ok(response);
     }
@@ -131,6 +132,17 @@ internal static class JournalEntryEndpoints
             if (line.Amount <= 0)
                 errors[$"{prefix}.amount"] = ["Amount must be greater than zero."];
 
+            var equityMovementType = EquityMovementType.Unclassified;
+            if (!string.IsNullOrWhiteSpace(line.EquityMovementType))
+            {
+                if (!Enum.TryParse<EquityMovementType>(line.EquityMovementType, true, out equityMovementType) ||
+                    !Enum.IsDefined(equityMovementType))
+                {
+                    errors[$"{prefix}.equityMovementType"] =
+                        ["Equity movement type must be Unclassified, OwnerContribution, OwnerDistribution, TransferBetweenEquityAccounts, or Other."];
+                }
+            }
+
             Money amount;
             try
             {
@@ -152,7 +164,7 @@ internal static class JournalEntryEndpoints
                 Enum.IsDefined(side) &&
                 line.Amount > 0)
             {
-                lines.Add(new JournalEntryLineCommand(line.AccountId, side, amount));
+                lines.Add(new JournalEntryLineCommand(line.AccountId, side, amount, equityMovementType));
             }
         }
 
@@ -210,7 +222,8 @@ internal sealed record CreateJournalEntryLineRequest(
     Guid AccountId,
     string? Side,
     decimal Amount,
-    string? Currency);
+    string? Currency,
+    string? EquityMovementType = null);
 
 internal sealed record CreateJournalEntryResponse(Guid Id);
 
@@ -231,4 +244,5 @@ internal sealed record JournalEntryLineResponse(
     Guid AccountId,
     string Side,
     decimal Amount,
-    string Currency);
+    string Currency,
+    string EquityMovementType);
