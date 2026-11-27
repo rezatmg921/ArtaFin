@@ -72,7 +72,7 @@ Reconcile opening and closing balances for each equity component, separately ide
 5. [Implemented foundation] Add immutable non-cash investing/financing disclosures, authenticated create/list APIs, posted-line validation, duplicate protection, and a separate Cash Flow Statement disclosure section.
 6. [Implemented foundation] Add explicit financing-liability account classification and an IAS 7.44A reconciliation for opening/closing balances, finalized cash allocations, linked non-cash disclosures, and visible unclassified changes. FX, fair-value, business-combination, and other movement types remain future extensions.
 7. Add indirect-method operating cash flows only after working-capital and non-cash adjustment data are sufficient.
-8. Implement the statement of changes in equity and comparative financial statements.
+8. [Implemented foundation] Add the statement of changes in equity with opening/closing balances and debit/credit movements per equity account. Explicit owner contribution/distribution categories, OCI, and comparative financial statements remain future extensions. See [changes in equity operations](../operations/changes-in-equity.md).
 9. Add accounting-period close, locked periods, controlled reopening, and audit evidence.
 10. Expand into tax, inventory, fixed assets, leases, foreign currency, and other standards according to product scope.
 
