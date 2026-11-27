@@ -1,3 +1,5 @@
+using ArtaFin.Application.Abstractions.Persistence;
+
 namespace ArtaFin.Application.Features.Reports.GetBalanceSheet;
 
 /// <summary>
@@ -44,8 +46,6 @@ public static class ObligationMaturityCalculator
     }
 }
 
-public sealed record ObligationInstallmentTerm(Guid InstallmentId, DateOnly DueDate, decimal Amount);
-public sealed record ObligationInstallmentPayment(Guid InstallmentId, decimal Amount);
 public sealed record ObligationMaturityResult(decimal CurrentAmount, decimal NonCurrentAmount)
 {
     public decimal TotalOutstanding => CurrentAmount + NonCurrentAmount;
