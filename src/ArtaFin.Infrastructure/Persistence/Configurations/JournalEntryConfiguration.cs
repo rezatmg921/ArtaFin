@@ -61,6 +61,7 @@ public sealed class JournalEntryConfiguration : IEntityTypeConfiguration<Journal
             {
                 table.HasCheckConstraint("CK_JournalLines_Amount_Positive", "[Amount] > 0");
                 table.HasCheckConstraint("CK_JournalLines_Side_Valid", "[Side] IN (1, 2)");
+                table.HasCheckConstraint("CK_JournalLines_EquityMovementType_Valid", "[EquityMovementType] IN (0, 1, 2, 3, 4)");
             });
 
             lines.WithOwner()
