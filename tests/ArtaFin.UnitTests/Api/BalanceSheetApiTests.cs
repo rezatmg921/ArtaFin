@@ -101,8 +101,11 @@ public sealed class BalanceSheetApiTests
                 services.UseTestPermissionAuthorization();
                 services.RemoveAll<IFinancialBookRepository>();
                 services.RemoveAll<IBalanceSheetReadRepository>();
+                services.RemoveAll<IObligationMaturityReadRepository>();
                 services.AddSingleton<IFinancialBookRepository>(new FakeBookRepository(book));
                 services.AddSingleton<IBalanceSheetReadRepository>(repository);
+                services.AddSingleton<IObligationMaturityReadRepository>(
+                    new FakeObligationMaturityReadRepository());
             });
         }
     }
@@ -134,6 +137,14 @@ public sealed class BalanceSheetApiTests
             LastAsOf = asOf;
             return Task.FromResult(accounts);
         }
+    }
+
+    private sealed class FakeObligationMaturityReadRepository
+        : IObligationMaturityReadRepository
+    {
+        public Task<IReadOnlyList<ObligationMaturitySnapshot>> GetAsOfAsync(
+            Guid financialBookId, DateTimeOffset asOf, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<ObligationMaturitySnapshot>>([]);
     }
 
     private sealed record BalanceSheetResponse(
