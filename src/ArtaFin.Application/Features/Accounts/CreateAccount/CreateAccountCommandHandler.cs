@@ -62,7 +62,8 @@ public sealed class CreateAccountCommandHandler(
             command.Name,
             command.Type,
             timeProvider.GetUtcNow(),
-            command.BalancePolicy);
+            command.BalancePolicy,
+            command.BalanceSheetClassification);
 
         await accountRepository.AddAsync(account, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
