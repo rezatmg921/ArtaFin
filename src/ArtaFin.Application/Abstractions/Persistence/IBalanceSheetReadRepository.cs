@@ -17,4 +17,6 @@ public sealed record BalanceSheetAccountSnapshot(
     string Name,
     ArtaFin.Domain.Finance.AccountType Type,
     decimal TotalDebits,
-    decimal TotalCredits);
+    decimal TotalCredits,
+    ArtaFin.Domain.Finance.BalanceSheetClassification BalanceSheetClassification =
+        ArtaFin.Domain.Finance.BalanceSheetClassification.Unclassified);
