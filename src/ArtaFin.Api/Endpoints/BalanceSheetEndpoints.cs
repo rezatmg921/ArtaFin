@@ -42,13 +42,25 @@ internal static class BalanceSheetEndpoints
             result.TotalLiabilities,
             result.TotalEquity,
             result.TotalLiabilitiesAndEquity,
-            result.Difference));
+            result.Difference,
+            result.Assets.Where(account => account.BalanceSheetClassification == ArtaFin.Domain.Finance.BalanceSheetClassification.Current).Select(ToResponse).ToArray(),
+            result.Assets.Where(account => account.BalanceSheetClassification == ArtaFin.Domain.Finance.BalanceSheetClassification.NonCurrent).Select(ToResponse).ToArray(),
+            result.Assets.Where(account => account.BalanceSheetClassification == ArtaFin.Domain.Finance.BalanceSheetClassification.Unclassified).Select(ToResponse).ToArray(),
+            result.Liabilities.Where(account => account.BalanceSheetClassification == ArtaFin.Domain.Finance.BalanceSheetClassification.Current).Select(ToResponse).ToArray(),
+            result.Liabilities.Where(account => account.BalanceSheetClassification == ArtaFin.Domain.Finance.BalanceSheetClassification.NonCurrent).Select(ToResponse).ToArray(),
+            result.Liabilities.Where(account => account.BalanceSheetClassification == ArtaFin.Domain.Finance.BalanceSheetClassification.Unclassified).Select(ToResponse).ToArray(),
+            result.CurrentAssets,
+            result.NonCurrentAssets,
+            result.UnclassifiedAssets,
+            result.CurrentLiabilities,
+            result.NonCurrentLiabilities,
+            result.UnclassifiedLiabilities));
     }
 
     private static BalanceSheetAccountResponse ToResponse(
         BalanceSheetAccountResult account) =>
         new(account.AccountId, account.Code, account.Name,
-            account.Type.ToString(), account.Amount);
+            account.Type.ToString(), account.Amount, account.BalanceSheetClassification.ToString());
 }
 
 internal sealed record BalanceSheetResponse(
@@ -62,11 +74,24 @@ internal sealed record BalanceSheetResponse(
     decimal TotalLiabilities,
     decimal TotalEquity,
     decimal TotalLiabilitiesAndEquity,
-    decimal Difference);
+    decimal Difference,
+    IReadOnlyList<BalanceSheetAccountResponse> CurrentAssets,
+    IReadOnlyList<BalanceSheetAccountResponse> NonCurrentAssets,
+    IReadOnlyList<BalanceSheetAccountResponse> UnclassifiedAssets,
+    IReadOnlyList<BalanceSheetAccountResponse> CurrentLiabilities,
+    IReadOnlyList<BalanceSheetAccountResponse> NonCurrentLiabilities,
+    IReadOnlyList<BalanceSheetAccountResponse> UnclassifiedLiabilities,
+    decimal CurrentAssetsTotal,
+    decimal NonCurrentAssetsTotal,
+    decimal UnclassifiedAssetsTotal,
+    decimal CurrentLiabilitiesTotal,
+    decimal NonCurrentLiabilitiesTotal,
+    decimal UnclassifiedLiabilitiesTotal);
 
 internal sealed record BalanceSheetAccountResponse(
     Guid AccountId,
     string Code,
     string Name,
     string Type,
-    decimal Amount);
+    decimal Amount,
+    string BalanceSheetClassification);
