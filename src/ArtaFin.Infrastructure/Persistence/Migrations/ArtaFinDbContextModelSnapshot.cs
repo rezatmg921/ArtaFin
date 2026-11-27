@@ -360,22 +360,6 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                         });
                 });
 
-            modelBuilder.Entity("ArtaFin.Domain.Finance.EquityMovementCorrection", b =>
-                {
-                    b.HasOne("ArtaFin.Domain.Finance.FinancialBook", null)
-                        .WithMany()
-                        .HasForeignKey("FinancialBookId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("ArtaFin.Domain.Finance.JournalEntry", null)
-                        .WithMany()
-                        .HasForeignKey("FinancialBookId", "JournalEntryId")
-                        .HasPrincipalKey("FinancialBookId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("ArtaFin.Domain.Contacts.Contact", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1423,6 +1407,22 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                         });
 
                     b.Navigation("Lines");
+                });
+
+            modelBuilder.Entity("ArtaFin.Domain.Finance.EquityMovementCorrection", b =>
+                {
+                    b.HasOne("ArtaFin.Domain.Finance.FinancialBook", null)
+                        .WithMany()
+                        .HasForeignKey("FinancialBookId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ArtaFin.Domain.Finance.JournalEntry", null)
+                        .WithMany()
+                        .HasForeignKey("FinancialBookId", "JournalEntryId")
+                        .HasPrincipalKey("FinancialBookId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("ArtaFin.Domain.Finance.LeaseContract", b =>
