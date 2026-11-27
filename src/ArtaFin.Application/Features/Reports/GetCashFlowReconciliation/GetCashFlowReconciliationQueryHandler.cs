@@ -23,10 +23,13 @@ public sealed class GetCashFlowReconciliationQueryHandler(
 
         // Both trial-balance snapshots use the exact Cash Flow period boundaries.
         // The nested report handlers enforce financial-book access permissions.
+        // TrialBalance's as-of repository is inclusive (PostedAt <= AsOf), while
+        // Cash Flow uses an exclusive upper boundary (PostedAt < instant).
+        // Move each snapshot cutoff back by one tick to align both reports.
         var openingTrialBalance = await sender.Send(
-            new GetTrialBalanceQuery(query.FinancialBookId, query.From), cancellationToken);
+            new GetTrialBalanceQuery(query.FinancialBookId, query.From.AddTicks(-1)), cancellationToken);
         var closingTrialBalance = await sender.Send(
-            new GetTrialBalanceQuery(query.FinancialBookId, query.To), cancellationToken);
+            new GetTrialBalanceQuery(query.FinancialBookId, query.To.AddTicks(-1)), cancellationToken);
         var cashFlow = await sender.Send(
             new GetCashFlowStatementQuery(query.FinancialBookId, query.From, query.To),
             cancellationToken);
@@ -46,16 +49,19 @@ public sealed class GetCashFlowReconciliationQueryHandler(
         var closing = closingTrialBalance.Items.Where(item => cashAccountIds.Contains(item.AccountId))
             .ToDictionary(item => item.AccountId);
 
-        var accounts = closing.Values
-            .Select(item =>
+        // Use the union so accounts introduced during the period are not omitted.
+        var accounts = opening.Keys.Union(closing.Keys)
+            .Select(accountId =>
             {
-                opening.TryGetValue(item.AccountId, out var openingItem);
+                opening.TryGetValue(accountId, out var openingItem);
+                closing.TryGetValue(accountId, out var closingItem);
+                var current = closingItem ?? openingItem!;
                 return new CashFlowReconciliationAccountResult(
-                    item.AccountId,
-                    item.Code,
-                    item.Name,
-                    item.TotalDebits - (openingItem?.TotalDebits ?? 0m),
-                    item.TotalCredits - (openingItem?.TotalCredits ?? 0m));
+                    current.AccountId,
+                    current.Code,
+                    current.Name,
+                    (closingItem?.TotalDebits ?? 0m) - (openingItem?.TotalDebits ?? 0m),
+                    (closingItem?.TotalCredits ?? 0m) - (openingItem?.TotalCredits ?? 0m));
             })
             .OrderBy(item => item.AccountCode, StringComparer.Ordinal)
             .ToArray();
@@ -74,7 +80,7 @@ public sealed class GetCashFlowReconciliationQueryHandler(
         return new CashFlowReconciliationResult(
             query.From,
             query.To,
-            closingTrialBalance.AsOf,
+            query.To,
             closingTrialBalance.Currency,
             cashDebits,
             cashCredits,
