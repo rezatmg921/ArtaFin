@@ -15,4 +15,5 @@ public sealed record UpdateAccountCommand(
     CashFlowAccountType? CashFlowAccountType = null,
     int? CashEquivalentMaturityDays = null,
     bool? CashEquivalentRiskInsignificant = null,
-    FinancingLiabilityType? FinancingLiabilityType = null) : IRequest<AccountReadSnapshot?>;
+    FinancingLiabilityType? FinancingLiabilityType = null,
+    BalanceSheetClassification? BalanceSheetClassification = null) : IRequest<AccountReadSnapshot?>;
