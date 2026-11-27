@@ -48,6 +48,11 @@ public sealed class GetChangesInEquityQueryHandlerTests
         Assert.Equal(30m, component.Increases);
         Assert.Equal(0m, component.Decreases);
         Assert.Equal(130m, component.ClosingBalance);
+        Assert.Equal(30m, component.OwnerContributions);
+        Assert.Equal(0m, component.OwnerDistributions);
+        Assert.Equal(0m, component.TransfersIn);
+        Assert.Equal(0m, component.TransfersOut);
+        Assert.Equal(0m, component.UnclassifiedIncreases);
         Assert.Equal(100m, result.OpeningEquity);
         Assert.Equal(30m, result.TotalIncreases);
         Assert.Equal(0m, result.TotalDecreases);
