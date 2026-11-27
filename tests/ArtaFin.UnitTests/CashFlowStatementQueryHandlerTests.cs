@@ -57,6 +57,10 @@ public sealed class CashFlowStatementQueryHandlerTests
         Assert.Equal(0m, result.ReconciliationDifference);
         Assert.True(result.IsReconciled);
         Assert.Empty(result.Exceptions);
+        var internalTransfer = Assert.Single(result.InternalCashTransfers);
+        Assert.Equal(10m, internalTransfer.Amount);
+        Assert.Equal("1010", internalTransfer.ToAccountCode);
+        Assert.Equal("1000", internalTransfer.FromAccountCode);
 
         var operating = Assert.Single(result.Activities, item => item.Activity == CashFlowActivity.Operating);
         Assert.Equal(50m, operating.CashReceipts);

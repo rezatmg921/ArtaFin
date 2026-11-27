@@ -17,6 +17,7 @@ The report returns:
 - Closing cash and cash equivalents immediately before `To`.
 - Reconciliation difference and an `IsReconciled` indicator.
 - Explicit exceptions for cash movements that cannot be safely included.
+- A separate `InternalCashTransfers` collection listing internal movements between cash/cash-equivalent accounts, including source and destination accounts, amount, currency, posting date, and journal entry.
 - A separate `NonCashDisclosures` collection for non-cash investing and financing transactions, with source journal entry/line, posting date, amount, currency, activity, category, and memo.
 
 Cash inflows are derived from debit-side cash/cash-equivalent lines; outflows are derived from credit-side lines. Their finalized allocations provide the activity and category. A split source line contributes to each category according to its allocation amount.

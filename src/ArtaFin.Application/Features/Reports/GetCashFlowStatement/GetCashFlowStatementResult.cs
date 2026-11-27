@@ -15,6 +15,17 @@ public sealed record CashFlowCategoryResult(
     decimal CashPayments,
     decimal NetCashFlow);
 
+public sealed record CashFlowInternalTransferResult(
+    Guid JournalEntryId,
+    DateTimeOffset PostedAt,
+    string Description,
+    string FromAccountCode,
+    string FromAccountName,
+    string ToAccountCode,
+    string ToAccountName,
+    decimal Amount,
+    string Currency);
+
 public sealed record CashFlowStatementExceptionResult(
     string Code,
     string Message,
@@ -49,4 +60,5 @@ public sealed record CashFlowStatementResult(
     decimal ReconciliationDifference,
     bool IsReconciled,
     IReadOnlyList<CashFlowStatementExceptionResult> Exceptions,
+    IReadOnlyList<CashFlowInternalTransferResult> InternalCashTransfers,
     IReadOnlyList<CashFlowNonCashDisclosureResult> NonCashDisclosures);

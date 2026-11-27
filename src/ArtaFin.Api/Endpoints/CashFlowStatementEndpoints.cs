@@ -62,6 +62,16 @@ internal static class CashFlowStatementEndpoints
             result.ClosingCashAndCashEquivalents,
             result.ReconciliationDifference,
             result.IsReconciled,
+            result.InternalCashTransfers.Select(item => new CashFlowInternalTransferResponse(
+                item.JournalEntryId,
+                item.PostedAt,
+                item.Description,
+                item.FromAccountCode,
+                item.FromAccountName,
+                item.ToAccountCode,
+                item.ToAccountName,
+                item.Amount,
+                item.Currency)).ToArray(),
             result.Exceptions.Select(item => new CashFlowStatementExceptionResponse(
                 item.Code,
                 item.Message,
@@ -97,6 +107,7 @@ internal sealed record CashFlowStatementResponse(
     decimal ReconciliationDifference,
     bool IsReconciled,
     IReadOnlyList<CashFlowStatementExceptionResponse> Exceptions,
+    IReadOnlyList<CashFlowInternalTransferResponse> InternalCashTransfers,
     IReadOnlyList<CashFlowNonCashDisclosureResponse> NonCashDisclosures);
 
 internal sealed record CashFlowActivityResponse(
@@ -111,6 +122,17 @@ internal sealed record CashFlowCategoryResponse(
     decimal CashReceipts,
     decimal CashPayments,
     decimal NetCashFlow);
+
+internal sealed record CashFlowInternalTransferResponse(
+    Guid JournalEntryId,
+    DateTimeOffset PostedAt,
+    string Description,
+    string FromAccountCode,
+    string FromAccountName,
+    string ToAccountCode,
+    string ToAccountName,
+    decimal Amount,
+    string Currency);
 
 internal sealed record CashFlowStatementExceptionResponse(
     string Code,

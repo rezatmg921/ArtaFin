@@ -53,6 +53,7 @@ public sealed class GetCashFlowStatementQueryHandler(
             .ToHashSet();
 
         var exceptions = new List<CashFlowStatementExceptionResult>();
+        var internalCashTransfers = new List<CashFlowInternalTransferResult>();
         var categoryTotals = new Dictionary<(CashFlowActivity Activity, string Category), (decimal Receipts, decimal Payments)>();
 
         decimal CashBalanceAt(DateTimeOffset instant) =>
@@ -88,7 +89,12 @@ public sealed class GetCashFlowStatementQueryHandler(
             // A journal entry made exclusively of cash/cash-equivalent accounts
             // is an internal movement and is excluded from external cash flows.
             if (cashLines.Length == entry.Length)
+            {
+                var postedAt = cashLines[0].PostedAt;
+                if (postedAt >= query.From && postedAt < query.To)
+                    internalCashTransfers.AddRange(BuildInternalTransfers(cashLines));
                 continue;
+            }
 
             foreach (var cashLine in cashLines.Where(line =>
                          line.PostedAt >= query.From &&
@@ -182,6 +188,7 @@ public sealed class GetCashFlowStatementQueryHandler(
             reconciliationDifference,
             isReconciled,
             exceptions,
+            internalCashTransfers.OrderBy(item => item.PostedAt).ThenBy(item => item.JournalEntryId).ToArray(),
             snapshot.NonCashDisclosures
                 .Where(item => item.PostedAt >= query.From && item.PostedAt < query.To)
                 .Select(item => new CashFlowNonCashDisclosureResult(
@@ -196,6 +203,56 @@ public sealed class GetCashFlowStatementQueryHandler(
                     item.Category,
                     item.Memo))
                 .ToArray());
+    }
+
+
+    private static IReadOnlyList<CashFlowInternalTransferResult> BuildInternalTransfers(
+        IReadOnlyList<CashFlowStatementLineSnapshot> cashLines)
+    {
+        var transfers = new List<CashFlowInternalTransferResult>();
+
+        foreach (var currencyGroup in cashLines.GroupBy(line => line.Currency, StringComparer.Ordinal))
+        {
+            var debits = new Queue<(CashFlowStatementLineSnapshot Line, decimal Remaining)>(
+                currencyGroup.Where(line => line.Side == PostingSide.Debit)
+                    .OrderBy(line => line.LineNumber)
+                    .Select(line => (line, line.Amount)));
+            var credits = new Queue<(CashFlowStatementLineSnapshot Line, decimal Remaining)>(
+                currencyGroup.Where(line => line.Side == PostingSide.Credit)
+                    .OrderBy(line => line.LineNumber)
+                    .Select(line => (line, line.Amount)));
+
+            while (debits.Count > 0 && credits.Count > 0)
+            {
+                var debit = debits.Dequeue();
+                var credit = credits.Dequeue();
+                var amount = Math.Min(debit.Remaining, credit.Remaining);
+
+                if (amount > 0)
+                {
+                    transfers.Add(new CashFlowInternalTransferResult(
+                        debit.Line.JournalEntryId,
+                        debit.Line.PostedAt,
+                        debit.Line.Description,
+                        credit.Line.AccountCode,
+                        credit.Line.AccountName,
+                        debit.Line.AccountCode,
+                        debit.Line.AccountName,
+                        amount,
+                        debit.Line.Currency));
+                }
+
+                var debitRemaining = debit.Remaining - amount;
+                var creditRemaining = credit.Remaining - amount;
+
+                if (debitRemaining > 0)
+                    debits.Enqueue((debit.Line, debitRemaining));
+                if (creditRemaining > 0)
+                    credits.Enqueue((credit.Line, creditRemaining));
+            }
+        }
+
+        return transfers;
     }
 
     private static CashFlowStatementExceptionResult ToException(
