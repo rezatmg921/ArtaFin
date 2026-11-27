@@ -19,13 +19,16 @@ public sealed class GetChangesInEquityQueryHandlerTests
         [
             new ChangesInEquityAccountSnapshot(
                 accountId, "3000", "Capital", AccountType.Equity,
-                0m, 100m, 0m, 30m, 0m, 130m),
+                0m, 100m, 0m, 30m, 0m, 130m,
+                30m, 0m, 0m, 0m, 0m, 0m, 0m, 0m),
             new ChangesInEquityAccountSnapshot(
                 Guid.NewGuid(), "4000", "Sales", AccountType.Income,
-                0m, 20m, 0m, 50m, 0m, 70m),
+                0m, 20m, 0m, 50m, 0m, 70m,
+                0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m),
             new ChangesInEquityAccountSnapshot(
                 Guid.NewGuid(), "6000", "Rent", AccountType.Expense,
-                5m, 0m, 15m, 0m, 20m, 0m)
+                5m, 0m, 15m, 0m, 20m, 0m,
+                0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m)
         ], 15m, 50m));
         var from = new DateTimeOffset(2026, 2, 1, 0, 0, 0, TimeSpan.Zero);
         var to = new DateTimeOffset(2026, 3, 1, 0, 0, 0, TimeSpan.Zero);
