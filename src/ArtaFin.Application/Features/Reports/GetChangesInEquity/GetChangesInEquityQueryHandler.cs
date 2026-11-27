@@ -48,7 +48,15 @@ public sealed class GetChangesInEquityQueryHandler(
                 account.OpeningCredits - account.OpeningDebits,
                 account.PeriodCredits,
                 account.PeriodDebits,
-                account.ClosingCredits - account.ClosingDebits))
+                account.ClosingCredits - account.ClosingDebits,
+                account.OwnerContributions,
+                account.OwnerDistributions,
+                account.TransfersIn,
+                account.TransfersOut,
+                account.OtherIncreases,
+                account.OtherDecreases,
+                account.UnclassifiedIncreases,
+                account.UnclassifiedDecreases))
             .ToArray();
 
         var openingEquity = components.Sum(account => account.OpeningBalance);
