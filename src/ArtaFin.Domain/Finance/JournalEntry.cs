@@ -9,6 +9,18 @@ public enum PostingSide
 }
 
 /// <summary>
+/// Explicit reason for a movement posted to an equity account.
+/// </summary>
+public enum EquityMovementType : byte
+{
+    Unclassified = 0,
+    OwnerContribution = 1,
+    OwnerDistribution = 2,
+    TransferBetweenEquityAccounts = 3,
+    Other = 4
+}
+
+/// <summary>
 /// A journal line supplied to the posting operation. The owning JournalEntry assigns
 /// its stable line number and FinancialBookId when the entry is posted.
 /// </summary>
@@ -25,9 +37,14 @@ public sealed record JournalLine
     public Guid FinancialBookId { get; private set; }
     public Guid AccountId { get; private set; }
     public PostingSide Side { get; private set; }
+    public EquityMovementType EquityMovementType { get; private set; }
     public Money Amount => new(_amount, _currency);
 
-    public JournalLine(Guid accountId, PostingSide side, Money amount)
+    public JournalLine(
+        Guid accountId,
+        PostingSide side,
+        Money amount,
+        EquityMovementType equityMovementType = EquityMovementType.Unclassified)
     {
         if (accountId == Guid.Empty)
             throw new ArgumentException("Account id cannot be empty.", nameof(accountId));
@@ -35,9 +52,16 @@ public sealed record JournalLine
             throw new ArgumentOutOfRangeException(nameof(side));
         if (amount.Amount <= 0)
             throw new ArgumentOutOfRangeException(nameof(amount), "Journal line amount must be positive.");
+        if (!Enum.IsDefined(equityMovementType))
+            throw new ArgumentOutOfRangeException(nameof(equityMovementType));
+        if (equityMovementType == EquityMovementType.OwnerContribution && side != PostingSide.Credit)
+            throw new DomainException("Owner contributions must be posted as credits to equity accounts.");
+        if (equityMovementType == EquityMovementType.OwnerDistribution && side != PostingSide.Debit)
+            throw new DomainException("Owner distributions must be posted as debits to equity accounts.");
 
         AccountId = accountId;
         Side = side;
+        EquityMovementType = equityMovementType;
         _amount = amount.Amount;
         _currency = amount.Currency;
     }
@@ -50,7 +74,7 @@ public sealed record JournalLine
         if (financialBookId == Guid.Empty)
             throw new ArgumentException("Financial book id cannot be empty.", nameof(financialBookId));
 
-        return new JournalLine(source.AccountId, source.Side, source.Amount)
+        return new JournalLine(source.AccountId, source.Side, source.Amount, source.EquityMovementType)
         {
             LineNumber = lineNumber,
             FinancialBookId = financialBookId
@@ -140,7 +164,12 @@ public sealed class JournalEntry : AggregateRoot
             new JournalLine(
                 line.AccountId,
                 line.Side == PostingSide.Debit ? PostingSide.Credit : PostingSide.Debit,
-                line.Amount));
+                line.Amount,
+                line.EquityMovementType == EquityMovementType.OwnerContribution
+                    ? EquityMovementType.Other
+                    : line.EquityMovementType == EquityMovementType.OwnerDistribution
+                        ? EquityMovementType.Other
+                        : line.EquityMovementType));
 
         return CreatePosted(
             id,
