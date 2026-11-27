@@ -7,7 +7,8 @@ namespace ArtaFin.Application.Features.JournalEntries.CreateJournalEntry;
 public sealed record JournalEntryLineCommand(
     Guid AccountId,
     PostingSide Side,
-    Money Amount);
+    Money Amount,
+    EquityMovementType EquityMovementType = EquityMovementType.Unclassified);
 
 /// <summary>
 /// Requests posting a balanced journal entry into a financial book.
