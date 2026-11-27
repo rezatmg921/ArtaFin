@@ -48,7 +48,7 @@ Independent control report:
 
 `GET /api/financial-books/{financialBookId}/reports/cash-flow-reconciliation?from={from}&to={to}`
 
-The report uses the same half-open period as the Cash Flow Statement. It requests Trial Balance snapshots at both exact boundaries (`From` and `To`) and calculates period cash-account debit/credit turnover from their difference. Cash and cash-equivalent accounts are identified using the account classification used by the Cash Flow Statement.
+The report uses the same half-open period as the Cash Flow Statement. Trial Balance's underlying as-of query is inclusive, so the report requests snapshots one database timestamp tick before `From` and `To`. This reproduces the Cash Flow Statement's exclusive boundary semantics and calculates period cash-account debit/credit turnover from their difference. The response's `TrialBalanceAsOf` reports the logical exclusive `To` boundary. Cash and cash-equivalent accounts are identified using the account classification used by the Cash Flow Statement.
 
 Internal transfers in the period are deducted once from cash-account debits and once from cash-account credits. The resulting external inflows and outflows are compared separately with Cash Flow Statement receipts and payments. The response includes account-level turnover, both differences, the Trial Balance cutoff, and `IsReconciled`.
 
