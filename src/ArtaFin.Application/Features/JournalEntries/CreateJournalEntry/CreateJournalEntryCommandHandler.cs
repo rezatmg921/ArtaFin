@@ -95,6 +95,23 @@ public sealed class CreateJournalEntryCommandHandler(
                 requestedLine.EquityMovementType));
         }
 
+        var equityTransfers = command.Lines
+            .Where(line => line.EquityMovementType == EquityMovementType.TransferBetweenEquityAccounts)
+            .ToArray();
+        if (equityTransfers.Length > 0)
+        {
+            var transferDebits = equityTransfers
+                .Where(line => line.Side == PostingSide.Debit)
+                .Sum(line => line.Amount.Amount);
+            var transferCredits = equityTransfers
+                .Where(line => line.Side == PostingSide.Credit)
+                .Sum(line => line.Amount.Amount);
+
+            if (equityTransfers.Length < 2 || transferDebits != transferCredits)
+                throw new ArgumentException(
+                    "Transfers between equity accounts must include at least two balanced equity lines.");
+        }
+
         var entry = JournalEntry.Post(
             Guid.NewGuid(),
             financialBook.Id,
