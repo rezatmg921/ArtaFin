@@ -11,6 +11,8 @@ public sealed class AccountConfiguration : IEntityTypeConfiguration<Account>
         builder.ToTable("Accounts", table =>
         {
             table.HasCheckConstraint("CK_Accounts_Type_Valid", "[Type] IN (1, 2, 3, 4, 5)");
+            table.HasCheckConstraint("CK_Accounts_BalanceSheetClassification_Valid", "[BalanceSheetClassification] IN (0, 1, 2)");
+            table.HasCheckConstraint("CK_Accounts_BalanceSheetClassification_EligibleType", "[BalanceSheetClassification] = 0 OR [Type] IN (1, 2)");
             table.HasCheckConstraint("CK_Accounts_NormalBalance_Valid", "[NormalBalance] IN (1, 2)");
             table.HasCheckConstraint("CK_Accounts_Status_Valid", "[Status] IN (1, 2)");
             table.HasCheckConstraint("CK_Accounts_BalancePolicy_Valid", "[BalancePolicy] IN (1, 2)");
@@ -38,6 +40,8 @@ public sealed class AccountConfiguration : IEntityTypeConfiguration<Account>
         builder.Property(account => account.CashFlowAccountType).HasConversion<byte>().HasColumnType("tinyint").HasDefaultValue(CashFlowAccountType.None).IsRequired();
         builder.Property(account => account.CashEquivalentMaturityDays).HasColumnType("int");
         builder.Property(account => account.CashEquivalentRiskInsignificant).HasColumnType("bit");
+        builder.Property(account => account.BalanceSheetClassification).HasConversion<byte>()
+            .HasColumnType("tinyint").HasDefaultValue(BalanceSheetClassification.Unclassified).IsRequired();
         builder.Property(account => account.FinancingLiabilityType).HasConversion<byte>()
             .HasColumnType("tinyint").HasDefaultValue(FinancingLiabilityType.None).IsRequired();
         builder.Property(account => account.CreatedAt).HasColumnType("datetimeoffset(7)").IsRequired();
