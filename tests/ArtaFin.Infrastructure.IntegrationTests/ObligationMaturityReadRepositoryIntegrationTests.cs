@@ -66,7 +66,7 @@ public sealed class ObligationMaturityReadRepositoryIntegrationTests : IAsyncLif
                 new JournalLine(liability.Id, PostingSide.Credit, new Money(20m, "USD"))
             ]);
         var futurePaymentEntry = JournalEntry.Post(
-            Guid.NewGuid(), bookId, asOf.AddDays(3), "Future installment payment",
+            Guid.NewGuid(), bookId, asOf.AddDays(3), "Backdated payment recorded after report date",
             [
                 new JournalLine(liability.Id, PostingSide.Debit, new Money(10m, "USD")),
                 new JournalLine(asset.Id, PostingSide.Credit, new Money(10m, "USD"))
