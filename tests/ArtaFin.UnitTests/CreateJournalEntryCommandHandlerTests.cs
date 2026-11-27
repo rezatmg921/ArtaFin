@@ -103,6 +103,64 @@ public sealed class CreateJournalEntryCommandHandlerTests
     }
 
     [Fact]
+    public async Task HandleAsync_WhenEquityMovementIsOwnerContribution_StoresClassification()
+    {
+        var equityAccount = Account.Create(Guid.NewGuid(), BookId, "3000", "Capital",
+            AccountType.Equity, Now.AddYears(-1));
+        var journalRepository = new FakeJournalEntryRepository();
+        var handler = CreateHandler(CreateBook(OwnerId), OwnerId,
+            [CreateAccount(DebitAccountId), equityAccount],
+            journalRepository, new FakeUnitOfWork());
+        var command = new CreateJournalEntryCommand(BookId, "Owner contribution",
+        [
+            new JournalEntryLineCommand(DebitAccountId, PostingSide.Debit, new Money(100m, "EUR")),
+            new JournalEntryLineCommand(equityAccount.Id, PostingSide.Credit, new Money(100m, "EUR"),
+                EquityMovementType.OwnerContribution)
+        ]);
+
+        await handler.HandleAsync(command, CancellationToken.None);
+
+        var entry = Assert.IsType<JournalEntry>(journalRepository.AddedEntry);
+        Assert.Equal(EquityMovementType.OwnerContribution, entry.Lines[1].EquityMovementType);
+    }
+
+    [Fact]
+    public async Task HandleAsync_WhenEquityMovementIsAssignedToNonEquityAccount_Rejects()
+    {
+        var handler = CreateHandler(CreateBook(OwnerId), OwnerId,
+            [CreateAccount(DebitAccountId), CreateAccount(CreditAccountId)],
+            new FakeJournalEntryRepository(), new FakeUnitOfWork());
+        var command = new CreateJournalEntryCommand(BookId, "Invalid classification",
+        [
+            new JournalEntryLineCommand(DebitAccountId, PostingSide.Debit, new Money(10m, "EUR")),
+            new JournalEntryLineCommand(CreditAccountId, PostingSide.Credit, new Money(10m, "EUR"),
+                EquityMovementType.OwnerContribution)
+        ]);
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            handler.HandleAsync(command, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task HandleAsync_WhenOwnerContributionIsDebit_Rejects()
+    {
+        var equityAccount = Account.Create(Guid.NewGuid(), BookId, "3000", "Capital",
+            AccountType.Equity, Now.AddYears(-1));
+        var handler = CreateHandler(CreateBook(OwnerId), OwnerId,
+            [equityAccount, CreateAccount(CreditAccountId)],
+            new FakeJournalEntryRepository(), new FakeUnitOfWork());
+        var command = new CreateJournalEntryCommand(BookId, "Invalid contribution side",
+        [
+            new JournalEntryLineCommand(equityAccount.Id, PostingSide.Debit, new Money(10m, "EUR"),
+                EquityMovementType.OwnerContribution),
+            new JournalEntryLineCommand(CreditAccountId, PostingSide.Credit, new Money(10m, "EUR"))
+        ]);
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            handler.HandleAsync(command, CancellationToken.None));
+    }
+
+    [Fact]
     public async Task HandleAsync_WhenLinesAreUnbalanced_RejectsWithoutWriting()
     {
         var handler = CreateHandler(CreateBook(OwnerId), OwnerId,
