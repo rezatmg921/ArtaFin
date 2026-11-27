@@ -185,6 +185,12 @@ public sealed class CashFlowReconciliationQueryHandlerTests
             return cutoff == opening.AsOf ? opening : closing;
         }
 
+        public Task Send<TRequest>(
+            TRequest request,
+            CancellationToken cancellationToken = default)
+            where TRequest : IRequest =>
+            throw new NotSupportedException();
+
         public Task<object?> Send(
             object request,
             CancellationToken cancellationToken = default) =>
