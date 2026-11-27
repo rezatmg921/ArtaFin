@@ -95,6 +95,48 @@ public sealed class GetBalanceSheetQueryHandlerTests
     }
 
     [Fact]
+    public async Task Handle_ReportsCurrentAndNonCurrentObligationsWithoutChangingLedgerTotals()
+    {
+        var ownerId = Guid.NewGuid();
+        var book = CreateBook(ownerId);
+        var asOf = new DateTimeOffset(2026, 11, 27, 12, 0, 0, TimeSpan.Zero);
+        var controlAccountId = Guid.NewGuid();
+        var currentInstallmentId = Guid.NewGuid();
+        var nonCurrentInstallmentId = Guid.NewGuid();
+        var obligation = new ObligationMaturitySnapshot(
+            Guid.NewGuid(),
+            controlAccountId,
+            ArtaFin.Domain.Obligations.FinancialObligationDirection.Payable,
+            "USD",
+            [
+                new ObligationInstallmentTerm(currentInstallmentId, new DateOnly(2027, 2, 1), 50m),
+                new ObligationInstallmentTerm(nonCurrentInstallmentId, new DateOnly(2028, 2, 1), 50m)
+            ],
+            [
+                new ObligationInstallmentPayment(currentInstallmentId, 25m),
+                new ObligationInstallmentPayment(nonCurrentInstallmentId, 5m)
+            ]);
+        var handler = new GetBalanceSheetQueryHandler(
+            new TestCurrentUser(ownerId),
+            new FakeFinancialBookRepository(book),
+            new FakeBalanceSheetReadRepository([
+                new BalanceSheetAccountSnapshot(controlAccountId, "2000", "Payables", AccountType.Liability, 0m, 70m)
+            ]),
+            new FakeObligationMaturityReadRepository([obligation]),
+            new FixedTimeProvider(asOf));
+
+        var result = await handler.Handle(
+            new GetBalanceSheetQuery(book.Id, asOf), CancellationToken.None);
+
+        var maturity = Assert.Single(result.ObligationMaturities);
+        Assert.Equal(25m, maturity.CurrentAmount);
+        Assert.Equal(45m, maturity.NonCurrentAmount);
+        Assert.Equal(70m, maturity.TotalOutstanding);
+        Assert.True(maturity.IsReconciled);
+        Assert.Equal(70m, result.TotalLiabilities);
+    }
+
+    [Fact]
     public async Task Handle_UsesCurrentTimeWhenAsOfIsOmitted()
     {
         var ownerId = Guid.NewGuid();
@@ -105,6 +147,7 @@ public sealed class GetBalanceSheetQueryHandlerTests
             new TestCurrentUser(ownerId),
             new FakeFinancialBookRepository(book),
             repository,
+            new FakeObligationMaturityReadRepository([]),
             new FixedTimeProvider(now));
 
         var result = await handler.Handle(
@@ -150,6 +193,7 @@ public sealed class GetBalanceSheetQueryHandlerTests
         new(new TestCurrentUser(currentUserId),
             new FakeFinancialBookRepository(book),
             new FakeBalanceSheetReadRepository(snapshots),
+            new FakeObligationMaturityReadRepository([]),
             new FixedTimeProvider(now));
 
     private sealed class TestCurrentUser(Guid userId) : ICurrentUser
@@ -186,6 +230,14 @@ public sealed class GetBalanceSheetQueryHandlerTests
             LastAsOf = asOf;
             return Task.FromResult(snapshots);
         }
+    }
+
+    private sealed class FakeObligationMaturityReadRepository(
+        IReadOnlyList<ObligationMaturitySnapshot> snapshots) : IObligationMaturityReadRepository
+    {
+        public Task<IReadOnlyList<ObligationMaturitySnapshot>> GetAsOfAsync(
+            Guid financialBookId, DateTimeOffset asOf, CancellationToken cancellationToken) =>
+            Task.FromResult(snapshots);
     }
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
