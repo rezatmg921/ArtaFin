@@ -28,6 +28,11 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<byte>("BalanceSheetClassification")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint")
+                        .HasDefaultValue((byte)0);
+
                     b.Property<byte>("BalancePolicy")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint")
@@ -96,6 +101,10 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
 
                     b.ToTable("Accounts", null, t =>
                         {
+                            t.HasCheckConstraint("CK_Accounts_BalanceSheetClassification_EligibleType", "[BalanceSheetClassification] = 0 OR [Type] IN (1, 2)");
+
+                            t.HasCheckConstraint("CK_Accounts_BalanceSheetClassification_Valid", "[BalanceSheetClassification] IN (0, 1, 2)");
+
                             t.HasCheckConstraint("CK_Accounts_BalancePolicy_Valid", "[BalancePolicy] IN (1, 2)");
 
                             t.HasCheckConstraint("CK_Accounts_CashFlowClassification_AssetOnly", "[CashFlowAccountType] = 0 OR [Type] = 1");
