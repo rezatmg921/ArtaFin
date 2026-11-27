@@ -252,6 +252,9 @@ public sealed class JournalEntryApiTests
         Assert.NotNull(factory.JournalEntries.AddedEntry);
         Assert.Equal(original.Id, factory.JournalEntries.AddedEntry!.ReversesJournalEntryId);
         Assert.Equal(2, factory.JournalEntries.AddedEntry.Lines.Count);
+        Assert.Equal(
+            EquityMovementType.OwnerContribution,
+            factory.JournalEntries.AddedEntry.Lines[1].EquityMovementType);
         Assert.Equal(2, factory.UnitOfWork.SaveChangesCalls);
     }
 
