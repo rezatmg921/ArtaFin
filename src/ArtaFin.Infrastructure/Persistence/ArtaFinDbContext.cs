@@ -37,6 +37,7 @@ public sealed class ArtaFinDbContext(
     public DbSet<JournalEntry> JournalEntries => Set<JournalEntry>();
     public DbSet<CashFlowAllocationSet> CashFlowAllocationSets => Set<CashFlowAllocationSet>();
     public DbSet<CashFlowNonCashDisclosure> CashFlowNonCashDisclosures => Set<CashFlowNonCashDisclosure>();
+    public DbSet<EquityMovementCorrection> EquityMovementCorrections => Set<EquityMovementCorrection>();
     public DbSet<LeaseContract> LeaseContracts => Set<LeaseContract>();
     public DbSet<LeasePaymentSchedule> LeasePaymentSchedules => Set<LeasePaymentSchedule>();
     public DbSet<LeasePaymentScheduleLine> LeasePaymentScheduleLines => Set<LeasePaymentScheduleLine>();
@@ -61,6 +62,7 @@ public sealed class ArtaFinDbContext(
         modelBuilder.Entity<JournalEntry>();
         modelBuilder.Entity<CashFlowAllocationSet>();
         modelBuilder.Entity<CashFlowNonCashDisclosure>();
+        modelBuilder.Entity<EquityMovementCorrection>();
         modelBuilder.Entity<LeaseContract>();
         modelBuilder.Entity<LeasePaymentSchedule>();
         modelBuilder.Entity<LeasePaymentScheduleLine>();
@@ -84,6 +86,7 @@ public sealed class ArtaFinDbContext(
         modelBuilder.ApplyConfiguration(new JournalEntryConfiguration());
         modelBuilder.ApplyConfiguration(new CashFlowAllocationSetConfiguration());
         modelBuilder.ApplyConfiguration(new CashFlowNonCashDisclosureConfiguration());
+        modelBuilder.ApplyConfiguration(new EquityMovementCorrectionConfiguration());
         modelBuilder.ApplyConfiguration(new LeaseContractConfiguration());
         modelBuilder.ApplyConfiguration(new LeasePaymentScheduleConfiguration());
         modelBuilder.ApplyConfiguration(new LeasePaymentScheduleLineConfiguration());
@@ -103,6 +106,7 @@ public sealed class ArtaFinDbContext(
     {
         EnsurePostedJournalEntriesAreImmutable();
         EnsureNonCashDisclosuresAreImmutable();
+        EnsureEquityMovementCorrectionsAreImmutable();
         EnsureLeasePaymentSchedulesAreImmutable();
         EnsureFinancialObligationInstallmentsAreImmutable();
         EnsureFinancialObligationPaymentsAreImmutable();
@@ -143,6 +147,7 @@ public sealed class ArtaFinDbContext(
     {
         EnsurePostedJournalEntriesAreImmutable();
         EnsureNonCashDisclosuresAreImmutable();
+        EnsureEquityMovementCorrectionsAreImmutable();
         EnsureLeasePaymentSchedulesAreImmutable();
         EnsureFinancialObligationInstallmentsAreImmutable();
         EnsureFinancialObligationPaymentsAreImmutable();
@@ -452,6 +457,22 @@ public sealed class ArtaFinDbContext(
         {
             throw new InvalidOperationException(
                 "Non-cash disclosures are immutable and cannot be modified or deleted.");
+        }
+    }
+
+    private void EnsureEquityMovementCorrectionsAreImmutable()
+    {
+        ChangeTracker.DetectChanges();
+
+        var hasModifiedOrDeletedCorrection =
+            ChangeTracker.Entries<EquityMovementCorrection>()
+                .Any(entry =>
+                    entry.State is EntityState.Modified or EntityState.Deleted);
+
+        if (hasModifiedOrDeletedCorrection)
+        {
+            throw new InvalidOperationException(
+                "Equity movement corrections are immutable and cannot be modified or deleted.");
         }
     }
 
