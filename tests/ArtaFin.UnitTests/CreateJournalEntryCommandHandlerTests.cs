@@ -161,6 +161,52 @@ public sealed class CreateJournalEntryCommandHandlerTests
     }
 
     [Fact]
+    public async Task HandleAsync_WhenEquityTransferIsBalanced_AcceptsBothEquityLines()
+    {
+        var source = Account.Create(Guid.NewGuid(), BookId, "3000", "Capital",
+            AccountType.Equity, Now.AddYears(-1));
+        var destination = Account.Create(Guid.NewGuid(), BookId, "3100", "Legal reserve",
+            AccountType.Equity, Now.AddYears(-1));
+        var journalRepository = new FakeJournalEntryRepository();
+        var handler = CreateHandler(CreateBook(OwnerId), OwnerId,
+            [source, destination], journalRepository, new FakeUnitOfWork());
+        var command = new CreateJournalEntryCommand(BookId, "Transfer to legal reserve",
+        [
+            new JournalEntryLineCommand(source.Id, PostingSide.Debit, new Money(20m, "EUR"),
+                EquityMovementType.TransferBetweenEquityAccounts),
+            new JournalEntryLineCommand(destination.Id, PostingSide.Credit, new Money(20m, "EUR"),
+                EquityMovementType.TransferBetweenEquityAccounts)
+        ]);
+
+        await handler.HandleAsync(command, CancellationToken.None);
+
+        var entry = Assert.IsType<JournalEntry>(journalRepository.AddedEntry);
+        Assert.All(entry.Lines, line =>
+            Assert.Equal(EquityMovementType.TransferBetweenEquityAccounts, line.EquityMovementType));
+    }
+
+    [Fact]
+    public async Task HandleAsync_WhenEquityTransferIsNotBalanced_Rejects()
+    {
+        var source = Account.Create(Guid.NewGuid(), BookId, "3000", "Capital",
+            AccountType.Equity, Now.AddYears(-1));
+        var destination = Account.Create(Guid.NewGuid(), BookId, "3100", "Legal reserve",
+            AccountType.Equity, Now.AddYears(-1));
+        var handler = CreateHandler(CreateBook(OwnerId), OwnerId,
+            [source, destination], new FakeJournalEntryRepository(), new FakeUnitOfWork());
+        var command = new CreateJournalEntryCommand(BookId, "Unbalanced equity transfer",
+        [
+            new JournalEntryLineCommand(source.Id, PostingSide.Debit, new Money(20m, "EUR"),
+                EquityMovementType.TransferBetweenEquityAccounts),
+            new JournalEntryLineCommand(destination.Id, PostingSide.Credit, new Money(15m, "EUR"),
+                EquityMovementType.TransferBetweenEquityAccounts)
+        ]);
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            handler.HandleAsync(command, CancellationToken.None));
+    }
+
+    [Fact]
     public async Task HandleAsync_WhenLinesAreUnbalanced_RejectsWithoutWriting()
     {
         var handler = CreateHandler(CreateBook(OwnerId), OwnerId,
