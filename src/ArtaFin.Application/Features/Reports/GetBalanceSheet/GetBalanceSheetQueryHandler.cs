@@ -2,6 +2,7 @@ using ArtaFin.Application.Abstractions.Persistence;
 using ArtaFin.Application.Abstractions.Security;
 using ArtaFin.Application.Features.Accounts.CreateAccount;
 using ArtaFin.Domain.Finance;
+using ArtaFin.Domain.Obligations;
 using MediatR;
 
 namespace ArtaFin.Application.Features.Reports.GetBalanceSheet;
@@ -10,6 +11,7 @@ public sealed class GetBalanceSheetQueryHandler(
     ICurrentUser currentUser,
     IFinancialBookRepository financialBookRepository,
     IBalanceSheetReadRepository balanceSheetReadRepository,
+    IObligationMaturityReadRepository obligationMaturityReadRepository,
     TimeProvider timeProvider)
     : IRequestHandler<GetBalanceSheetQuery, BalanceSheetResult>
 {
@@ -63,15 +65,59 @@ public sealed class GetBalanceSheetQueryHandler(
             .Select(account => ToResult(account, NormalBalanceAmount(account)))
             .ToArray();
 
-        // Income and expense balances represent earnings not yet transferred
-        // to equity by closing entries. If the books have been closed, these
-        // balances are zero and the retained earnings remain in Equity accounts.
         var unclosedNetIncome = snapshots.Sum(account => account.Type switch
         {
             AccountType.Income => account.TotalCredits - account.TotalDebits,
             AccountType.Expense => account.TotalCredits - account.TotalDebits,
             _ => 0m
         });
+
+        var obligationSnapshots = await obligationMaturityReadRepository.GetAsOfAsync(
+            book.Id, asOf, cancellationToken);
+        var accountById = snapshots.ToDictionary(account => account.AccountId);
+        var obligationMaturities = obligationSnapshots
+            .GroupBy(snapshot => new
+            {
+                snapshot.ControlAccountId,
+                snapshot.Direction,
+                snapshot.Currency
+            })
+            .Select(group =>
+            {
+                var installments = group.SelectMany(snapshot => snapshot.Installments).ToArray();
+                var payments = group.SelectMany(snapshot => snapshot.Payments).ToArray();
+                var maturity = ObligationMaturityCalculator.Calculate(
+                    DateOnly.FromDateTime(asOf.DateTime), installments, payments);
+
+                var expectedAccountType = group.Key.Direction == FinancialObligationDirection.Payable
+                    ? AccountType.Liability
+                    : AccountType.Asset;
+                var hasMatchingAccount = accountById.TryGetValue(
+                    group.Key.ControlAccountId, out var account);
+                var ledgerBalance = hasMatchingAccount &&
+                                    account!.Type == expectedAccountType &&
+                                    string.Equals(group.Key.Currency, book.BaseCurrency.Code, StringComparison.Ordinal)
+                    ? NormalBalanceAmount(account!)
+                    : 0m;
+                var isReconciled = hasMatchingAccount &&
+                    account!.Type == expectedAccountType &&
+                    string.Equals(group.Key.Currency, book.BaseCurrency.Code, StringComparison.Ordinal) &&
+                    ledgerBalance == maturity.TotalOutstanding;
+
+                return new BalanceSheetObligationMaturityResult(
+                    group.Key.ControlAccountId,
+                    group.Key.Direction,
+                    group.Key.Currency,
+                    maturity.CurrentAmount,
+                    maturity.NonCurrentAmount,
+                    maturity.TotalOutstanding,
+                    ledgerBalance,
+                    maturity.TotalOutstanding - ledgerBalance,
+                    isReconciled);
+            })
+            .OrderBy(result => result.Direction)
+            .ThenBy(result => result.ControlAccountId)
+            .ToArray();
 
         var totalAssets = assets.Sum(account => account.Amount);
         var totalLiabilities = liabilities.Sum(account => account.Amount);
@@ -89,7 +135,8 @@ public sealed class GetBalanceSheetQueryHandler(
             totalLiabilities,
             totalEquity,
             totalLiabilitiesAndEquity,
-            totalAssets - totalLiabilitiesAndEquity);
+            totalAssets - totalLiabilitiesAndEquity,
+            obligationMaturities);
     }
 
     private static BalanceSheetAccountResult ToResult(
