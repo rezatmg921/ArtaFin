@@ -25,7 +25,8 @@ internal sealed class BalanceSheetReadRepository(ArtaFinDbContext dbContext)
                 account.Id,
                 account.Code,
                 account.Name,
-                account.Type
+                account.Type,
+                account.BalanceSheetClassification
             })
             .ToListAsync(cancellationToken);
 
@@ -65,7 +66,8 @@ internal sealed class BalanceSheetReadRepository(ArtaFinDbContext dbContext)
                 account.Name,
                 account.Type,
                 total?.Debits ?? 0m,
-                total?.Credits ?? 0m);
+                total?.Credits ?? 0m,
+                account.BalanceSheetClassification);
         }).ToArray();
     }
 }
