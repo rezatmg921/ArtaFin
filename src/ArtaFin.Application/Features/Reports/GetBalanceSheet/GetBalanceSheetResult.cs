@@ -8,7 +8,8 @@ public sealed record BalanceSheetAccountResult(
     string Code,
     string Name,
     AccountType Type,
-    decimal Amount);
+    decimal Amount,
+    BalanceSheetClassification BalanceSheetClassification = BalanceSheetClassification.Unclassified);
 
 public sealed record BalanceSheetObligationMaturityResult(
     Guid ControlAccountId,
@@ -33,4 +34,10 @@ public sealed record BalanceSheetResult(
     decimal TotalEquity,
     decimal TotalLiabilitiesAndEquity,
     decimal Difference,
-    IReadOnlyList<BalanceSheetObligationMaturityResult> ObligationMaturities);
+    IReadOnlyList<BalanceSheetObligationMaturityResult> ObligationMaturities,
+    decimal CurrentAssets = 0m,
+    decimal NonCurrentAssets = 0m,
+    decimal UnclassifiedAssets = 0m,
+    decimal CurrentLiabilities = 0m,
+    decimal NonCurrentLiabilities = 0m,
+    decimal UnclassifiedLiabilities = 0m);
