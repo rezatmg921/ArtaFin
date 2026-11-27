@@ -1341,6 +1341,8 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                                     t.HasCheckConstraint("CK_JournalLines_Amount_Positive", "[Amount] > 0");
 
                                     t.HasCheckConstraint("CK_JournalLines_Side_Valid", "[Side] IN (1, 2)");
+
+                                    t.HasCheckConstraint("CK_JournalLines_EquityMovementType_Valid", "[EquityMovementType] IN (0, 1, 2, 3, 4)");
                                 });
 
                             b1.WithOwner()
