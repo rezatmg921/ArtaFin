@@ -49,6 +49,7 @@ internal sealed class ChangesInEquityReadRepository(ArtaFinDbContext dbContext)
                     entry.PostedAt,
                     line.AccountId,
                     line.Side,
+                    line.EquityMovementType,
                     Amount = EF.Property<decimal>(line, "_amount")
                 })
             .GroupBy(line => line.AccountId)
@@ -66,7 +67,47 @@ internal sealed class ChangesInEquityReadRepository(ArtaFinDbContext dbContext)
                 ClosingDebits = group.Sum(line =>
                     line.Side == PostingSide.Debit ? line.Amount : 0m),
                 ClosingCredits = group.Sum(line =>
-                    line.Side == PostingSide.Credit ? line.Amount : 0m)
+                    line.Side == PostingSide.Credit ? line.Amount : 0m),
+                OwnerContributionCredits = group.Sum(line =>
+                    line.PostedAt >= from && line.PostedAt < to &&
+                    line.EquityMovementType == EquityMovementType.OwnerContribution &&
+                    line.Side == PostingSide.Credit ? line.Amount : 0m),
+                OwnerContributionDebits = group.Sum(line =>
+                    line.PostedAt >= from && line.PostedAt < to &&
+                    line.EquityMovementType == EquityMovementType.OwnerContribution &&
+                    line.Side == PostingSide.Debit ? line.Amount : 0m),
+                OwnerDistributionDebits = group.Sum(line =>
+                    line.PostedAt >= from && line.PostedAt < to &&
+                    line.EquityMovementType == EquityMovementType.OwnerDistribution &&
+                    line.Side == PostingSide.Debit ? line.Amount : 0m),
+                OwnerDistributionCredits = group.Sum(line =>
+                    line.PostedAt >= from && line.PostedAt < to &&
+                    line.EquityMovementType == EquityMovementType.OwnerDistribution &&
+                    line.Side == PostingSide.Credit ? line.Amount : 0m),
+                TransfersIn = group.Sum(line =>
+                    line.PostedAt >= from && line.PostedAt < to &&
+                    line.EquityMovementType == EquityMovementType.TransferBetweenEquityAccounts &&
+                    line.Side == PostingSide.Credit ? line.Amount : 0m),
+                TransfersOut = group.Sum(line =>
+                    line.PostedAt >= from && line.PostedAt < to &&
+                    line.EquityMovementType == EquityMovementType.TransferBetweenEquityAccounts &&
+                    line.Side == PostingSide.Debit ? line.Amount : 0m),
+                OtherIncreases = group.Sum(line =>
+                    line.PostedAt >= from && line.PostedAt < to &&
+                    line.EquityMovementType == EquityMovementType.Other &&
+                    line.Side == PostingSide.Credit ? line.Amount : 0m),
+                OtherDecreases = group.Sum(line =>
+                    line.PostedAt >= from && line.PostedAt < to &&
+                    line.EquityMovementType == EquityMovementType.Other &&
+                    line.Side == PostingSide.Debit ? line.Amount : 0m),
+                UnclassifiedIncreases = group.Sum(line =>
+                    line.PostedAt >= from && line.PostedAt < to &&
+                    line.EquityMovementType == EquityMovementType.Unclassified &&
+                    line.Side == PostingSide.Credit ? line.Amount : 0m),
+                UnclassifiedDecreases = group.Sum(line =>
+                    line.PostedAt >= from && line.PostedAt < to &&
+                    line.EquityMovementType == EquityMovementType.Unclassified &&
+                    line.Side == PostingSide.Debit ? line.Amount : 0m)
             })
             .ToDictionaryAsync(item => item.AccountId, cancellationToken);
 
@@ -83,7 +124,15 @@ internal sealed class ChangesInEquityReadRepository(ArtaFinDbContext dbContext)
                 total?.PeriodDebits ?? 0m,
                 total?.PeriodCredits ?? 0m,
                 total?.ClosingDebits ?? 0m,
-                total?.ClosingCredits ?? 0m);
+                total?.ClosingCredits ?? 0m,
+                (total?.OwnerContributionCredits ?? 0m) - (total?.OwnerContributionDebits ?? 0m),
+                (total?.OwnerDistributionDebits ?? 0m) - (total?.OwnerDistributionCredits ?? 0m),
+                total?.TransfersIn ?? 0m,
+                total?.TransfersOut ?? 0m,
+                total?.OtherIncreases ?? 0m,
+                total?.OtherDecreases ?? 0m,
+                total?.UnclassifiedIncreases ?? 0m,
+                total?.UnclassifiedDecreases ?? 0m);
         }).ToArray();
 
         decimal UnclosedNetIncome(bool opening) =>
