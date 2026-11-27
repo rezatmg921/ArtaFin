@@ -41,7 +41,7 @@ internal sealed class ChangesInEquityReadRepository(ArtaFinDbContext dbContext)
             .AsNoTracking()
             .Where(entry =>
                 entry.FinancialBookId == financialBookId &&
-                entry.PostedAt <= to)
+                entry.PostedAt < to)
             .SelectMany(
                 entry => entry.Lines,
                 (entry, line) => new
