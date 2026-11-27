@@ -21,7 +21,6 @@ public sealed class GetCashFlowReconciliationQueryHandler(
         if (query.From >= query.To)
             throw new ArgumentException("From must be earlier than To.", nameof(query));
 
-        // Both trial-balance snapshots use the exact Cash Flow period boundaries.
         // The nested report handlers enforce financial-book access permissions.
         // TrialBalance's as-of repository is inclusive (PostedAt <= AsOf), while
         // Cash Flow uses an exclusive upper boundary (PostedAt < instant).
@@ -39,7 +38,7 @@ public sealed class GetCashFlowReconciliationQueryHandler(
 
         var cashAccountIds = snapshot.Lines
             .Where(line => line.PostedAt < query.To &&
-                line.CashFlowAccountType is CashFlowAccountType.Cash or CashFlowAccountType.CashEquivalent &&
+                (line.CashFlowAccountType is CashFlowAccountType.Cash or CashFlowAccountType.CashEquivalent) &&
                 StringComparer.Ordinal.Equals(line.Currency, closingTrialBalance.Currency))
             .Select(line => line.AccountId)
             .ToHashSet();
