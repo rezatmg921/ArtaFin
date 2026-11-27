@@ -33,6 +33,7 @@ internal sealed class ObligationMaturityReadRepository(ArtaFinDbContext dbContex
             where obligationIds.Contains(allocation.FinancialObligationId) &&
                   payment.FinancialBookId == financialBookId &&
                   payment.PaymentDate <= asOfDate &&
+                  payment.CreatedAt <= asOf &&
                   (payment.ReversedAt == null || payment.ReversedAt > asOf)
             select new
             {
