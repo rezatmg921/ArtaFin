@@ -40,3 +40,16 @@ Cash inflows are derived from debit-side cash/cash-equivalent lines; outflows ar
 This is the first IAS 7 direct-method projection. It uses the current account-level cash/cash-equivalent classification and finalized line allocations. Historical effective dating of account classification, configurable interest/dividend policies, financing-liability movement disclosures (IAS 7.44A), and indirect-method adjustments are subsequent capabilities. Category codes are reported as supplied; the API does not yet enforce a versioned category catalogue or entity-specific accounting policy.
 
 The report does not claim full IFRS compliance by itself. The reporting framework and jurisdiction must be selected for the financial book and reviewed by the entity's accounting professional.
+
+
+## Cash Flow Reconciliation
+
+Independent control report:
+
+`GET /api/financial-books/{financialBookId}/reports/cash-flow-reconciliation?from={from}&to={to}`
+
+The report uses the same half-open period as the Cash Flow Statement. It requests Trial Balance snapshots at both exact boundaries (`From` and `To`) and calculates period cash-account debit/credit turnover from their difference. Cash and cash-equivalent accounts are identified using the account classification used by the Cash Flow Statement.
+
+Internal transfers in the period are deducted once from cash-account debits and once from cash-account credits. The resulting external inflows and outflows are compared separately with Cash Flow Statement receipts and payments. The response includes account-level turnover, both differences, the Trial Balance cutoff, and `IsReconciled`.
+
+A report is reconciled only when the underlying Cash Flow Statement is reconciled and both turnover differences are zero. The Trial Balance snapshots and Cash Flow Statement therefore share the exact same period boundaries; callers should not compare reports generated with different cutoffs.
