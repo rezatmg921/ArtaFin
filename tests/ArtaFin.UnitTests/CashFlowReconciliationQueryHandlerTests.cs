@@ -82,7 +82,7 @@ public sealed class CashFlowReconciliationQueryHandlerTests
         var sender = new TestSender(
             Balance(from.AddTicks(-1), account),
             Balance(to.AddTicks(-1), account with { TotalDebits = 50m, TotalCredits = 45m }),
-            CashFlow(from, to, 44m, 40m, false, Transfer(5m)));
+            CashFlow(from, to, 44m, 39m, false, Transfer(5m)));
         var repository = new TestCashFlowStatementReadRepository(Snapshot(
             CashLine(accountId, "1000", from.AddDays(1))));
         var handler = new GetCashFlowReconciliationQueryHandler(sender, repository);
@@ -93,6 +93,29 @@ public sealed class CashFlowReconciliationQueryHandlerTests
         Assert.Equal(45m, result.ExternalCashInflowsFromTrialBalance);
         Assert.Equal(40m, result.ExternalCashOutflowsFromTrialBalance);
         Assert.Equal(1m, result.ReceiptsDifference);
+        Assert.Equal(1m, result.PaymentsDifference);
+        Assert.False(result.IsReconciled);
+    }
+
+    [Fact]
+    public async Task Handle_RemainsUnreconciledWhenCashFlowHasExceptionsEvenIfTotalsMatch()
+    {
+        var from = new DateTimeOffset(2026, 11, 1, 0, 0, 0, TimeSpan.Zero);
+        var to = from.AddMonths(1);
+        var accountId = Guid.NewGuid();
+        var account = Account(accountId, "1000", "Cash");
+        var sender = new TestSender(
+            Balance(from.AddTicks(-1), account),
+            Balance(to.AddTicks(-1), account with { TotalDebits = 50m, TotalCredits = 50m }),
+            CashFlow(from, to, 45m, 45m, false, Transfer(5m)));
+        var repository = new TestCashFlowStatementReadRepository(Snapshot(
+            CashLine(accountId, "1000", from.AddDays(1))));
+        var handler = new GetCashFlowReconciliationQueryHandler(sender, repository);
+
+        var result = await handler.Handle(
+            new GetCashFlowReconciliationQuery(Guid.NewGuid(), from, to), CancellationToken.None);
+
+        Assert.Equal(0m, result.ReceiptsDifference);
         Assert.Equal(0m, result.PaymentsDifference);
         Assert.False(result.IsReconciled);
     }
