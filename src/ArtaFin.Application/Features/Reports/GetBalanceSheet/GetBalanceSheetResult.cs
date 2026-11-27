@@ -1,4 +1,5 @@
 using ArtaFin.Domain.Finance;
+using ArtaFin.Domain.Obligations;
 
 namespace ArtaFin.Application.Features.Reports.GetBalanceSheet;
 
@@ -8,6 +9,17 @@ public sealed record BalanceSheetAccountResult(
     string Name,
     AccountType Type,
     decimal Amount);
+
+public sealed record BalanceSheetObligationMaturityResult(
+    Guid ControlAccountId,
+    FinancialObligationDirection Direction,
+    string Currency,
+    decimal CurrentAmount,
+    decimal NonCurrentAmount,
+    decimal TotalOutstanding,
+    decimal LedgerBalance,
+    decimal ReconciliationDifference,
+    bool IsReconciled);
 
 public sealed record BalanceSheetResult(
     DateTimeOffset AsOf,
@@ -20,4 +32,5 @@ public sealed record BalanceSheetResult(
     decimal TotalLiabilities,
     decimal TotalEquity,
     decimal TotalLiabilitiesAndEquity,
-    decimal Difference);
+    decimal Difference,
+    IReadOnlyList<BalanceSheetObligationMaturityResult> ObligationMaturities);
