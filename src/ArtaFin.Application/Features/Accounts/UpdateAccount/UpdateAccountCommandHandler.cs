@@ -79,6 +79,8 @@ public sealed class UpdateAccountCommandHandler(
                 command.CashEquivalentRiskInsignificant);
         if (command.FinancingLiabilityType.HasValue)
             snapshot.Account.ConfigureFinancingLiabilityClassification(command.FinancingLiabilityType.Value);
+        if (command.BalanceSheetClassification.HasValue)
+            snapshot.Account.ConfigureBalanceSheetClassification(command.BalanceSheetClassification.Value);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
