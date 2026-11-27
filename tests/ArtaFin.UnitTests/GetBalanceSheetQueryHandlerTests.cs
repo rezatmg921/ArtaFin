@@ -65,6 +65,36 @@ public sealed class GetBalanceSheetQueryHandlerTests
     }
 
     [Fact]
+    public async Task Handle_OffsetsContraAssetAndIncludesUnclosedEarningsWithoutDoubleCountingEquity()
+    {
+        var ownerId = Guid.NewGuid();
+        var book = CreateBook(ownerId);
+        var asOf = new DateTimeOffset(2026, 11, 27, 12, 0, 0, TimeSpan.Zero);
+        var handler = CreateHandler(book, ownerId,
+        [
+            // Debit-normal asset with a credit balance (for example, accumulated depreciation).
+            Snapshot("1000", AccountType.Asset, 175m, 20m),
+            Snapshot("2000", AccountType.Liability, 5m, 40m),
+            // Equity already contains previously closed/retained earnings.
+            Snapshot("3000", AccountType.Equity, 10m, 55m),
+            // Current-period earnings have not yet been closed.
+            Snapshot("4000", AccountType.Income, 0m, 100m),
+            Snapshot("6000", AccountType.Expense, 25m, 0m)
+        ], asOf);
+
+        var result = await handler.Handle(
+            new GetBalanceSheetQuery(book.Id, asOf), CancellationToken.None);
+
+        Assert.Equal(155m, result.TotalAssets);
+        Assert.Equal(35m, result.TotalLiabilities);
+        Assert.Equal(45m, result.Equity.Sum(account => account.Amount));
+        Assert.Equal(75m, result.UnclosedNetIncome);
+        Assert.Equal(120m, result.TotalEquity);
+        Assert.Equal(155m, result.TotalLiabilitiesAndEquity);
+        Assert.Equal(0m, result.Difference);
+    }
+
+    [Fact]
     public async Task Handle_UsesCurrentTimeWhenAsOfIsOmitted()
     {
         var ownerId = Guid.NewGuid();
