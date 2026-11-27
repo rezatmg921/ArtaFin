@@ -152,6 +152,14 @@ internal static class AccountEndpoints
             }
         }
 
+        BalanceSheetClassification balanceSheetClassification = BalanceSheetClassification.Unclassified;
+        if (!string.IsNullOrWhiteSpace(request.BalanceSheetClassification))
+        {
+            if (!Enum.TryParse<BalanceSheetClassification>(request.BalanceSheetClassification, true, out balanceSheetClassification) ||
+                !Enum.IsDefined(balanceSheetClassification))
+                errors["balanceSheetClassification"] = ["Balance sheet classification must be Unclassified, Current, or NonCurrent."];
+        }
+
         if (errors.Count > 0)
             return Results.ValidationProblem(errors);
 
@@ -160,7 +168,8 @@ internal static class AccountEndpoints
             request.Code!,
             request.Name!,
             accountType,
-            balancePolicy);
+            balancePolicy,
+            balanceSheetClassification);
 
         var accountId = await handler.HandleAsync(command, cancellationToken);
         var location = $"/api/financial-books/{financialBookId}/accounts/{accountId}";
@@ -235,6 +244,20 @@ internal static class AccountEndpoints
             {
                 ["cashEquivalentMaturityDays"] = ["Cash-equivalent assessment fields are only valid for CashEquivalent accounts."]
             });
+        }
+
+        BalanceSheetClassification? balanceSheetClassification = null;
+        if (request.BalanceSheetClassification is not null)
+        {
+            if (!Enum.TryParse<BalanceSheetClassification>(request.BalanceSheetClassification, true, out var parsedClassification) ||
+                !Enum.IsDefined(parsedClassification))
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["balanceSheetClassification"] = ["Balance sheet classification must be Unclassified, Current, or NonCurrent."]
+                });
+            }
+            balanceSheetClassification = parsedClassification;
         }
 
         FinancingLiabilityType? financingLiabilityType = null;
@@ -313,7 +336,8 @@ internal static class AccountEndpoints
                 cashFlowAccountType,
                 request.CashEquivalentMaturityDays,
                 request.CashEquivalentRiskInsignificant,
-                financingLiabilityType),
+                financingLiabilityType,
+                balanceSheetClassification),
             cancellationToken);
 
         if (snapshot is null)
@@ -503,19 +527,26 @@ internal static class AccountEndpoints
             account.CashEquivalentMaturityDays,
             account.CashEquivalentRiskInsignificant,
             account.FinancingLiabilityType.ToString(),
+            account.BalanceSheetClassification.ToString(),
             account.Status.ToString(),
             account.CreatedAt,
             account.DeactivatedAt);
 }
 
-internal sealed record CreateAccountRequest(string? Code, string? Name, string? Type, string? BalancePolicy = null);
+internal sealed record CreateAccountRequest(
+    string? Code,
+    string? Name,
+    string? Type,
+    string? BalancePolicy = null,
+    string? BalanceSheetClassification = null);
 internal sealed record UpdateAccountRequest(
     string Name,
     string? BalancePolicy = null,
     string? CashFlowAccountType = null,
     int? CashEquivalentMaturityDays = null,
     bool? CashEquivalentRiskInsignificant = null,
-    string? FinancingLiabilityType = null);
+    string? FinancingLiabilityType = null,
+    string? BalanceSheetClassification = null);
 internal sealed record CreateAccountResponse(Guid Id);
 
 internal sealed record AccountResponse(
@@ -530,6 +561,7 @@ internal sealed record AccountResponse(
     int? CashEquivalentMaturityDays,
     bool? CashEquivalentRiskInsignificant,
     string FinancingLiabilityType,
+    string BalanceSheetClassification,
     string Status,
     DateTimeOffset CreatedAt,
     DateTimeOffset? DeactivatedAt);
