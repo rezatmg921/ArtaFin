@@ -54,11 +54,6 @@ public sealed record JournalLine
             throw new ArgumentOutOfRangeException(nameof(amount), "Journal line amount must be positive.");
         if (!Enum.IsDefined(equityMovementType))
             throw new ArgumentOutOfRangeException(nameof(equityMovementType));
-        if (equityMovementType == EquityMovementType.OwnerContribution && side != PostingSide.Credit)
-            throw new DomainException("Owner contributions must be posted as credits to equity accounts.");
-        if (equityMovementType == EquityMovementType.OwnerDistribution && side != PostingSide.Debit)
-            throw new DomainException("Owner distributions must be posted as debits to equity accounts.");
-
         AccountId = accountId;
         Side = side;
         EquityMovementType = equityMovementType;
@@ -165,11 +160,7 @@ public sealed class JournalEntry : AggregateRoot
                 line.AccountId,
                 line.Side == PostingSide.Debit ? PostingSide.Credit : PostingSide.Debit,
                 line.Amount,
-                line.EquityMovementType == EquityMovementType.OwnerContribution
-                    ? EquityMovementType.Other
-                    : line.EquityMovementType == EquityMovementType.OwnerDistribution
-                        ? EquityMovementType.Other
-                        : line.EquityMovementType));
+                line.EquityMovementType));
 
         return CreatePosted(
             id,
