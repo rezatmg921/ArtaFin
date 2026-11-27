@@ -15,7 +15,7 @@ The period includes `from` and excludes `to`. The endpoint requires `Reports.Rea
 - Period movements separately identified as owner contributions, owner distributions, transfers into/out of equity accounts, other changes, and unclassified movements.
 - Opening and closing unclosed net income, calculated from income and expense account balances.
 
-When posting a journal entry, set `equityMovementType` on each equity account line to one of `OwnerContribution`, `OwnerDistribution`, `TransferBetweenEquityAccounts`, or `Other`. Leave it omitted or set `Unclassified` when the reason is not known. Contributions must be credits; distributions must be debits. Transfers must contain at least two balanced equity lines. Reversals preserve the original classification so the report nets them against the original movement.
+When posting a journal entry, set `equityMovementType` on each equity account line to one of `OwnerContribution`, `OwnerDistribution`, `TransferBetweenEquityAccounts`, or `Other`. Leave it omitted or set `Unclassified` when the reason is not known. Contributions must be credits; distributions must be debits. Transfers must contain at least two balanced equity lines. Reversals preserve the original classification and appear with the opposite debit/credit direction.
 
 Example owner contribution line:
 
