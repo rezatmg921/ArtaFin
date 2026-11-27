@@ -48,6 +48,13 @@ public enum CashFlowAccountType
 /// Explicitly identifies liabilities arising from financing activities for IAS 7.44A.
 /// Ordinary trade and operating liabilities remain None unless specifically designated.
 /// </summary>
+public enum BalanceSheetClassification : byte
+{
+    Unclassified = 0,
+    Current = 1,
+    NonCurrent = 2
+}
+
 public enum FinancingLiabilityType : byte
 {
     None = 0,
@@ -78,6 +85,7 @@ public sealed class Account : AggregateRoot
     public int? CashEquivalentMaturityDays { get; private set; }
     public bool? CashEquivalentRiskInsignificant { get; private set; }
     public FinancingLiabilityType FinancingLiabilityType { get; private set; }
+    public BalanceSheetClassification BalanceSheetClassification { get; private set; }
 
     private Account(
         Guid id,
@@ -87,7 +95,8 @@ public sealed class Account : AggregateRoot
         AccountType type,
         AccountNormalBalance normalBalance,
         AccountBalancePolicy balancePolicy,
-        DateTimeOffset createdAt) : base(id)
+        DateTimeOffset createdAt,
+        BalanceSheetClassification balanceSheetClassification) : base(id)
     {
         FinancialBookId = financialBookId;
         Code = code;
@@ -97,6 +106,7 @@ public sealed class Account : AggregateRoot
         BalancePolicy = balancePolicy;
         CreatedAt = createdAt;
         Status = AccountStatus.Active;
+        BalanceSheetClassification = balanceSheetClassification;
     }
 
     public static Account Create(
@@ -106,7 +116,8 @@ public sealed class Account : AggregateRoot
         string name,
         AccountType type,
         DateTimeOffset createdAt,
-        AccountBalancePolicy? balancePolicy = null)
+        AccountBalancePolicy? balancePolicy = null,
+        BalanceSheetClassification balanceSheetClassification = BalanceSheetClassification.Unclassified)
     {
         if (financialBookId == Guid.Empty)
             throw new ArgumentException("Financial book id cannot be empty.", nameof(financialBookId));
@@ -123,6 +134,11 @@ public sealed class Account : AggregateRoot
             throw new ArgumentException($"Account name cannot exceed {MaxNameLength} characters.", nameof(name));
         if (!Enum.IsDefined(type))
             throw new ArgumentOutOfRangeException(nameof(type));
+        if (!Enum.IsDefined(balanceSheetClassification))
+            throw new ArgumentOutOfRangeException(nameof(balanceSheetClassification));
+        if (balanceSheetClassification != BalanceSheetClassification.Unclassified &&
+            type is not (AccountType.Asset or AccountType.Liability))
+            throw new DomainException("Only asset and liability accounts can have a current/non-current balance sheet classification.");
 
         var normalBalance = type switch
         {
@@ -139,7 +155,7 @@ public sealed class Account : AggregateRoot
             throw new ArgumentOutOfRangeException(nameof(balancePolicy));
 
         return new Account(id, financialBookId, normalizedCode, normalizedName,
-            type, normalBalance, effectiveBalancePolicy, createdAt);
+            type, normalBalance, effectiveBalancePolicy, createdAt, balanceSheetClassification);
     }
 
     public void Rename(string name)
@@ -160,6 +176,21 @@ public sealed class Account : AggregateRoot
             throw new ArgumentOutOfRangeException(nameof(balancePolicy));
 
         BalancePolicy = balancePolicy;
+    }
+
+    /// <summary>
+    /// Sets the presentation classification used by the balance sheet.
+    /// It is independent from the account's ledger type and balance policy.
+    /// </summary>
+    public void ConfigureBalanceSheetClassification(BalanceSheetClassification classification)
+    {
+        if (!Enum.IsDefined(classification))
+            throw new ArgumentOutOfRangeException(nameof(classification));
+        if (classification != BalanceSheetClassification.Unclassified &&
+            Type is not (AccountType.Asset or AccountType.Liability))
+            throw new DomainException("Only asset and liability accounts can have a current/non-current balance sheet classification.");
+
+        BalanceSheetClassification = classification;
     }
 
     /// <summary>
