@@ -213,42 +213,43 @@ public sealed class GetCashFlowStatementQueryHandler(
 
         foreach (var currencyGroup in cashLines.GroupBy(line => line.Currency, StringComparer.Ordinal))
         {
-            var debits = new Queue<(CashFlowStatementLineSnapshot Line, decimal Remaining)>(
-                currencyGroup.Where(line => line.Side == PostingSide.Debit)
-                    .OrderBy(line => line.LineNumber)
-                    .Select(line => (line, line.Amount)));
-            var credits = new Queue<(CashFlowStatementLineSnapshot Line, decimal Remaining)>(
-                currencyGroup.Where(line => line.Side == PostingSide.Credit)
-                    .OrderBy(line => line.LineNumber)
-                    .Select(line => (line, line.Amount)));
+            var debits = currencyGroup.Where(line => line.Side == PostingSide.Debit)
+                .OrderBy(line => line.LineNumber).ToArray();
+            var credits = currencyGroup.Where(line => line.Side == PostingSide.Credit)
+                .OrderBy(line => line.LineNumber).ToArray();
 
-            while (debits.Count > 0 && credits.Count > 0)
+            var debitIndex = 0;
+            var creditIndex = 0;
+            var debitRemaining = debits.Length > 0 ? debits[0].Amount : 0m;
+            var creditRemaining = credits.Length > 0 ? credits[0].Amount : 0m;
+
+            while (debitIndex < debits.Length && creditIndex < credits.Length)
             {
-                var debit = debits.Dequeue();
-                var credit = credits.Dequeue();
-                var amount = Math.Min(debit.Remaining, credit.Remaining);
+                var debit = debits[debitIndex];
+                var credit = credits[creditIndex];
+                var amount = Math.Min(debitRemaining, creditRemaining);
 
                 if (amount > 0)
                 {
                     transfers.Add(new CashFlowInternalTransferResult(
-                        debit.Line.JournalEntryId,
-                        debit.Line.PostedAt,
-                        debit.Line.Description,
-                        credit.Line.AccountCode,
-                        credit.Line.AccountName,
-                        debit.Line.AccountCode,
-                        debit.Line.AccountName,
+                        debit.JournalEntryId,
+                        debit.PostedAt,
+                        debit.Description,
+                        credit.AccountCode,
+                        credit.AccountName,
+                        debit.AccountCode,
+                        debit.AccountName,
                         amount,
-                        debit.Line.Currency));
+                        debit.Currency));
                 }
 
-                var debitRemaining = debit.Remaining - amount;
-                var creditRemaining = credit.Remaining - amount;
+                debitRemaining -= amount;
+                creditRemaining -= amount;
 
-                if (debitRemaining > 0)
-                    debits.Enqueue((debit.Line, debitRemaining));
-                if (creditRemaining > 0)
-                    credits.Enqueue((credit.Line, creditRemaining));
+                if (debitRemaining == 0m && ++debitIndex < debits.Length)
+                    debitRemaining = debits[debitIndex].Amount;
+                if (creditRemaining == 0m && ++creditIndex < credits.Length)
+                    creditRemaining = credits[creditIndex].Amount;
             }
         }
 

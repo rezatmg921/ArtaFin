@@ -106,8 +106,8 @@ internal sealed record CashFlowStatementResponse(
     decimal ClosingCashAndCashEquivalents,
     decimal ReconciliationDifference,
     bool IsReconciled,
-    IReadOnlyList<CashFlowStatementExceptionResponse> Exceptions,
     IReadOnlyList<CashFlowInternalTransferResponse> InternalCashTransfers,
+    IReadOnlyList<CashFlowStatementExceptionResponse> Exceptions,
     IReadOnlyList<CashFlowNonCashDisclosureResponse> NonCashDisclosures);
 
 internal sealed record CashFlowActivityResponse(
