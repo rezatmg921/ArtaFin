@@ -76,10 +76,23 @@ public sealed class CreateJournalEntryCommandHandler(
             if (account is null || account.Status != AccountStatus.Active)
                 throw new JournalEntryAccountUnavailableException();
 
+            if (requestedLine.EquityMovementType != EquityMovementType.Unclassified &&
+                account.Type != AccountType.Equity)
+                throw new ArgumentException("Equity movement types can only be used with equity accounts.");
+
+            if (requestedLine.EquityMovementType == EquityMovementType.OwnerContribution &&
+                requestedLine.Side != PostingSide.Credit)
+                throw new ArgumentException("Owner contributions must be credits to equity accounts.");
+
+            if (requestedLine.EquityMovementType == EquityMovementType.OwnerDistribution &&
+                requestedLine.Side != PostingSide.Debit)
+                throw new ArgumentException("Owner distributions must be debits to equity accounts.");
+
             lines.Add(new JournalLine(
                 account.Id,
                 requestedLine.Side,
-                requestedLine.Amount));
+                requestedLine.Amount,
+                requestedLine.EquityMovementType));
         }
 
         var entry = JournalEntry.Post(
