@@ -86,9 +86,9 @@ public sealed class ObligationMaturityReadRepositoryIntegrationTests : IAsyncLif
 
         var futurePayment = FinancialObligationPayment.Create(
             Guid.NewGuid(), bookId, obligation.Id, asset.Id, futurePaymentEntry.Id,
-            10m, "USD", DateOnly.FromDateTime(asOf.AddDays(3).DateTime),
-            "Future installment payment", null, ownerId, asOf.AddDays(3),
-            "maturity-future-payment", new string('C', 64),
+            10m, "USD", DateOnly.FromDateTime(asOf.AddDays(-1).DateTime),
+            "Backdated payment recorded after report date", null, ownerId, asOf.AddDays(3),
+            "maturity-backdated-future-payment", new string('C', 64),
             [new FinancialObligationPaymentAllocationTerm(secondInstallmentId, 10m)]);
 
         await using (var write = new ArtaFinDbContext(Options))
