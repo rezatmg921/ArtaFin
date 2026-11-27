@@ -24,7 +24,15 @@ public sealed record ChangesInEquityAccountSnapshot(
     decimal PeriodDebits,
     decimal PeriodCredits,
     decimal ClosingDebits,
-    decimal ClosingCredits);
+    decimal ClosingCredits,
+    decimal OwnerContributions,
+    decimal OwnerDistributions,
+    decimal TransfersIn,
+    decimal TransfersOut,
+    decimal OtherIncreases,
+    decimal OtherDecreases,
+    decimal UnclassifiedIncreases,
+    decimal UnclassifiedDecreases);
 
 public sealed record ChangesInEquitySnapshot(
     IReadOnlyList<ChangesInEquityAccountSnapshot> Accounts,
