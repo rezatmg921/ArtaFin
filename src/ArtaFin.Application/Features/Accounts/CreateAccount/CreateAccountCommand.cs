@@ -7,4 +7,5 @@ public sealed record CreateAccountCommand(
     string Code,
     string Name,
     AccountType Type,
-    AccountBalancePolicy? BalancePolicy = null);
+    AccountBalancePolicy? BalancePolicy = null,
+    BalanceSheetClassification BalanceSheetClassification = BalanceSheetClassification.Unclassified);
