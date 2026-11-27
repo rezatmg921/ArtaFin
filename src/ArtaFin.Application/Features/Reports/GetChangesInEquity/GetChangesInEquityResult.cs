@@ -9,7 +9,15 @@ public sealed record ChangesInEquityAccountResult(
     decimal OpeningBalance,
     decimal Increases,
     decimal Decreases,
-    decimal ClosingBalance);
+    decimal ClosingBalance,
+    decimal OwnerContributions,
+    decimal OwnerDistributions,
+    decimal TransfersIn,
+    decimal TransfersOut,
+    decimal OtherIncreases,
+    decimal OtherDecreases,
+    decimal UnclassifiedIncreases,
+    decimal UnclassifiedDecreases);
 
 public sealed record ChangesInEquityResult(
     DateTimeOffset From,
