@@ -311,6 +311,71 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("ArtaFin.Domain.Finance.EquityMovementCorrection", b =>
+                {
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte>("CorrectedMovementType")
+                        .HasColumnType("tinyint");
+
+                    b.Property<Guid>("FinancialBookId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("JournalEntryId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("LineNumber")
+                        .HasColumnType("int");
+
+                    b.Property<byte>("OriginalMovementType")
+                        .HasColumnType("tinyint");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FinancialBookId", "JournalEntryId", "LineNumber", "CreatedAt")
+                        .HasDatabaseName("IX_EquityMovementCorrections_Line_History");
+
+                    b.ToTable("EquityMovementCorrections", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_EquityMovementCorrections_CorrectedType_Valid", "[CorrectedMovementType] IN (1, 2, 3, 4)");
+
+                            t.HasCheckConstraint("CK_EquityMovementCorrections_LineNumber_Positive", "[LineNumber] > 0");
+
+                            t.HasCheckConstraint("CK_EquityMovementCorrections_OriginalType_Valid", "[OriginalMovementType] IN (0, 1, 2, 3, 4)");
+
+                            t.HasCheckConstraint("CK_EquityMovementCorrections_Types_Different", "[OriginalMovementType] <> [CorrectedMovementType]");
+                        });
+                });
+
+            modelBuilder.Entity("ArtaFin.Domain.Finance.EquityMovementCorrection", b =>
+                {
+                    b.HasOne("ArtaFin.Domain.Finance.FinancialBook", null)
+                        .WithMany()
+                        .HasForeignKey("FinancialBookId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ArtaFin.Domain.Finance.JournalEntry", null)
+                        .WithMany()
+                        .HasForeignKey("FinancialBookId", "JournalEntryId")
+                        .HasPrincipalKey("FinancialBookId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("ArtaFin.Domain.Contacts.Contact", b =>
                 {
                     b.Property<Guid>("Id")
