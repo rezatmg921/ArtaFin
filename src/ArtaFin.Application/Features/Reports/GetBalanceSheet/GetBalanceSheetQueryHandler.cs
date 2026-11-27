@@ -136,11 +136,17 @@ public sealed class GetBalanceSheetQueryHandler(
             totalEquity,
             totalLiabilitiesAndEquity,
             totalAssets - totalLiabilitiesAndEquity,
-            obligationMaturities);
+            obligationMaturities,
+            assets.Where(account => account.BalanceSheetClassification == BalanceSheetClassification.Current).Sum(account => account.Amount),
+            assets.Where(account => account.BalanceSheetClassification == BalanceSheetClassification.NonCurrent).Sum(account => account.Amount),
+            assets.Where(account => account.BalanceSheetClassification == BalanceSheetClassification.Unclassified).Sum(account => account.Amount),
+            liabilities.Where(account => account.BalanceSheetClassification == BalanceSheetClassification.Current).Sum(account => account.Amount),
+            liabilities.Where(account => account.BalanceSheetClassification == BalanceSheetClassification.NonCurrent).Sum(account => account.Amount),
+            liabilities.Where(account => account.BalanceSheetClassification == BalanceSheetClassification.Unclassified).Sum(account => account.Amount));
     }
 
     private static BalanceSheetAccountResult ToResult(
         BalanceSheetAccountSnapshot account,
         decimal amount) =>
-        new(account.AccountId, account.Code, account.Name, account.Type, amount);
+        new(account.AccountId, account.Code, account.Name, account.Type, amount, account.BalanceSheetClassification);
 }
