@@ -295,7 +295,7 @@ public sealed class JournalEntryApiTests
         description = "Office supplies",
         lines = new[]
         {
-            new { accountId = factory.DebitAccount.Id, side = "Debit", amount = 25m, currency = "EUR" },
+            new { accountId = factory.DebitAccount.Id, side = "Debit", amount = 25m, currency = "EUR", equityMovementType = "Unclassified" },
             new { accountId = factory.CreditAccount.Id, side = "Credit", amount = 25m, currency = "EUR", equityMovementType = "OwnerContribution" }
         }
     };
