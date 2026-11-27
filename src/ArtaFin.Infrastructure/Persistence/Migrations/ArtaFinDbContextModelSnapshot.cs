@@ -1312,6 +1312,11 @@ namespace ArtaFin.Infrastructure.Persistence.Migrations
                             b1.Property<byte>("Side")
                                 .HasColumnType("tinyint");
 
+                            b1.Property<byte>("EquityMovementType")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("tinyint")
+                                .HasDefaultValue((byte)0);
+
                             b1.Property<decimal>("_amount")
                                 .HasPrecision(19, 4)
                                 .HasColumnType("decimal(19,4)")
