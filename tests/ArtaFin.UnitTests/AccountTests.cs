@@ -190,6 +190,61 @@ public sealed class AccountTests
         Assert.Null(account.CashEquivalentRiskInsignificant);
     }
 
+    [Fact]
+    public void Create_DefaultsBalanceSheetClassificationToUnclassified()
+    {
+        var asset = Account.Create(Guid.NewGuid(), BookId, "1000", "Cash", AccountType.Asset, CreatedAt);
+        var liability = Account.Create(Guid.NewGuid(), BookId, "2000", "Payables", AccountType.Liability, CreatedAt);
+
+        Assert.Equal(BalanceSheetClassification.Unclassified, asset.BalanceSheetClassification);
+        Assert.Equal(BalanceSheetClassification.Unclassified, liability.BalanceSheetClassification);
+    }
+
+    [Theory]
+    [InlineData(AccountType.Equity)]
+    [InlineData(AccountType.Income)]
+    [InlineData(AccountType.Expense)]
+    public void Create_RejectsBalanceSheetClassificationForIneligibleAccountTypes(AccountType type)
+    {
+        Assert.Throws<DomainException>(() => Account.Create(
+            Guid.NewGuid(), BookId, "9000", "Other", type, CreatedAt,
+            balanceSheetClassification: BalanceSheetClassification.Current));
+    }
+
+    [Theory]
+    [InlineData(BalanceSheetClassification.Current)]
+    [InlineData(BalanceSheetClassification.NonCurrent)]
+    public void ConfigureBalanceSheetClassification_UpdatesAssetAndLiabilityAccounts(
+        BalanceSheetClassification classification)
+    {
+        var asset = Account.Create(Guid.NewGuid(), BookId, "1000", "Cash", AccountType.Asset, CreatedAt);
+        var liability = Account.Create(Guid.NewGuid(), BookId, "2000", "Payables", AccountType.Liability, CreatedAt);
+
+        asset.ConfigureBalanceSheetClassification(classification);
+        liability.ConfigureBalanceSheetClassification(classification);
+
+        Assert.Equal(classification, asset.BalanceSheetClassification);
+        Assert.Equal(classification, liability.BalanceSheetClassification);
+    }
+
+    [Fact]
+    public void ConfigureBalanceSheetClassification_RejectsEquityAccounts()
+    {
+        var equity = Account.Create(Guid.NewGuid(), BookId, "3000", "Capital", AccountType.Equity, CreatedAt);
+
+        Assert.Throws<DomainException>(() =>
+            equity.ConfigureBalanceSheetClassification(BalanceSheetClassification.Current));
+    }
+
+    [Fact]
+    public void ConfigureBalanceSheetClassification_RejectsUnknownValue()
+    {
+        var account = CreateAccount();
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            account.ConfigureBalanceSheetClassification((BalanceSheetClassification)99));
+    }
+
     private static Account CreateAccount() => Account.Create(
         Guid.NewGuid(), BookId, "1000", "Main Bank", AccountType.Asset, CreatedAt);
     [Fact]
