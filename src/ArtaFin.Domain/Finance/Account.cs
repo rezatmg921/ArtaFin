@@ -45,8 +45,8 @@ public enum CashFlowAccountType
 }
 
 /// <summary>
-/// Explicitly identifies liabilities arising from financing activities for IAS 7.44A.
-/// Ordinary trade and operating liabilities remain None unless specifically designated.
+/// Identifies current/non-current presentation for asset and liability accounts.
+/// Unclassified is the safe default until the account has been assessed.
 /// </summary>
 public enum BalanceSheetClassification : byte
 {
@@ -55,6 +55,10 @@ public enum BalanceSheetClassification : byte
     NonCurrent = 2
 }
 
+/// <summary>
+/// Explicitly identifies liabilities arising from financing activities for IAS 7.44A.
+/// Ordinary trade and operating liabilities remain None unless specifically designated.
+/// </summary>
 public enum FinancingLiabilityType : byte
 {
     None = 0,
