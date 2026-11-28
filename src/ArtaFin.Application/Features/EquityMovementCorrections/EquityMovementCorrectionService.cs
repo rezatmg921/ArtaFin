@@ -147,13 +147,8 @@ public sealed class EquityMovementCorrectionService(
         Guid originalId,
         CancellationToken cancellationToken)
     {
-        // HasReversalAsync guarantees at most one reversal through the unique index.
-        // The repository contract intentionally exposes lookup by id only, so use the
-        // correction repository's paired-entry lookup in a later refinement.
-        return await correctionRepository is IEquityMovementCorrectionEntryLookup lookup
-            ? await lookup.GetReversalAsync(financialBookId, originalId, cancellationToken)
-            : throw new InvalidOperationException(
-                "The correction repository must support loading the paired reversal entry.");
+        return await correctionRepository.GetReversalAsync(
+            financialBookId, originalId, cancellationToken);
     }
 
     private async Task EnsureCanManageAsync(
@@ -175,13 +170,16 @@ public sealed class EquityMovementCorrectionService(
     private static EquityMovementType GetEffectiveType(
         EquityMovementType postedType,
         IReadOnlyList<EquityMovementCorrection> history,
-        int lineNumber) =>
-        history.Where(item => item.LineNumber == lineNumber)
-            .OrderBy(item => item.CreatedAt).ThenBy(item => item.Id)
-            .Select(item => item.CorrectedMovementType)
-            .LastOrDefault() is var corrected && history.Any(item => item.LineNumber == lineNumber)
-                ? corrected
-                : postedType;
+        int lineNumber)
+    {
+        var latest = history
+            .Where(item => item.LineNumber == lineNumber)
+            .OrderBy(item => item.CreatedAt)
+            .ThenBy(item => item.Id)
+            .LastOrDefault();
+
+        return latest?.CorrectedMovementType ?? postedType;
+    }
 
     private static EquityMovementCorrectionResult ToResult(EquityMovementCorrection item) =>
         new(item.Id, item.FinancialBookId, item.JournalEntryId, item.LineNumber,
@@ -189,13 +187,6 @@ public sealed class EquityMovementCorrectionService(
             item.Reason, item.CreatedBy, item.CreatedAt);
 }
 
-public interface IEquityMovementCorrectionEntryLookup
-{
-    Task<JournalEntry?> GetReversalAsync(
-        Guid financialBookId,
-        Guid originalJournalEntryId,
-        CancellationToken cancellationToken);
-}
 
 public sealed record CreateEquityMovementCorrectionsInput(
     IReadOnlyList<CreateEquityMovementCorrectionItem> Items);
