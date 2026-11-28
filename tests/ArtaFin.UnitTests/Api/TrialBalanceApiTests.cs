@@ -28,8 +28,8 @@ public sealed class TrialBalanceApiTests
         var asOf = DateTimeOffset.UtcNow.AddDays(-1);
         var repository = new FakeTrialBalanceRepository(
         [
-            new TrialBalanceAccountSnapshot(Guid.NewGuid(), "1000", "Cash", AccountType.Asset, 150m, 40m),
-            new TrialBalanceAccountSnapshot(Guid.NewGuid(), "4000", "Sales", AccountType.Income, 40m, 150m)
+            new TrialBalanceAccountSnapshot(Guid.NewGuid(), "1000", "Cash", AccountType.Asset, AccountNormalBalance.Debit, 150m, 40m),
+            new TrialBalanceAccountSnapshot(Guid.NewGuid(), "4000", "Sales", AccountType.Income, AccountNormalBalance.Credit, 40m, 150m)
         ]);
         using var factory = new ApiFactory(book, repository);
         using var client = CreateAuthenticatedClient(factory, ownerId);
@@ -128,6 +128,10 @@ public sealed class TrialBalanceApiTests
             LastAsOf = asOf;
             return Task.FromResult(accounts);
         }
+
+        public Task<IReadOnlyList<TrialBalanceAccountSnapshot>> GetBeforeAsync(
+            Guid bookId, DateTimeOffset exclusiveEnd, CancellationToken ct) =>
+            Task.FromResult(accounts);
     }
 
     private sealed record TrialBalanceResponse(
