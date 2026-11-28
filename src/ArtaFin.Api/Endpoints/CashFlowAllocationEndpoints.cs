@@ -1,0 +1,250 @@
+using ArtaFin.Application.Features.CashFlowAllocations;
+using ArtaFin.Domain.Finance;
+
+namespace ArtaFin.Api.Endpoints;
+
+internal static class CashFlowAllocationEndpoints
+{
+    public static IEndpointRouteBuilder MapCashFlowAllocationEndpoints(
+        this IEndpointRouteBuilder endpoints)
+    {
+        endpoints.MapGet(
+                "/api/financial-books/{financialBookId:guid}/journal-entries/{journalEntryId:guid}/lines/{lineNumber:int}/cash-flow-allocations",
+                GetHistoryAsync)
+            .WithName("GetCashFlowAllocationHistory")
+            .WithTags("CashFlowAllocations")
+            .RequireAuthorization("Permission:Reports.Read")
+            .Produces<IReadOnlyList<CashFlowAllocationSetResult>>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        endpoints.MapPost(
+                "/api/financial-books/{financialBookId:guid}/journal-entries/{journalEntryId:guid}/lines/{lineNumber:int}/cash-flow-allocations",
+                CreateDraftAsync)
+            .WithName("CreateCashFlowAllocationDraft")
+            .WithTags("CashFlowAllocations")
+            .RequireAuthorization("Permission:Transactions.Create")
+            .Produces<CashFlowAllocationSetResult>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
+        endpoints.MapGet(
+                "/api/financial-books/{financialBookId:guid}/cash-flow-allocations/{allocationSetId:guid}",
+                GetAsync)
+            .WithName("GetCashFlowAllocationSet")
+            .WithTags("CashFlowAllocations")
+            .RequireAuthorization("Permission:Reports.Read")
+            .Produces<CashFlowAllocationSetResult>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        endpoints.MapPost(
+                "/api/financial-books/{financialBookId:guid}/cash-flow-allocations/{allocationSetId:guid}/items",
+                AddAllocationAsync)
+            .WithName("AddCashFlowAllocation")
+            .WithTags("CashFlowAllocations")
+            .RequireAuthorization("Permission:Transactions.Create")
+            .Produces<CashFlowAllocationSetResult>()
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
+        endpoints.MapDelete(
+                "/api/financial-books/{financialBookId:guid}/cash-flow-allocations/{allocationSetId:guid}/items/{allocationId:guid}",
+                RemoveAllocationAsync)
+            .WithName("RemoveCashFlowAllocation")
+            .WithTags("CashFlowAllocations")
+            .RequireAuthorization("Permission:Transactions.Create")
+            .Produces<CashFlowAllocationSetResult>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
+        endpoints.MapDelete(
+                "/api/financial-books/{financialBookId:guid}/cash-flow-allocations/{allocationSetId:guid}",
+                CancelDraftAsync)
+            .WithName("CancelCashFlowAllocationDraft")
+            .WithTags("CashFlowAllocations")
+            .RequireAuthorization("Permission:Transactions.Create")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
+        endpoints.MapPost(
+                "/api/financial-books/{financialBookId:guid}/cash-flow-allocations/{allocationSetId:guid}/finalize",
+                FinalizeAsync)
+            .WithName("FinalizeCashFlowAllocationSet")
+            .WithTags("CashFlowAllocations")
+            .RequireAuthorization("Permission:Transactions.Approve")
+            .Produces<CashFlowAllocationSetResult>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
+        endpoints.MapPost(
+                "/api/financial-books/{financialBookId:guid}/cash-flow-allocations/{allocationSetId:guid}/revision",
+                CreateRevisionAsync)
+            .WithName("CreateCashFlowAllocationRevision")
+            .WithTags("CashFlowAllocations")
+            .RequireAuthorization("Permission:Transactions.Create")
+            .Produces<CashFlowAllocationSetResult>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
+        return endpoints;
+    }
+
+    private static async Task<IResult> GetHistoryAsync(
+        Guid financialBookId,
+        Guid journalEntryId,
+        int lineNumber,
+        CashFlowAllocationService service,
+        CancellationToken cancellationToken)
+    {
+        if (lineNumber <= 0)
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["lineNumber"] = ["Line number must be greater than zero."]
+            });
+
+        var history = await service.GetHistoryAsync(
+            financialBookId, journalEntryId, lineNumber, cancellationToken);
+        return Results.Ok(history);
+    }
+
+    private static async Task<IResult> CreateDraftAsync(
+        Guid financialBookId,
+        Guid journalEntryId,
+        int lineNumber,
+        CashFlowAllocationService service,
+        CancellationToken cancellationToken)
+    {
+        if (lineNumber <= 0)
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["lineNumber"] = ["Line number must be greater than zero."]
+            });
+
+        var result = await service.CreateDraftAsync(
+            financialBookId, journalEntryId, lineNumber, cancellationToken);
+
+        var location = $"/api/financial-books/{financialBookId}/cash-flow-allocations/{result.Id}";
+        return Results.Created(location, result);
+    }
+
+    private static async Task<IResult> GetAsync(
+        Guid financialBookId,
+        Guid allocationSetId,
+        CashFlowAllocationService service,
+        CancellationToken cancellationToken)
+    {
+        var result = await service.GetAsync(financialBookId, allocationSetId, cancellationToken);
+        return Results.Ok(result);
+    }
+
+    private static async Task<IResult> AddAllocationAsync(
+        Guid financialBookId,
+        Guid allocationSetId,
+        AddCashFlowAllocationRequest request,
+        CashFlowAllocationService service,
+        CancellationToken cancellationToken)
+    {
+        var errors = new Dictionary<string, string[]>();
+        if (request.Amount <= 0)
+            errors["amount"] = ["Amount must be greater than zero."];
+        if (!Enum.TryParse<CashFlowActivity>(request.Activity, true, out var activity) ||
+            !Enum.IsDefined(activity))
+            errors["activity"] = ["Activity must be Operating, Investing, or Financing."];
+        if (!IsCategoryCode(request.Category))
+            errors["category"] = [$"Category must be a stable code containing only letters, digits, and underscores, up to {CashFlowAllocationSet.MaxCategoryLength} characters."];
+        if (request.CounterpartLineNumber <= 0)
+            errors["counterpartLineNumber"] = ["A positive counterpart line number is required."];
+        if (request.Memo?.Length > CashFlowAllocationSet.MaxMemoLength)
+            errors["memo"] = [$"Memo cannot exceed {CashFlowAllocationSet.MaxMemoLength} characters."];
+
+        if (errors.Count > 0)
+            return Results.ValidationProblem(errors);
+
+        var result = await service.AddAllocationAsync(
+            financialBookId,
+            allocationSetId,
+            new AddCashFlowAllocationInput(
+                request.Amount, activity, request.Category!, request.CounterpartLineNumber, request.Memo),
+            cancellationToken);
+
+        return Results.Ok(result);
+    }
+
+    private static bool IsCategoryCode(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return false;
+
+        var category = value.Trim();
+        if (category.Length > CashFlowAllocationSet.MaxCategoryLength)
+            return false;
+
+        static bool IsAsciiLetter(char character) =>
+            character is >= 'A' and <= 'Z' or >= 'a' and <= 'z';
+
+        return IsAsciiLetter(category[0]) &&
+               category.All(character =>
+                   IsAsciiLetter(character) ||
+                   character is >= '0' and <= '9' ||
+                   character == '_');
+    }
+
+    private static async Task<IResult> RemoveAllocationAsync(
+        Guid financialBookId,
+        Guid allocationSetId,
+        Guid allocationId,
+        CashFlowAllocationService service,
+        CancellationToken cancellationToken)
+    {
+        var result = await service.RemoveAllocationAsync(
+            financialBookId, allocationSetId, allocationId, cancellationToken);
+        return Results.Ok(result);
+    }
+
+    private static async Task<IResult> CancelDraftAsync(
+        Guid financialBookId,
+        Guid allocationSetId,
+        CashFlowAllocationService service,
+        CancellationToken cancellationToken)
+    {
+        await service.CancelDraftAsync(financialBookId, allocationSetId, cancellationToken);
+        return Results.NoContent();
+    }
+
+    private static async Task<IResult> FinalizeAsync(
+        Guid financialBookId,
+        Guid allocationSetId,
+        CashFlowAllocationService service,
+        CancellationToken cancellationToken)
+    {
+        var result = await service.FinalizeAsync(
+            financialBookId, allocationSetId, cancellationToken);
+        return Results.Ok(result);
+    }
+
+    private static async Task<IResult> CreateRevisionAsync(
+        Guid financialBookId,
+        Guid allocationSetId,
+        CashFlowAllocationService service,
+        CancellationToken cancellationToken)
+    {
+        var result = await service.CreateRevisionAsync(
+            financialBookId, allocationSetId, cancellationToken);
+        var location = $"/api/financial-books/{financialBookId}/cash-flow-allocations/{result.Id}";
+        return Results.Created(location, result);
+    }
+}
+
+internal sealed record AddCashFlowAllocationRequest(
+    decimal Amount,
+    string? Activity,
+    string? Category,
+    int CounterpartLineNumber,
+    string? Memo);

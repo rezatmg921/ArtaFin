@@ -1,0 +1,109 @@
+using ArtaFin.Application.Abstractions.Persistence;
+using ArtaFin.Domain.Finance;
+using Microsoft.EntityFrameworkCore;
+
+namespace ArtaFin.Infrastructure.Persistence.Repositories;
+
+/// <summary>
+/// Projects account activity from immutable posted journal lines. No balance is stored.
+/// </summary>
+internal sealed class AccountLedgerReadRepository(ArtaFinDbContext dbContext)
+    : IAccountLedgerReadRepository
+{
+    public async Task<AccountLedgerPage> GetPageAsync(
+        Guid financialBookId,
+        Guid accountId,
+        AccountNormalBalance normalBalance,
+        DateTimeOffset? from,
+        DateTimeOffset? to,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken)
+    {
+        var normalSide = normalBalance == AccountNormalBalance.Debit
+            ? PostingSide.Debit
+            : PostingSide.Credit;
+
+        // Use SelectMany's result selector and an anonymous projection. EF Core can
+        // translate this directly to a relational join over JournalEntries/JournalLines;
+        // projecting a custom record from a nested collection selector prevented CountAsync
+        // from being translated by the SQL Server provider.
+        var allLines = dbContext.JournalEntries
+            .AsNoTracking()
+            .Where(entry => entry.FinancialBookId == financialBookId)
+            .SelectMany(
+                entry => entry.Lines,
+                (entry, line) => new
+                {
+                    JournalEntryId = entry.Id,
+                    entry.PostedAt,
+                    entry.Description,
+                    entry.ReversesJournalEntryId,
+                    line.LineNumber,
+                    line.AccountId,
+                    line.Side,
+                    Amount = EF.Property<decimal>(line, "_amount"),
+                    Currency = EF.Property<string>(line, "_currency")
+                })
+            .Where(line => line.AccountId == accountId);
+
+        var filteredLines = allLines;
+        if (from.HasValue)
+            filteredLines = filteredLines.Where(line => line.PostedAt >= from.Value);
+        if (to.HasValue)
+            filteredLines = filteredLines.Where(line => line.PostedAt < to.Value);
+
+        var totalCount = await filteredLines.CountAsync(cancellationToken);
+        var rows = await filteredLines
+            .OrderBy(line => line.PostedAt)
+            .ThenBy(line => line.JournalEntryId)
+            .ThenBy(line => line.LineNumber)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        if (rows.Count == 0)
+        {
+            // An empty period still has an opening balance. This is important for
+            // accounts with no activity during the selected range.
+            var emptyPeriodOpeningBalance = from.HasValue
+                ? await allLines
+                    .Where(line => line.PostedAt < from.Value)
+                    .Select(line => line.Side == normalSide ? line.Amount : -line.Amount)
+                    .SumAsync(cancellationToken)
+                : 0m;
+
+            return new AccountLedgerPage([], totalCount, emptyPeriodOpeningBalance);
+        }
+
+        var first = rows[0];
+        var openingBalance = await allLines
+            .Where(line =>
+                line.PostedAt < first.PostedAt ||
+                (line.PostedAt == first.PostedAt &&
+                 (line.JournalEntryId.CompareTo(first.JournalEntryId) < 0 ||
+                  (line.JournalEntryId == first.JournalEntryId &&
+                   line.LineNumber < first.LineNumber))))
+            .Select(line => line.Side == normalSide ? line.Amount : -line.Amount)
+            .SumAsync(cancellationToken);
+
+        var balance = openingBalance;
+        var items = rows.Select(line =>
+        {
+            balance += line.Side == normalSide ? line.Amount : -line.Amount;
+
+            return new AccountLedgerLine(
+                line.JournalEntryId,
+                line.PostedAt,
+                line.Description,
+                line.ReversesJournalEntryId,
+                line.LineNumber,
+                line.Side,
+                line.Amount,
+                line.Currency,
+                balance);
+        }).ToArray();
+
+        return new AccountLedgerPage(items, totalCount, openingBalance);
+    }
+}

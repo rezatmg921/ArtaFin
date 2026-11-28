@@ -8,14 +8,43 @@ public enum PostingSide
     Credit = 2
 }
 
-/// <summary>A line in a balanced journal entry. Amount is always positive.</summary>
+/// <summary>
+/// Explicit reason for a movement posted to an equity account.
+/// </summary>
+public enum EquityMovementType : byte
+{
+    Unclassified = 0,
+    OwnerContribution = 1,
+    OwnerDistribution = 2,
+    TransferBetweenEquityAccounts = 3,
+    Other = 4
+}
+
+/// <summary>
+/// A journal line supplied to the posting operation. The owning JournalEntry assigns
+/// its stable line number and FinancialBookId when the entry is posted.
+/// </summary>
 public sealed record JournalLine
 {
-    public Guid AccountId { get; }
-    public PostingSide Side { get; }
-    public Money Amount { get; }
+    private JournalLine()
+    {
+    }
 
-    public JournalLine(Guid accountId, PostingSide side, Money amount)
+    private decimal _amount;
+    private string _currency = null!;
+
+    public int LineNumber { get; private set; }
+    public Guid FinancialBookId { get; private set; }
+    public Guid AccountId { get; private set; }
+    public PostingSide Side { get; private set; }
+    public EquityMovementType EquityMovementType { get; private set; }
+    public Money Amount => new(_amount, _currency);
+
+    public JournalLine(
+        Guid accountId,
+        PostingSide side,
+        Money amount,
+        EquityMovementType equityMovementType = EquityMovementType.Unclassified)
     {
         if (accountId == Guid.Empty)
             throw new ArgumentException("Account id cannot be empty.", nameof(accountId));
@@ -23,10 +52,28 @@ public sealed record JournalLine
             throw new ArgumentOutOfRangeException(nameof(side));
         if (amount.Amount <= 0)
             throw new ArgumentOutOfRangeException(nameof(amount), "Journal line amount must be positive.");
-
+        if (!Enum.IsDefined(equityMovementType))
+            throw new ArgumentOutOfRangeException(nameof(equityMovementType));
         AccountId = accountId;
         Side = side;
-        Amount = amount;
+        EquityMovementType = equityMovementType;
+        _amount = amount.Amount;
+        _currency = amount.Currency;
+    }
+
+    internal static JournalLine CreateNumbered(JournalLine source, int lineNumber, Guid financialBookId)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        if (lineNumber <= 0)
+            throw new ArgumentOutOfRangeException(nameof(lineNumber));
+        if (financialBookId == Guid.Empty)
+            throw new ArgumentException("Financial book id cannot be empty.", nameof(financialBookId));
+
+        return new JournalLine(source.AccountId, source.Side, source.Amount, source.EquityMovementType)
+        {
+            LineNumber = lineNumber,
+            FinancialBookId = financialBookId
+        };
     }
 }
 
@@ -34,31 +81,129 @@ public sealed record JournalLine
 /// Immutable posted accounting record. Initial policy: a journal entry has one currency;
 /// FX requires a dedicated balanced conversion policy rather than implicit arithmetic.
 /// </summary>
-public sealed class JournalEntry : Entity
+public sealed class JournalEntry : AggregateRoot
 {
-    private readonly IReadOnlyList<JournalLine> _lines;
+    public const int MaxDescriptionLength = 500;
+
+    private readonly List<JournalLine> _lines = [];
 
     public Guid FinancialBookId { get; }
+    public Guid? ReversesJournalEntryId { get; }
+    public Guid? IdempotencyUserId { get; }
+    public string? IdempotencyKey { get; }
+    public string? RequestHash { get; }
     public DateTimeOffset PostedAt { get; }
     public string Description { get; }
-    public IReadOnlyList<JournalLine> Lines => _lines;
+    public IReadOnlyList<JournalLine> Lines => _lines.AsReadOnly();
 
-    private JournalEntry(Guid id, Guid financialBookId, DateTimeOffset postedAt,
-        string description, IReadOnlyList<JournalLine> lines) : base(id)
+    private JournalEntry(
+        Guid id,
+        Guid financialBookId,
+        DateTimeOffset postedAt,
+        string description,
+        Guid? reversesJournalEntryId = null,
+        Guid? idempotencyUserId = null,
+        string? idempotencyKey = null,
+        string? requestHash = null) : base(id)
     {
         FinancialBookId = financialBookId;
+        ReversesJournalEntryId = reversesJournalEntryId;
+        IdempotencyUserId = idempotencyUserId;
+        IdempotencyKey = idempotencyKey;
+        RequestHash = requestHash;
         PostedAt = postedAt;
         Description = description;
-        _lines = lines;
     }
 
-    public static JournalEntry Post(Guid id, Guid financialBookId, DateTimeOffset postedAt,
-        string description, IEnumerable<JournalLine> lines)
+    public static JournalEntry Post(
+        Guid id,
+        Guid financialBookId,
+        DateTimeOffset postedAt,
+        string description,
+        IEnumerable<JournalLine> lines,
+        Guid? idempotencyUserId = null,
+        string? idempotencyKey = null,
+        string? requestHash = null) =>
+        CreatePosted(
+            id,
+            financialBookId,
+            postedAt,
+            description,
+            lines,
+            reversesJournalEntryId: null,
+            idempotencyUserId: idempotencyUserId,
+            idempotencyKey: idempotencyKey,
+            requestHash: requestHash);
+
+    /// <summary>
+    /// Creates a new posted entry that reverses the accounting effect of an original entry.
+    /// The original entry remains unchanged.
+    /// </summary>
+    public static JournalEntry Reverse(
+        Guid id,
+        JournalEntry original,
+        DateTimeOffset postedAt,
+        string description,
+        Guid? idempotencyUserId = null,
+        string? idempotencyKey = null,
+        string? requestHash = null)
+    {
+        ArgumentNullException.ThrowIfNull(original);
+
+        if (id == original.Id)
+            throw new DomainException("A journal entry cannot reverse itself.");
+        if (original.ReversesJournalEntryId.HasValue)
+            throw new DomainException("A reversal entry cannot be reversed.");
+
+        var reversedLines = original.Lines.Select(line =>
+            new JournalLine(
+                line.AccountId,
+                line.Side == PostingSide.Debit ? PostingSide.Credit : PostingSide.Debit,
+                line.Amount,
+                line.EquityMovementType));
+
+        return CreatePosted(
+            id,
+            original.FinancialBookId,
+            postedAt,
+            description,
+            reversedLines,
+            original.Id,
+            idempotencyUserId,
+            idempotencyKey,
+            requestHash);
+    }
+
+    private static JournalEntry CreatePosted(
+        Guid id,
+        Guid financialBookId,
+        DateTimeOffset postedAt,
+        string description,
+        IEnumerable<JournalLine> lines,
+        Guid? reversesJournalEntryId,
+        Guid? idempotencyUserId = null,
+        string? idempotencyKey = null,
+        string? requestHash = null)
     {
         if (financialBookId == Guid.Empty)
             throw new ArgumentException("Financial book id cannot be empty.", nameof(financialBookId));
         if (string.IsNullOrWhiteSpace(description))
             throw new ArgumentException("Description is required.", nameof(description));
+
+        var normalizedDescription = description.Trim();
+        if (normalizedDescription.Length > MaxDescriptionLength)
+            throw new ArgumentException($"Description cannot exceed {MaxDescriptionLength} characters.", nameof(description));
+
+        var hasIdempotencyMetadata = idempotencyUserId.HasValue ||
+            idempotencyKey is not null || requestHash is not null;
+        if (hasIdempotencyMetadata &&
+            (!idempotencyUserId.HasValue || idempotencyUserId == Guid.Empty ||
+             string.IsNullOrWhiteSpace(idempotencyKey) || idempotencyKey.Length > 128 ||
+             requestHash is null || requestHash.Length != 64 ||
+             !requestHash.All(Uri.IsHexDigit)))
+        {
+            throw new ArgumentException("Idempotency metadata is invalid.");
+        }
 
         ArgumentNullException.ThrowIfNull(lines);
         var snapshot = lines.ToArray();
@@ -68,12 +213,19 @@ public sealed class JournalEntry : Entity
         var currency = snapshot[0].Amount.Currency;
         if (snapshot.Any(line => !StringComparer.Ordinal.Equals(line.Amount.Currency, currency)))
             throw new DomainException("All journal lines must use the same currency.");
+
         var debits = snapshot.Where(x => x.Side == PostingSide.Debit).Sum(x => x.Amount.Amount);
         var credits = snapshot.Where(x => x.Side == PostingSide.Credit).Sum(x => x.Amount.Amount);
         if (debits != credits)
             throw new DomainException("Journal entry debits must equal credits.");
 
-        return new JournalEntry(id, financialBookId, postedAt, description.Trim(),
-            Array.AsReadOnly(snapshot));
+        var entry = new JournalEntry(
+            id, financialBookId, postedAt, normalizedDescription, reversesJournalEntryId,
+            idempotencyUserId, idempotencyKey, requestHash);
+
+        for (var index = 0; index < snapshot.Length; index++)
+            entry._lines.Add(JournalLine.CreateNumbered(snapshot[index], index + 1, financialBookId));
+
+        return entry;
     }
 }
