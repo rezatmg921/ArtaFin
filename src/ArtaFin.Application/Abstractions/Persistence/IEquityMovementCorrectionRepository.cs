@@ -9,6 +9,11 @@ public interface IEquityMovementCorrectionRepository
         Guid journalEntryId,
         CancellationToken cancellationToken);
 
+    Task<JournalEntry?> GetReversalAsync(
+        Guid financialBookId,
+        Guid originalJournalEntryId,
+        CancellationToken cancellationToken);
+
     Task<bool> IsEquityAccountAsync(
         Guid financialBookId,
         Guid accountId,
