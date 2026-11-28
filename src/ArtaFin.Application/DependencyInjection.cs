@@ -4,6 +4,7 @@ using ArtaFin.Application.Features.Obligations;
 using ArtaFin.Application.Features.ObligationPayments;
 using ArtaFin.Application.Features.CashFlowAllocations;
 using ArtaFin.Application.Features.CashFlowNonCashDisclosures;
+using ArtaFin.Application.Features.EquityMovementCorrections;
 using ArtaFin.Application.Features.Authentication;
 using ArtaFin.Application.Features.FinancialBooks.CreateFinancialBook;
 using ArtaFin.Application.Features.FinancialBooks.InviteMember;
@@ -33,6 +34,7 @@ public static class DependencyInjection
         services.AddScoped<FinancialObligationPaymentService>();
         services.AddScoped<CashFlowAllocationService>();
         services.AddScoped<CashFlowNonCashDisclosureService>();
+        services.AddScoped<EquityMovementCorrectionService>();
         services.AddScoped<LeaseContractService>();
         services.AddScoped<LeasePaymentScheduleService>();
         services.AddScoped<CreateFinancialBookCommandHandler>();
