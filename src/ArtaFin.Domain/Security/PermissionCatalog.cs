@@ -33,6 +33,7 @@ public static class PermissionCatalog
         new("Transactions.Create", "Create transactions", "Create transactions in financial books the user may access."),
         new("Transactions.Reverse", "Reverse transactions", "Reverse eligible transactions in financial books the user may access."),
         new("Transactions.Approve", "Approve transactions", "Approve transactions where approval workflows are enabled."),
+        new("JournalEntries.CorrectClassification", "Correct equity movement classification", "Append an auditable correction to an equity journal line classification."),
         new("Leases.Read", "Read leases", "View lease contracts in financial books the user may access."),
         new("Leases.Manage", "Manage leases", "Manage lease contracts in financial books the user may access."),
         new("Installments.Pay", "Pay installments", "Record installment payments in financial books the user may access."),
