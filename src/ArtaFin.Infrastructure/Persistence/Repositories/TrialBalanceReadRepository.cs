@@ -10,9 +10,22 @@ namespace ArtaFin.Infrastructure.Persistence.Repositories;
 internal sealed class TrialBalanceReadRepository(ArtaFinDbContext dbContext)
     : ITrialBalanceReadRepository
 {
-    public async Task<IReadOnlyList<TrialBalanceAccountSnapshot>> GetAsOfAsync(
+    public Task<IReadOnlyList<TrialBalanceAccountSnapshot>> GetAsOfAsync(
         Guid financialBookId,
         DateTimeOffset asOf,
+        CancellationToken cancellationToken) =>
+        GetThroughAsync(financialBookId, asOf, inclusive: true, cancellationToken);
+
+    public Task<IReadOnlyList<TrialBalanceAccountSnapshot>> GetBeforeAsync(
+        Guid financialBookId,
+        DateTimeOffset exclusiveEnd,
+        CancellationToken cancellationToken) =>
+        GetThroughAsync(financialBookId, exclusiveEnd, inclusive: false, cancellationToken);
+
+    private async Task<IReadOnlyList<TrialBalanceAccountSnapshot>> GetThroughAsync(
+        Guid financialBookId,
+        DateTimeOffset asOf,
+        bool inclusive,
         CancellationToken cancellationToken)
     {
         var accounts = await dbContext.Accounts
@@ -25,7 +38,8 @@ internal sealed class TrialBalanceReadRepository(ArtaFinDbContext dbContext)
                 account.Id,
                 account.Code,
                 account.Name,
-                account.Type
+                account.Type,
+                account.NormalBalance
             })
             .ToListAsync(cancellationToken);
 
@@ -36,7 +50,7 @@ internal sealed class TrialBalanceReadRepository(ArtaFinDbContext dbContext)
             .AsNoTracking()
             .Where(entry =>
                 entry.FinancialBookId == financialBookId &&
-                entry.PostedAt <= asOf)
+                (inclusive ? entry.PostedAt <= asOf : entry.PostedAt < asOf))
             .SelectMany(
                 entry => entry.Lines,
                 (entry, line) => new
@@ -64,6 +78,7 @@ internal sealed class TrialBalanceReadRepository(ArtaFinDbContext dbContext)
                 account.Code,
                 account.Name,
                 account.Type,
+                account.NormalBalance,
                 total?.Debits ?? 0m,
                 total?.Credits ?? 0m);
         }).ToArray();
