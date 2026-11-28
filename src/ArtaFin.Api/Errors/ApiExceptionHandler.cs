@@ -8,6 +8,7 @@ using ArtaFin.Application.Features.Accounts.GetAccountLedger;
 using ArtaFin.Application.Features.Accounts.UpdateAccount;
 using ArtaFin.Application.Features.FinancialBooks.InviteMember;
 using ArtaFin.Application.Features.Expenses.CreateExpense;
+using ArtaFin.Application.Features.EquityMovementCorrections;
 using ArtaFin.Application.Features.Income.CreateIncome;
 using ArtaFin.Application.Features.Idempotency;
 using ArtaFin.Application.Features.ObligationPayments;
@@ -122,6 +123,8 @@ internal sealed class ApiExceptionHandler(
                 (StatusCodes.Status400BadRequest, "Invalid lease contract accounts", exception.Message),
             CashFlowNonCashDisclosureSourceInvalidException =>
                 (StatusCodes.Status400BadRequest, "Invalid non-cash disclosure source", exception.Message),
+            EquityMovementCorrectionConflictException =>
+                (StatusCodes.Status409Conflict, "Equity movement correction conflict", exception.Message),
             CashFlowSourceLineInvalidException =>
                 (StatusCodes.Status400BadRequest, "Invalid cash-flow source line", exception.Message),
             DomainException =>
