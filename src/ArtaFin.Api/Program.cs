@@ -228,6 +228,7 @@ app.MapCashFlowReconciliationEndpoints();
 app.MapFinancingLiabilitiesReconciliationEndpoints();
 app.MapCashFlowAllocationEndpoints();
 app.MapCashFlowNonCashDisclosureEndpoints();
+app.MapEquityMovementCorrectionEndpoints();
 app.MapLeaseContractEndpoints();
 app.MapLeasePaymentScheduleEndpoints();
 app.MapFinancialBookMemberEndpoints();
