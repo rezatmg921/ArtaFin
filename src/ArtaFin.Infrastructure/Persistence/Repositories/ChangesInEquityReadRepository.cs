@@ -49,7 +49,15 @@ internal sealed class ChangesInEquityReadRepository(ArtaFinDbContext dbContext)
                     entry.PostedAt,
                     line.AccountId,
                     line.Side,
-                    line.EquityMovementType,
+                    EquityMovementType = dbContext.EquityMovementCorrections
+                        .Where(correction =>
+                            correction.FinancialBookId == entry.FinancialBookId &&
+                            correction.JournalEntryId == entry.Id &&
+                            correction.LineNumber == line.LineNumber)
+                        .OrderByDescending(correction => correction.CreatedAt)
+                        .ThenByDescending(correction => correction.Id)
+                        .Select(correction => (EquityMovementType?)correction.CorrectedMovementType)
+                        .FirstOrDefault() ?? line.EquityMovementType,
                     Amount = EF.Property<decimal>(line, "_amount")
                 })
             .GroupBy(line => line.AccountId)
