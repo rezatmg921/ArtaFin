@@ -62,8 +62,8 @@ public sealed class EquityMovementCorrectionService(
 
             var primaryHistory = await correctionRepository.GetByJournalEntryAsync(
                 financialBookId, entry.Id, token);
-            var pairedHistory = pairedEntry is null
-                ? []
+            IReadOnlyList<EquityMovementCorrection> pairedHistory = pairedEntry is null
+                ? Array.Empty<EquityMovementCorrection>()
                 : await correctionRepository.GetByJournalEntryAsync(
                     financialBookId, pairedEntry.Id, token);
 
